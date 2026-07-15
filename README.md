@@ -1,17 +1,17 @@
-# Productos César CRM V9.2.12
+# Productos César CRM V9.2.13
 
-Versión estable basada en V9.2.11 con optimización del tablero Kanban.
+Versión basada en V9.2.12 con la primera fase del nuevo módulo de Reportes gerenciales.
 
-## Validación
-- Mantiene conectados **Ver**, **Reabrir facturación** y **Validar individual**.
-- Conserva selección por lote, pesos, hoja de ruta y asignación a delivery.
+## Reportes V9.2.13
 
-## Kanban V9.2.12
-- Cerradas muestra solo las últimas 10 órdenes por defecto.
-- Botón para mostrar 10 adicionales y opción de ocultar la columna.
-- Historial completo con búsqueda, filtros de fecha/estado y paginación 25/50.
-- Tarjetas cerradas compactas.
-- Desplazamiento interno independiente por columna.
-- KPI superiores: activas, preparación, en ruta y cerradas hoy.
+- Filtro general por período y estado.
+- Comparación automática contra un período anterior equivalente.
+- KPI con definiciones visibles y acceso al detalle.
+- Corrección de órdenes activas, incluyendo Programadas y Pedido recibido.
+- Facturado separado de órdenes estimadas no facturadas.
+- Tiempos calculados solo con etapas cerradas; Liquidación muestra “Sin datos cerrados” cuando corresponde.
+- Productos separados por unidad de medida.
+- Panel de calidad de datos.
+- Detalles clicables por estado, etapa, producto, cliente, despachador y delivery.
 
-No requiere SQL adicional.
+No requiere SQL nuevo en Supabase.

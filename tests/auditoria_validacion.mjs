@@ -31,4 +31,4 @@ for (const selector of ['data-batch-check','data-batch-weight']) {
   assert.ok(batch.includes(`[${selector}]`), `No existe enlace para ${selector}.`);
 }
 
-console.log('OK: todos los controles del módulo de Validación tienen enlace de evento en V9.2.12.');
+console.log('OK: todos los controles del módulo de Validación tienen enlace de evento en V9.2.13.');

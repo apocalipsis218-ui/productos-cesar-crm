@@ -12,4 +12,4 @@ for(const filter of ['kanbanHistorySearch','kanbanHistoryStatus','kanbanHistoryF
 assert.ok(kanban.includes("grouped.cerradas.slice(0,state.kanbanClosedLimit)"),'Cerradas no están limitadas.');
 assert.ok(css.includes('.kanban-list{min-height:0;overflow-y:auto'),'Falta scroll interno.');
 assert.ok(css.includes('.kanban-history-table'),'Falta estilo del historial.');
-console.log('OK: Kanban V9.2.12 limitado, paginado, filtrable y con scroll interno.');
+console.log('OK: Kanban V9.2.13 limitado, paginado, filtrable y con scroll interno.');
