@@ -1,0 +1,27 @@
+# Dependencias instaladas
+node_modules/
+
+# Archivos generados
+dist/
+.vite/
+
+# Variables y credenciales privadas
+.env
+.env.*
+!.env.example
+
+# Registros de errores
+*.log
+npm-debug.log*
+
+# Respaldos y archivos comprimidos
+*.zip
+package-lock.respaldo-openai.json
+
+# Archivos locales de plataformas
+.netlify/
+.wrangler/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
