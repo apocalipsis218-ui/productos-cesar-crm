@@ -1,13 +1,13 @@
 {
-  "name": "productos-cesar-vscode-v9213",
-  "version": "9.2.13",
+  "name": "productos-cesar-vscode-v9214",
+  "version": "9.2.14",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node tests/auditoria_validacion.mjs && node tests/auditoria_kanban.mjs && node tests/auditoria_reportes.mjs"
+    "test": "node tests/auditoria_validacion.mjs && node tests/auditoria_kanban.mjs && node tests/auditoria_reportes.mjs && node tests/auditoria_operacion_v9214.mjs && node tests/auditoria_usuarios_v9214.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

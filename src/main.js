@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import * as XLSX from 'xlsx';
 import './styles.css';
+import { workingMinutesBetween as calculateWorkingMinutes, durationOutlierThreshold, isReopeningTransition } from './operationAnalytics.js';
 
 window.XLSX = XLSX;
 
@@ -33,7 +34,7 @@ function saveWeightConfigLocal(cfg){ localStorage.setItem('pc_weight_config_v72'
 function defaultSystemConfig(){ return {
   empresa:{nombre:'Productos César',telefono:'',direccion:'',correo:'',rnc:'',moneda:'RD$',logoTexto:'PC',logoUrl:'',subtitulo:'CRM · Despacho · CXC'},
   menu:{mostrarIconos:true,mostrarSubtitulos:true,menuCompacto:false,modulosActivos:{}},
-  alertas:{sonidoDefault:false,parpadeoNuevas:true,revisionSegundos:30,carniceriaMaxMin:45,facturacionMaxMin:30,validacionMaxMin:30,deliveryMaxMin:120,liquidacionMaxMin:60},
+  alertas:{sonidoDefault:false,parpadeoNuevas:true,revisionSegundos:30,carniceriaMaxMin:45,facturacionMaxMin:30,validacionMaxMin:30,deliveryMaxMin:120,liquidacionMaxMin:60,usarTiempoLaborable:true,horarioLaboral:{lunesSabado:[['07:00','12:00'],['14:00','17:00']],domingo:[['07:00','12:00']]},feriados:[],excluirReaperturasPromedio:true,extremoFactor:3},
   impresion:{mostrarLogo:true,mostrarTelefono:true,mostrarDireccion:true,ticketCarniceria:'80mm',ticketFacturacion:'80mm',pieTicket:'Documento interno de trabajo'},
   recibos:{tituloOrden:'Orden para facturar',tituloRuta:'Hoja de ruta / lote de entrega',tituloLiquidacion:'Recibo de liquidación',tituloHistorial:'Historial de liquidaciones',mostrarLogo:true,mostrarTelefono:true,mostrarDireccion:true,mostrarRnc:false,mostrarCorreo:false,mostrarFecha:true,pie:'Documento interno de Productos César',firmaDelivery:'Firma delivery',firmaRecibido:'Firma recibido por',firmaValidacion:'Entregado por validación',firmaFacturacion:'Facturado por'},
   respaldo:{recordatorioActivo:true,frecuencia:'Semanal',incluirCatalogos:true,incluirOrdenes:true,incluirClientes:true,incluirConfiguracion:true,ultimoManual:''},
@@ -62,7 +63,7 @@ function printFooterHtml(){ const rec=normalizeSystemConfig(state.systemConfig||
 function signatureHtml(label){ return `<div class="sign">${esc(label||'Firma')}</div>`; }
 function exportBackup(){
   const cfg=normalizeSystemConfig(state.systemConfig||{});
-  const payload={fecha:new Date().toISOString(),version:'V9.2.13',empresa:cfg.empresa,configuracion:cfg,clientes:state.clientes||[],ordenes:(state.ordenes||[]).map(o=>({codigo:o.codigo,fecha:o.fecha,estado:o.estado,cliente:o.cliente?.negocio,total:o.total_factura||o.total_estimado,delivery:o.delivery_nombre,lote:o.lote_codigo})),productos:state.productos||[],empleados:state.empleadosOperativos||[],usuarios:state.usuarios||[],liquidaciones:state.liquidacionesLotes||[]};
+  const payload={fecha:new Date().toISOString(),version:'V9.2.14',empresa:cfg.empresa,configuracion:cfg,clientes:state.clientes||[],ordenes:(state.ordenes||[]).map(o=>({codigo:o.codigo,fecha:o.fecha,estado:o.estado,cliente:o.cliente?.negocio,total:o.total_factura||o.total_estimado,delivery:o.delivery_nombre,lote:o.lote_codigo})),productos:state.productos||[],empleados:state.empleadosOperativos||[],usuarios:state.usuarios||[],liquidaciones:state.liquidacionesLotes||[]};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`backup-productos-cesar-${today()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); toast('Copia de seguridad descargada');
 }
@@ -124,7 +125,7 @@ function saveBatchRowDraft(row){
 }
 function clearValidationBatchDraft(){ state.validationBatchDraft=emptyValidationBatchDraft(); saveValidationBatchDraftLocal(); }
 
-const state = {session:null,user:null,profile:null,page:'inicio',clientes:[],llamadas:[],productos:[],ordenes:[],cobranza:[],plantillas:[],catalogos:{},deliverys:[],empleados:[],pesos:[],entregas:[],pagos:[],historialEstados:[],entregaLotes:[],entregaLoteDetalle:[],liquidacionesLotes:[],liquidacionLoteDetalle:[],casosHistorial:[],liquidacionSchemaOk:false,specialSearch:'',specialStatusFilter:'Todos',specialTypeFilter:'Todos',modulos:[],permisos:[],usuarios:[],usuarioModulos:[],errors:[],filter:'Todos',clientSearch:'',productSearch:'',productFilter:'Todos',productCategoryFilter:'Todas',productUnitFilter:'Todas',productWeightFilter:'Todos',modal:null,configTab:'general',controlTab:'gestiones',controlDate:today(),agendaDate:today(),callSearch:'',followPage:0,followSize:8,deliveryFiltro:'',orderSearch:'',carniceriaSearch:'',facturacionSearch:'',validacionSearch:'',deliverySearch:'',liquidacionSearch:'',liquidacionTab:'pendientes',liqHistFrom:today(),liqHistTo:today(),deliveryHistoryFrom:today(),deliveryHistoryTo:today(),orderView:'hoy',carniceriaTab:'libres',ui:loadUi(),weightConfig:loadWeightConfigLocal(),systemConfig:loadSystemConfigLocal(),liveStatus:'inactivo',liveLastRefresh:null,liveNotices:[],liveUnread:0,liveSound:localStorage.getItem('pc_live_sound_v61')==='1',liveLoading:false,liveFlashOrders:{},reportPreset:'mes',reportFrom:today().slice(0,8)+'01',reportTo:today(),reportStatus:'Todos',prodMonth:String(new Date().getMonth()+1),prodYear:String(new Date().getFullYear()),prodRole:'Todos',auditSearch:'',auditType:'todos',alertSearch:'',alertLevel:'todos',kanbanSearch:'',kanbanClosedLimit:10,kanbanClosedHidden:false,kanbanHistorySearch:'',kanbanHistoryPeriod:'todos',kanbanHistoryStatus:'Todos',kanbanHistoryFrom:'',kanbanHistoryTo:'',kanbanHistoryPage:0,kanbanHistoryPageSize:25,validationBatchDraft:loadValidationBatchDraftLocal()};
+const state = {session:null,user:null,profile:null,page:'inicio',clientes:[],llamadas:[],productos:[],ordenes:[],cobranza:[],plantillas:[],catalogos:{},deliverys:[],empleados:[],pesos:[],entregas:[],pagos:[],historialEstados:[],entregaLotes:[],entregaLoteDetalle:[],liquidacionesLotes:[],liquidacionLoteDetalle:[],casosHistorial:[],liquidacionSchemaOk:false,specialSearch:'',specialStatusFilter:'Todos',specialTypeFilter:'Todos',modulos:[],permisos:[],usuarios:[],usuarioModulos:[],errors:[],filter:'Todos',clientSearch:'',productSearch:'',productFilter:'Todos',productCategoryFilter:'Todas',productUnitFilter:'Todas',productWeightFilter:'Todos',modal:null,configTab:'general',controlTab:'gestiones',controlDate:today(),agendaDate:today(),callSearch:'',followPage:0,followSize:8,deliveryFiltro:'',orderSearch:'',carniceriaSearch:'',facturacionSearch:'',validacionSearch:'',deliverySearch:'',liquidacionSearch:'',liquidacionTab:'pendientes',liqHistFrom:today(),liqHistTo:today(),deliveryHistoryFrom:today(),deliveryHistoryTo:today(),orderView:'hoy',carniceriaTab:'libres',ui:loadUi(),weightConfig:loadWeightConfigLocal(),systemConfig:loadSystemConfigLocal(),liveStatus:'inactivo',liveLastRefresh:null,liveNotices:[],liveUnread:0,liveSound:localStorage.getItem('pc_live_sound_v61')==='1',liveLoading:false,liveFlashOrders:{},reportPreset:'mes',reportFrom:today().slice(0,8)+'01',reportTo:today(),reportStatus:'Todos',prodMonth:String(new Date().getMonth()+1),prodYear:String(new Date().getFullYear()),prodRole:'Todos',auditSearch:'',auditType:'todos',alertSearch:'',alertLevel:'todos',kanbanSearch:'',kanbanClosedLimit:10,kanbanClosedHidden:false,kanbanHistorySearch:'',kanbanHistoryPeriod:'todos',kanbanHistoryStatus:'Todos',kanbanHistoryFrom:'',kanbanHistoryTo:'',kanbanHistoryPage:0,kanbanHistoryPageSize:25,userSearch:'',userRoleFilter:'Todos',userStatusFilter:'Todos',validationBatchDraft:loadValidationBatchDraftLocal()};
 const navItems = [
   ['inicio','Inicio','Resumen general'],['control','Control','Llamadas y gestiones'],['clientes','Clientes','Ficha y WhatsApp'],['ordenes','Órdenes','Panel completo'],
   ['carniceria','Carnicería','Preparar y pesar'],['facturacion','Facturación','Imprimir y facturar'],['validacion','Validación','Entregar a delivery'],['delivery','Delivery','Mis pedidos'],['liquidacion','Liquidación','Cobros y CXC'],['alertas','Alertas','Centro operativo'],['kanban','Kanban','Tablero de órdenes'],
@@ -428,7 +429,7 @@ function render(){
     return;
   }
   if(!puede(state.page)) state.page = visibleNav[0][0];
-  root.innerHTML = `<div class="shell"><aside class="sidebar"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.2.13 · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.2.13 Reportes gerenciales</b><br>Filtros comunes, comparaciones, detalle de KPI y control de calidad de datos.</div></aside><main class="main"><div class="top"><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray">Mi acceso</button><button id="refreshBtn">Actualizar</button><button id="logoutBtn" class="dark">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
+  root.innerHTML = `<div class="shell"><aside class="sidebar"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.2.14 · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.2.14 Reportes gerenciales</b><br>Filtros comunes, comparaciones, detalle de KPI y control de calidad de datos.</div></aside><main class="main"><div class="top"><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray">Mi acceso</button><button id="refreshBtn">Actualizar</button><button id="logoutBtn" class="dark">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
   setupKeyboardShortcuts();
   $$('[data-page]').forEach(b=>b.onclick=()=>{state.page=b.dataset.page; render();});
   $('#myAccessBtn').onclick=()=>openMyAccess();
@@ -823,6 +824,39 @@ function totalOrderClockBadge(o){
 }
 function minutesBetween(a,b){ const da=parseDateTime(a), db=parseDateTime(b); if(!da||!db) return null; return Math.max(0,Math.floor((db.getTime()-da.getTime())/60000)); }
 function elapsedBetweenText(a,b){ const m=minutesBetween(a,b); if(m===null) return '—'; if(m<1) return 'ahora'; if(m<60) return `${m} min`; const h=Math.floor(m/60), r=m%60; if(h<24) return `${h} h${r?` ${r} min`:''}`; const d=Math.floor(h/24), hr=h%24; return `${d} día${d===1?'':'s'}${hr?` ${hr} h`:''}`; }
+
+function operationAlertConfig(){ return normalizeSystemConfig(state.systemConfig||{}).alertas || defaultSystemConfig().alertas; }
+function operationHolidayList(value){
+  const src=Array.isArray(value)?value.join(','):String(value||'');
+  return Array.from(new Set(src.split(/[\s,;|]+/).map(x=>String(x||'').slice(0,10)).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x)))).sort();
+}
+function operationWorkingConfig(){
+  const a=operationAlertConfig(), h=a.horarioLaboral||{};
+  const ls=Array.isArray(h.lunesSabado)&&h.lunesSabado.length?h.lunesSabado:[['07:00','12:00'],['14:00','17:00']];
+  const dom=Array.isArray(h.domingo)?h.domingo:[['07:00','12:00']];
+  const weekdaySchedule={0:dom,1:ls,2:ls,3:ls,4:ls,5:ls,6:ls};
+  return {enabled:a.usarTiempoLaborable!==false,weekdaySchedule,holidays:operationHolidayList(a.feriados||[])};
+}
+function operationMinutesBetween(a,b){
+  if(!a||!b) return null;
+  const cfg=operationWorkingConfig();
+  return cfg.enabled?calculateWorkingMinutes(a,b,cfg):minutesBetween(a,b);
+}
+function operationMinutesSince(a){ return a?operationMinutesBetween(a,new Date()):null; }
+function operationMinutesText(minutes){
+  const m=Math.max(0,Math.round(Number(minutes)||0));
+  if(m<1) return 'ahora';
+  if(m<60) return `${m} min`;
+  const h=Math.floor(m/60), r=m%60;
+  if(h<24) return `${h} h${r?` ${r} min`:''}`;
+  const d=Math.floor(h/24), hr=h%24;
+  return `${d} día${d===1?'':'s'}${hr?` ${hr} h`:''}`;
+}
+function stageSlaMinutes(stage){
+  const a=operationAlertConfig();
+  return Number({carniceria:a.carniceriaMaxMin,facturacion:a.facturacionMaxMin,validacion:a.validacionMaxMin,delivery:a.deliveryMaxMin,liquidacion:a.liquidacionMaxMin}[stage]||60);
+}
+
 function moduleFromSearchKey(k){ return {facturacionSearch:'facturacion',validacionSearch:'validacion',deliverySearch:'delivery',liquidacionSearch:'liquidacion'}[k] || ''; }
 function currentModuleOfOrder(o){
   const st=effectiveOrderState(o);
@@ -852,24 +886,25 @@ function stageExitAt(o,stage){
 }
 function stageLabel(stage){ return {carniceria:'Carnicería',facturacion:'Facturación',validacion:'Validación',delivery:'Delivery',liquidacion:'Liquidación'}[stage]||stage; }
 function stageTimerClass(minutes,stage){
-  const limits={carniceria:[25,45],facturacion:[10,20],validacion:[10,20],delivery:[60,120],liquidacion:[30,60]};
-  if(!stage || !limits[stage]) return 'info';
-  const [warn,bad]=limits[stage]||[30,60];
-  return minutes>=bad?'bad':minutes>=warn?'warn':'info';
+  if(!stage) return 'info';
+  const sla=Math.max(1,stageSlaMinutes(stage));
+  const warn=Math.max(1,Math.round(sla*.7));
+  return Number(minutes)>=sla?'bad':Number(minutes)>=warn?'warn':'info';
 }
 function stageClockBadge(o,stage){
   const start=stageEntryAt(o,stage); if(!start) return '';
   const end=stageExitAt(o,stage);
-  const mins=end?minutesBetween(start,end):minutesSince(start);
-  const txt=end?elapsedBetweenText(start,end):elapsedTextSince(start);
+  const mins=end?operationMinutesBetween(start,end):operationMinutesSince(start);
+  const txt=operationMinutesText(mins);
   const cls=stageTimerClass(mins||0,stage);
-  return `<span class="badge ${cls}">⏱ ${esc(stageLabel(stage))} ${esc(txt)}</span>`;
+  const mode=operationWorkingConfig().enabled?' laborable':'';
+  return `<span class="badge ${cls}" title="SLA ${stageSlaMinutes(stage)} min · tiempo${mode}">⏱ ${esc(stageLabel(stage))} ${esc(txt)}</span>`;
 }
 function currentStageClockBadge(o){ const st=currentModuleOfOrder(o); return st ? stageClockBadge(o,st) : ''; }
 function stageTimersHtml(o){
   const stages=['carniceria','facturacion','validacion','delivery','liquidacion'];
-  const cur=currentModuleOfOrder(o);
-  return `<div class="timer-grid">${stages.map(s=>{ const start=stageEntryAt(o,s); const end=stageExitAt(o,s); const mins=start?(end?minutesBetween(start,end):minutesSince(start)):null; const cls=(cur===s?'active ':'')+(mins!==null?stageTimerClass(mins,s):''); const txt=start?(end?elapsedBetweenText(start,end):elapsedTextSince(start)):'—'; return `<div class="timer-card ${cls}"><b>${esc(stageLabel(s))}</b><span>${esc(txt)}</span><div class="stage-note">${start?(end?'Finalizado':'Activo/pendiente'):'Sin entrar'}</div></div>`; }).join('')}</div>`;
+  const cur=currentModuleOfOrder(o), workMode=operationWorkingConfig().enabled;
+  return `<div class="timer-grid">${stages.map(s=>{ const start=stageEntryAt(o,s); const end=stageExitAt(o,s); const mins=start?(end?operationMinutesBetween(start,end):operationMinutesSince(start)):null; const cls=(cur===s?'active ':'')+(mins!==null?stageTimerClass(mins,s):''); const txt=start?operationMinutesText(mins):'—'; return `<div class="timer-card ${cls}"><b>${esc(stageLabel(s))}</b><span>${esc(txt)}</span><div class="stage-note">${start?(end?'Finalizado':'Activo/pendiente'):'Sin entrar'} · SLA ${stageSlaMinutes(s)} min${workMode?' laborables':''}</div></div>`; }).join('')}</div>`;
 }
 
 function weightAlertText(o, finalPeso){
@@ -1549,7 +1584,7 @@ function renderKanban(c){
     const hidden=state.kanbanClosedHidden;
     return `<section class="kanban-col kanban-closed-col ${hidden?'closed-collapsed':''}" data-kanban-col="cerradas"><header><div><b>${esc(title)}</b><span>${esc(sub)} · ${hidden?'ocultas':`mostrando ${Math.min(closedVisible.length,closedTotal)} de ${closedTotal}`}</span></div><div class="kanban-header-actions"><em>${closedTotal}</em><button class="icon-btn" data-kanban-closed-toggle title="${hidden?'Mostrar cerradas':'Ocultar cerradas'}">${hidden?'＋':'−'}</button></div></header>${hidden?`<div class="kanban-closed-collapsed"><strong>${closedTotal}</strong><span>órdenes cerradas</span><button class="btn small gray" data-kanban-closed-history>Ver historial</button></div>`:`<div class="kanban-list kanban-closed-list">${closedVisible.map(kanbanClosedCard).join('')||'<div class="kanban-empty">Sin órdenes</div>'}</div><div class="kanban-closed-footer">${closedVisible.length<closedTotal?`<button class="btn small gray" data-kanban-closed-more>Mostrar 10 más</button>`:closedTotal>10?'<button class="btn small gray" data-kanban-closed-reset>Mostrar solo 10</button>':''}<button class="btn small dark" data-kanban-closed-history>Historial completo</button></div>`}</section>`;
   }).join('');
-  c.innerHTML=`<div class="executive-hero kanban-hero"><div><div class="hero-eyebrow">V9.2.13 · Tablero Kanban</div><h3>Flujo completo de órdenes</h3><p>Visualiza dónde está cada pedido, quién lo tiene y cuánto tiempo lleva en su etapa actual.</p></div><div class="hero-actions"><button class="btn" data-go="alertas">Centro de alertas</button><button class="btn gray" data-go="ordenes">Lista de órdenes</button><button class="btn dark" data-kanban-closed-history>Historial cerradas</button></div></div><div class="kanban-kpi-grid"><div class="kanban-kpi"><span>Órdenes activas</span><strong>${activeTotal}</strong><small>Requieren seguimiento</small></div><div class="kanban-kpi"><span>En preparación</span><strong>${grouped.carniceria.length}</strong><small>Carnicería</small></div><div class="kanban-kpi"><span>En ruta</span><strong>${grouped.delivery.length}</strong><small>Delivery asignado</small></div><div class="kanban-kpi"><span>Cerradas hoy</span><strong>${closedToday}</strong><small>${closedTotal} en historial visible</small></div></div><div class="panel"><div class="panel-head"><div><h3>Tablero operativo</h3><p>${orders.length} orden(es) visibles. Cada columna tiene desplazamiento interno; los cambios reales se hacen con los botones de cada módulo.</p></div></div><div class="searchbar"><input id="kanbanSearch" value="${esc(q)}" placeholder="Buscar orden, cliente, producto, teléfono o estado..."></div><div class="kanban-board">${colsHtml}</div></div>`;
+  c.innerHTML=`<div class="executive-hero kanban-hero"><div><div class="hero-eyebrow">V9.2.14 · Tablero Kanban</div><h3>Flujo completo de órdenes</h3><p>Visualiza dónde está cada pedido, quién lo tiene y cuánto tiempo lleva en su etapa actual.</p></div><div class="hero-actions"><button class="btn" data-go="alertas">Centro de alertas</button><button class="btn gray" data-go="ordenes">Lista de órdenes</button><button class="btn dark" data-kanban-closed-history>Historial cerradas</button></div></div><div class="kanban-kpi-grid"><div class="kanban-kpi"><span>Órdenes activas</span><strong>${activeTotal}</strong><small>Requieren seguimiento</small></div><div class="kanban-kpi"><span>En preparación</span><strong>${grouped.carniceria.length}</strong><small>Carnicería</small></div><div class="kanban-kpi"><span>En ruta</span><strong>${grouped.delivery.length}</strong><small>Delivery asignado</small></div><div class="kanban-kpi"><span>Cerradas hoy</span><strong>${closedToday}</strong><small>${closedTotal} en historial visible</small></div></div><div class="panel"><div class="panel-head"><div><h3>Tablero operativo</h3><p>${orders.length} orden(es) visibles. Cada columna tiene desplazamiento interno; los cambios reales se hacen con los botones de cada módulo.</p></div></div><div class="searchbar"><input id="kanbanSearch" value="${esc(q)}" placeholder="Buscar orden, cliente, producto, teléfono o estado..."></div><div class="kanban-board">${colsHtml}</div></div>`;
   $('#kanbanSearch').oninput=e=>{ const pos=e.target.selectionStart||e.target.value.length; state.kanbanSearch=e.target.value; renderKanban($('#content')); focusAfterRender('kanbanSearch',pos); };
   $$('[data-go]').forEach(b=>b.onclick=()=>{state.page=b.dataset.go; render();});
   $$('[data-kanban-closed-history]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();openKanbanClosedHistory();});
@@ -1706,7 +1741,7 @@ function renderProductividad(c){
   const totalCobrado=rows.reduce((s,r)=>s+Number(r.montoCobrado||0),0);
   const totalLotes=rows.reduce((s,r)=>s+Number(r.lotes||0),0);
   const years=Array.from(new Set([new Date().getFullYear(),...((state.ordenes||[]).map(o=>safeDateObj(o.fecha_despacho||o.fecha||o.creado_en)?.getFullYear()).filter(Boolean)),...((state.entregaLotes||[]).map(l=>safeDateObj(l.fecha_entrega||l.creado_en)?.getFullYear()).filter(Boolean))])).sort((a,b)=>b-a);
-  c.innerHTML=`<div class="executive-hero productivity-hero"><div><div class="hero-eyebrow">V9.2.13 · Productividad e incentivos</div><h3>Panel mensual por empleado activo</h3><p>Solo calcula empleados registrados en Configuración → Empleados. Los deliverys y vendedores también se crean desde esa misma sección.</p></div><div class="hero-actions"><button class="btn" data-go="config" data-config-go="incentivos">Configurar incentivos</button><button class="btn gray" data-go="config" data-config-go="empleados">Empleados</button><button class="btn gray" id="refreshProd">Actualizar</button><button class="btn dark" id="printProd">Imprimir</button></div></div>
+  c.innerHTML=`<div class="executive-hero productivity-hero"><div><div class="hero-eyebrow">V9.2.14 · Productividad e incentivos</div><h3>Panel mensual por empleado activo</h3><p>Solo calcula empleados registrados en Configuración → Empleados. Los deliverys y vendedores también se crean desde esa misma sección.</p></div><div class="hero-actions"><button class="btn" data-go="config" data-config-go="incentivos">Configurar incentivos</button><button class="btn gray" data-go="config" data-config-go="empleados">Empleados</button><button class="btn gray" id="refreshProd">Actualizar</button><button class="btn dark" id="printProd">Imprimir</button></div></div>
   <div class="panel productivity-filter-panel"><div class="prod-filters"><div class="field"><label>Mes</label><select id="prodMonth">${monthOptions().map((m,i)=>`<option value="${i+1}" ${Number(month)===i+1?'selected':''}>${m}</option>`).join('')}</select></div><div class="field"><label>Año</label><select id="prodYear">${years.map(y=>`<option value="${y}" ${Number(year)===Number(y)?'selected':''}>${y}</option>`).join('')}</select></div><div class="field"><label>Rol productivo</label><select id="prodRole">${['Todos','Delivery','Despachador','Vendedor'].map(x=>`<option ${x===role?'selected':''}>${x}</option>`).join('')}</select></div></div></div>
   <div class="exec-kpi-grid productivity-kpis"><div class="exec-kpi primary"><span>Incentivo estimado</span><strong>${money(totalIncentivo)}</strong><small>${rows.length} empleado(s)</small></div><div class="exec-kpi"><span>Clientes contados</span><strong>${totalClientes}</strong><small>Entregados/despachados</small></div><div class="exec-kpi"><span>Viajes/lotes</span><strong>${totalLotes}</strong><small>Entregas creadas</small></div><div class="exec-kpi"><span>Cobrado vinculado</span><strong>${money(totalCobrado)}</strong><small>Según liquidación/pagos</small></div></div>
   <div class="panel panel-clean"><div class="panel-head"><div><h3>Ranking de productividad</h3><p>El incentivo se calcula solo con empleados activos. Nombres heredados de vendedores se limpian con el SQL V9.2.2.</p></div></div><div class="table-wrap"><table class="table productivity-table"><thead><tr><th>Empleado</th><th>Rol productivo</th><th>Base</th><th>Clientes</th><th>Viajes</th><th>Facturado</th><th>Cobrado</th><th>Incentivo</th><th>Alertas</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.empleado)}</b><div class="hint">${esc(r.areaEmpleado||employeeRoleOfName(r.empleado)||'Empleado activo')}</div></td><td><span class="badge info">${esc(r.rol)}</span></td><td><b>${esc(r.baseTexto)}</b><div class="hint">${esc(r.tipoIncentivo)} · ${r.tipoIncentivo==='Porcentaje'?Number(r.valorBase||0)+'%':money(r.valorBase)}</div></td><td>${r.clientes||0}</td><td>${r.lotes||0}</td><td>${money(r.montoFacturado||0)}</td><td>${money(r.montoCobrado||0)}</td><td><b>${money(r.incentivo||0)}</b></td><td>${r.alertas?.length?`<span class="badge warn">${r.alertas.length}</span>`:'<span class="badge ok">OK</span>'}</td></tr>`).join('')||'<tr><td colspan="9">No hay productividad registrada para este período con empleados activos.</td></tr>'}</tbody></table></div></div>
@@ -1725,7 +1760,7 @@ function productivityRulesHtml(){
 }
 function renderConfigIncentivos(c){
   const cfg=incentiveConfig();
-  c.innerHTML=`<div class="panel-head"><div><h3>Incentivos / Productividad</h3><p>Configura cómo se calcula el incentivo mensual. Delivery y despacho se miden por cliente; el lote queda como opción alternativa.</p></div><span class="badge info">V9.2.13</span></div>
+  c.innerHTML=`<div class="panel-head"><div><h3>Incentivos / Productividad</h3><p>Configura cómo se calcula el incentivo mensual. Delivery y despacho se miden por cliente; el lote queda como opción alternativa.</p></div><span class="badge info">V9.2.14</span></div>
   <div class="config-incentive-grid"><div class="card incentive-card"><h3>Delivery</h3><div class="grid2"><div class="field"><label>Activo</label><select id="incDeliveryActivo"><option value="true" ${cfg.delivery.activo!==false?'selected':''}>Sí</option><option value="false" ${cfg.delivery.activo===false?'selected':''}>No</option></select></div><div class="field"><label>Tipo</label><select id="incDeliveryTipo"><option value="monto_fijo" ${cfg.delivery.tipo!=='porcentaje'?'selected':''}>Monto fijo</option><option value="porcentaje" ${cfg.delivery.tipo==='porcentaje'?'selected':''}>Porcentaje</option></select></div></div><div class="field"><label>Base de cálculo</label><select id="incDeliveryBase"><option value="cliente_entregado" ${cfg.delivery.base==='cliente_entregado'?'selected':''}>Por cliente entregado</option><option value="lote_viaje" ${cfg.delivery.base==='lote_viaje'?'selected':''}>Por lote / viaje</option><option value="orden" ${cfg.delivery.base==='orden'?'selected':''}>Por orden</option></select></div><div class="field"><label>Valor</label><input id="incDeliveryValor" type="number" step="0.01" value="${Number(cfg.delivery.valor||0)}"></div><label class="checkrow"><input id="incDeliveryCredito" type="checkbox" ${cfg.delivery.cuentaCredito!==false?'checked':''}> <b>Contar entregados a crédito</b><span>Cuenta el cliente como entregado aunque quede saldo pendiente.</span></label></div>
   <div class="card incentive-card"><h3>Despachador</h3><div class="grid2"><div class="field"><label>Activo</label><select id="incDespActivo"><option value="true" ${cfg.despachador.activo!==false?'selected':''}>Sí</option><option value="false" ${cfg.despachador.activo===false?'selected':''}>No</option></select></div><div class="field"><label>Tipo</label><select id="incDespTipo"><option value="monto_fijo" ${cfg.despachador.tipo!=='porcentaje'?'selected':''}>Monto fijo</option><option value="porcentaje" ${cfg.despachador.tipo==='porcentaje'?'selected':''}>Porcentaje</option></select></div></div><div class="field"><label>Base de cálculo</label><select id="incDespBase"><option value="cliente_despachado" ${cfg.despachador.base==='cliente_despachado'?'selected':''}>Por cliente despachado</option><option value="orden" ${cfg.despachador.base==='orden'?'selected':''}>Por orden</option></select></div><div class="field"><label>Valor</label><input id="incDespValor" type="number" step="0.01" value="${Number(cfg.despachador.valor||0)}"></div><label class="checkrow"><input id="incDespValidadas" type="checkbox" ${cfg.despachador.cuentaSoloValidadas!==false?'checked':''}> <b>Solo órdenes validadas</b><span>Evita pagar por pedidos preparados que no salieron a entrega.</span></label></div>
   <div class="card incentive-card"><h3>Vendedor</h3><div class="grid2"><div class="field"><label>Activo</label><select id="incVendActivo"><option value="true" ${cfg.vendedor.activo!==false?'selected':''}>Sí</option><option value="false" ${cfg.vendedor.activo===false?'selected':''}>No</option></select></div><div class="field"><label>Tipo</label><select id="incVendTipo"><option value="porcentaje" ${cfg.vendedor.tipo==='porcentaje'?'selected':''}>Porcentaje</option><option value="monto_fijo" ${cfg.vendedor.tipo!=='porcentaje'?'selected':''}>Monto fijo</option></select></div></div><div class="field"><label>Base de cálculo</label><select id="incVendBase"><option value="ventas_cobradas" ${cfg.vendedor.base==='ventas_cobradas'?'selected':''}>Sobre ventas cobradas</option><option value="ventas_facturadas" ${cfg.vendedor.base==='ventas_facturadas'?'selected':''}>Sobre ventas facturadas</option></select></div><div class="field"><label>Valor</label><input id="incVendValor" type="number" step="0.01" value="${Number(cfg.vendedor.valor||0)}"></div><div class="hint">Recomendación: calcular vendedores sobre ventas cobradas para no pagar comisiones de dinero pendiente.</div></div></div>
@@ -1822,6 +1857,49 @@ function reportStateRow(label,count,amount,maxCount){
 function reportKpiCard({id,label,value,small,trend='',primary=false,info=''}){
   return `<button class="exec-kpi report-kpi ${primary?'primary':''}" data-report-detail="${esc(id)}" title="${esc(info)}"><span class="kpi-top"><span>${esc(label)}</span><i class="kpi-info">i</i></span><strong>${value}</strong><small>${small}</small>${trend}</button>`;
 }
+function reportOrderReopenings(o){
+  return orderHistoryFor(o).filter(h=>isReopeningTransition(h.estado_anterior,h.estado_nuevo,h.comentario||h.notas||''));
+}
+function reportStageAnalysis(rows,stage){
+  const cfg=operationAlertConfig(), sla=stageSlaMinutes(stage), workMode=operationWorkingConfig().enabled;
+  const completed=(rows||[]).map(o=>{
+    const start=stageEntryAt(o,stage), end=stageExitAt(o,stage);
+    if(!start||!end) return null;
+    const calendar=minutesBetween(start,end), working=operationMinutesBetween(start,end);
+    if(calendar===null||working===null) return null;
+    const reopenings=reportOrderReopenings(o);
+    return {o,start,end,calendar,working,duration:workMode?working:calendar,reopenings,reopened:reopenings.length>0};
+  }).filter(Boolean);
+  const metricRows=cfg.excluirReaperturasPromedio!==false?completed.filter(x=>!x.reopened):completed.slice();
+  const durations=metricRows.map(x=>x.duration), threshold=durationOutlierThreshold(durations,sla,Number(cfg.extremoFactor||3));
+  completed.forEach(x=>{x.overSla=x.duration>sla;x.outlier=x.duration>threshold;});
+  const over=metricRows.filter(x=>x.duration>sla).length, compliance=metricRows.length?Math.round(((metricRows.length-over)/metricRows.length)*100):0;
+  return {stage,sla,workMode,completed,metricRows,count:metricRows.length,avg:avg(durations),median:reportMedian(durations),max:Math.max(0,...durations),over,compliance,threshold,outliers:completed.filter(x=>x.outlier),reopened:completed.filter(x=>x.reopened)};
+}
+function reportBottleneck(stageRows){
+  const rows=(stageRows||[]).filter(x=>x.count);
+  if(!rows.length) return null;
+  return rows.slice().sort((a,b)=>{
+    const ar=(a.median/Math.max(1,a.sla))+(a.over/Math.max(1,a.count));
+    const br=(b.median/Math.max(1,b.sla))+(b.over/Math.max(1,b.count));
+    return br-ar;
+  })[0];
+}
+function reportStalledOrders(activeOrders){
+  return (activeOrders||[]).map(o=>{
+    const stage=currentModuleOfOrder(o), start=stage?stageEntryAt(o,stage):null;
+    if(!stage||!start) return null;
+    const minutes=operationMinutesSince(start), sla=stageSlaMinutes(stage);
+    if(minutes===null||!Number.isFinite(minutes)) return null;
+    return {o,stage,start,minutes,sla,ratio:minutes/Math.max(1,sla)};
+  }).filter(Boolean).filter(x=>x.minutes>x.sla).sort((a,b)=>b.ratio-a.ratio);
+}
+function reportStageClass(row){
+  if(!row.count) return 'stage-no-data';
+  if(row.compliance>=90) return 'stage-sla-good';
+  if(row.compliance>=70) return 'stage-sla-warn';
+  return 'stage-sla-bad';
+}
 function openReportOrdersDetail(title,rows,subtitle=''){
   const list=(rows||[]).slice().sort((a,b)=>safeDateObj(reportOrderDateKey(b))-safeDateObj(reportOrderDateKey(a)));
   const body=`<div class="report-detail-summary"><b>${list.length} orden(es)</b><span>${esc(subtitle)}</span></div><div class="report-detail-table"><div class="report-detail-head"><span>Orden / cliente</span><span>Fecha</span><span>Estado</span><span>Monto</span><span></span></div>${list.map(o=>`<div class="report-detail-row"><div><b>${esc(o.codigo||('ORD-'+o.id))}</b><small>${esc(orderClientName(o))}</small></div><div>${shortDate(reportOrderDateKey(o))}</div><div><span class="badge info">${esc(effectiveOrderState(o)||o.estado||'—')}</span></div><div><b>${money(reportInvoicedAmount(o)||orderAmount(o))}</b></div><div><button class="btn small gray" data-oper-order="${o.id}">Ver</button></div></div>`).join('')||'<div class="empty">No hay órdenes para este detalle.</div>'}</div>`;
@@ -1832,6 +1910,12 @@ function openReportCallsDetail(title,rows,subtitle=''){
   const list=(rows||[]).slice().sort((a,b)=>safeDateObj(b.fecha)-safeDateObj(a.fecha));
   const body=`<div class="report-detail-summary"><b>${list.length} gestión(es)</b><span>${esc(subtitle)}</span></div><div class="report-detail-table calls"><div class="report-detail-head"><span>Cliente</span><span>Fecha</span><span>Resultado</span><span>Responsable</span><span></span></div>${list.map(l=>`<div class="report-detail-row"><div><b>${esc(l.cliente?.negocio||'Cliente')}</b><small>${esc(l.comentario||l.observacion||'Sin comentario')}</small></div><div>${shortDate(l.fecha)} ${esc(callTime(l))}</div><div>${esc(l.resultado||'—')}</div><div>${esc(workerDisplayName(l.vendedor||l.usuario)||l.vendedor||l.usuario||'—')}</div><div>${l.cliente_id?`<button class="btn small gray" data-client="${l.cliente_id}">Ficha</button>`:''}</div></div>`).join('')||'<div class="empty">No hay gestiones para este período.</div>'}</div>`;
   openModal(title,body,subtitle||'Detalle generado desde Reportes');
+  bindDynamic();
+}
+function openReportStageDetail(row){
+  const list=(row?.completed||[]).slice().sort((a,b)=>b.duration-a.duration);
+  const body=`<div class="report-detail-summary"><b>${list.length} etapa(s) cerradas</b><span>${row.workMode?'Tiempo laborable':'Tiempo calendario'} · SLA ${row.sla} min · cumplimiento ${row.compliance}%</span></div><div class="stage-detail-table"><div class="stage-detail-head"><span>Orden / cliente</span><span>Laborable</span><span>Calendario</span><span>SLA</span><span>Calidad</span><span></span></div>${list.map(x=>`<div class="stage-detail-row ${x.overSla?'over-sla':''} ${x.outlier?'is-outlier':''}"><div><b>${esc(x.o.codigo||('ORD-'+x.o.id))}</b><small>${esc(orderClientName(x.o))}${x.reopened?' · Reabierta':''}</small></div><div><b>${esc(operationMinutesText(x.working))}</b></div><div>${esc(operationMinutesText(x.calendar))}</div><div>${x.duration<=row.sla?'<span class="badge ok">Dentro</span>':'<span class="badge bad">Fuera</span>'}</div><div>${x.outlier?'<span class="badge bad">Extremo</span>':x.reopened?'<span class="badge warn">Reapertura</span>':'<span class="badge info">Normal</span>'}</div><div><button class="btn small gray" data-oper-order="${x.o.id}">Ver</button></div></div>`).join('')||'<div class="empty">No hay etapas cerradas para este cálculo.</div>'}</div>`;
+  openModal('Tiempo de '+stageLabel(row.stage),body,`Promedio ${minutesText(row.avg)} · mediana ${minutesText(row.median)} · máximo ${minutesText(row.max)}`);
   bindDynamic();
 }
 
@@ -1855,10 +1939,12 @@ function renderReportes(c){
   const stateAmounts=groupSum(periodOrders,o=>effectiveOrderState(o)||o.estado||'Sin estado',o=>reportInvoicedAmount(o)||orderAmount(o));
   const maxState=Math.max(1,...stateGroups.map(x=>x[1]));
   const stages=['carniceria','facturacion','validacion','delivery','liquidacion'];
-  const stageRows=stages.map(stage=>{
-    const completed=periodOrders.map(o=>({o,start:stageEntryAt(o,stage),end:stageExitAt(o,stage)})).filter(x=>x.start&&x.end).map(x=>({o:x.o,duration:minutesBetween(x.start,x.end)})).filter(x=>x.duration!==null);
-    return {stage,completed,count:completed.length,avg:avg(completed.map(x=>x.duration)),median:reportMedian(completed.map(x=>x.duration)),max:Math.max(0,...completed.map(x=>x.duration))};
-  });
+  const stageRows=stages.map(stage=>reportStageAnalysis(periodOrders,stage));
+  const bottleneck=reportBottleneck(stageRows), stalled=reportStalledOrders(activeOrders);
+  const reopenedOrders=periodOrders.filter(o=>reportOrderReopenings(o).length);
+  const outlierOrders=Array.from(new Map(stageRows.flatMap(r=>r.outliers.map(x=>[String(x.o.id),x.o]))).values());
+  const completedForSla=stageRows.reduce((s,r)=>s+r.count,0), slaOk=stageRows.reduce((s,r)=>s+(r.count-r.over),0);
+  const slaCompliance=completedForSla?Math.round((slaOk/completedForSla)*100):0;
   const products=reportProductAggregation(periodOrders).slice(0,8);
   const clients=sortEntries(groupSum(periodOrders,o=>orderClientName(o),o=>reportInvoicedAmount(o)||orderAmount(o))).slice(0,8);
   const prep=sortEntries(groupCount(periodOrders.filter(o=>preparedByDisplay(o)),o=>preparedByDisplay(o))).slice(0,8);
@@ -1869,17 +1955,21 @@ function renderReportes(c){
   const noHistory=periodOrders.filter(o=>!orderHistoryFor(o).length).length;
   const rangeTxt=`${shortDate(range.from)} al ${shortDate(range.to)}`;
   const prevTxt=`${shortDate(previous.from)} al ${shortDate(previous.to)}`;
-  c.innerHTML=`<div class="executive-hero report-hero"><div><div class="hero-eyebrow">V9.2.13 · Reportes gerenciales</div><h3>Centro de análisis operativo</h3><p>Indicadores filtrables, comparación automática y acceso directo al detalle de cada resultado.</p></div><div class="hero-actions"><button class="btn" data-go="ordenes">Ver órdenes</button><button class="btn gray" data-go="auditoria">Auditoría</button><button class="btn dark" id="printReportBtn">Imprimir / PDF</button></div></div>
-  <div class="panel report-filter-panel"><div class="panel-head"><div><h3>Período y filtros generales</h3><p>Todos los bloques inferiores usan estos mismos filtros. Período comparado: ${esc(prevTxt)}.</p></div><button class="btn gray" id="refreshReportBtn">Actualizar datos</button></div><div class="report-filter-grid"><div class="field"><label>Período rápido</label><select id="reportPreset"><option value="hoy" ${state.reportPreset==='hoy'?'selected':''}>Hoy</option><option value="ayer" ${state.reportPreset==='ayer'?'selected':''}>Ayer</option><option value="semana" ${state.reportPreset==='semana'?'selected':''}>Esta semana</option><option value="mes" ${state.reportPreset==='mes'?'selected':''}>Este mes</option><option value="mes_anterior" ${state.reportPreset==='mes_anterior'?'selected':''}>Mes anterior</option><option value="custom" ${state.reportPreset==='custom'?'selected':''}>Personalizado</option></select></div><div class="field"><label>Desde</label><input id="reportFrom" type="date" value="${esc(range.from)}"></div><div class="field"><label>Hasta</label><input id="reportTo" type="date" value="${esc(range.to)}"></div><div class="field"><label>Estado</label><select id="reportStatus">${['Todos','Activas','Cerradas','Cobrado','Crédito','Programadas'].map(x=>`<option ${state.reportStatus===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="report-filter-actions"><button class="btn" id="applyReportFilters">Aplicar</button><button class="btn gray" id="clearReportFilters">Restablecer</button></div></div><div class="report-period-meta"><b>Período analizado: ${esc(rangeTxt)}</b><span>${periodOrders.length} orden(es) visibles · ${periodCalls.length} gestión(es) CRM</span><span>Actualizado: ${new Date().toLocaleString('es-DO')}</span></div></div>
-  <div class="report-kpi-grid">${reportKpiCard({id:'period',label:'Facturado del período',value:money(amount),small:`${invoiced.length} orden(es) facturadas`,trend:reportTrendHtml(amount,prevAmount),primary:true,info:'Suma total_factura. Cuando falta, usa total_estimado únicamente en estados Facturada o posteriores.'})}${reportKpiCard({id:'today',label:'Facturado hoy',value:money(todayAmount),small:`${todayOrders.length} orden(es)`,trend:reportTrendHtml(todayAmount,yesterdayAmount,'ayer'),info:'Monto facturado con fecha de facturación, despacho u orden correspondiente al día de hoy.'})}${reportKpiCard({id:'ticket',label:'Ticket promedio',value:money(ticket),small:`${invoiced.length} orden(es) con monto`,trend:reportTrendHtml(ticket,prevTicket),info:'Facturado del período dividido entre órdenes con monto facturado.'})}${reportKpiCard({id:'orders',label:'Órdenes del período',value:String(periodOrders.length),small:`${periodOrders.filter(o=>reportClosedState(effectiveOrderState(o)||o.estado||'')).length} cerradas`,trend:reportTrendHtml(periodOrders.length,previousOrders.length),info:'Órdenes no anuladas cuya fecha operativa cae dentro del período y cumplen el filtro de estado.'})}${reportKpiCard({id:'calls',label:'Gestiones CRM',value:String(periodCalls.length),small:`${new Set(periodCalls.map(l=>Number(l.cliente_id)).filter(Boolean)).size} cliente(s)`,trend:reportTrendHtml(periodCalls.length,previousCalls.length),info:'Llamadas o gestiones registradas dentro del período seleccionado.'})}${reportKpiCard({id:'active',label:'Órdenes activas',value:String(activeOrders.length),small:'Foto actual del flujo',info:'Incluye Programada, Pedido recibido y todas las etapas abiertas. Excluye anuladas y estados finales.'})}</div>
-  <div class="report-quality-grid"><button data-report-quality="amount" class="report-quality ${missingAmount?'warn':'ok'}"><span>Sin monto facturado</span><strong>${missingAmount}</strong></button><button data-report-quality="items" class="report-quality ${missingItems?'warn':'ok'}"><span>Sin detalle de productos</span><strong>${missingItems}</strong></button><button data-report-quality="history" class="report-quality ${noHistory?'warn':'ok'}"><span>Sin historial de estados</span><strong>${noHistory}</strong></button><div class="report-quality ${missingDate?'bad':'ok'}"><span>Órdenes globales sin fecha</span><strong>${missingDate}</strong></div></div>
+  const opCfg=operationAlertConfig(), workMode=operationWorkingConfig().enabled;
+  c.innerHTML=`<div class="executive-hero report-hero"><div><div class="hero-eyebrow">V9.2.14 · Operación y tiempos</div><h3>Centro de análisis operativo</h3><p>Tiempo laborable real, SLA por etapa, órdenes detenidas, reaperturas y detección de casos extremos.</p></div><div class="hero-actions"><button class="btn" data-go="ordenes">Ver órdenes</button><button class="btn gray" id="reportConfigBtn">Horario y SLA</button><button class="btn gray" data-go="auditoria">Auditoría</button><button class="btn dark" id="printReportBtn">Imprimir / PDF</button></div></div>
+  <div class="panel report-filter-panel"><div class="panel-head"><div><h3>Período y filtros generales</h3><p>Todos los bloques inferiores usan estos mismos filtros. Período comparado: ${esc(prevTxt)}.</p></div><button class="btn gray" id="refreshReportBtn">Actualizar datos</button></div><div class="report-filter-grid"><div class="field"><label>Período rápido</label><select id="reportPreset"><option value="hoy" ${state.reportPreset==='hoy'?'selected':''}>Hoy</option><option value="ayer" ${state.reportPreset==='ayer'?'selected':''}>Ayer</option><option value="semana" ${state.reportPreset==='semana'?'selected':''}>Esta semana</option><option value="mes" ${state.reportPreset==='mes'?'selected':''}>Este mes</option><option value="mes_anterior" ${state.reportPreset==='mes_anterior'?'selected':''}>Mes anterior</option><option value="custom" ${state.reportPreset==='custom'?'selected':''}>Personalizado</option></select></div><div class="field"><label>Desde</label><input id="reportFrom" type="date" value="${esc(range.from)}"></div><div class="field"><label>Hasta</label><input id="reportTo" type="date" value="${esc(range.to)}"></div><div class="field"><label>Estado</label><select id="reportStatus">${['Todos','Activas','Cerradas','Cobrado','Crédito','Programadas'].map(x=>`<option ${state.reportStatus===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="report-filter-actions"><button class="btn" id="applyReportFilters">Aplicar</button><button class="btn gray" id="clearReportFilters">Restablecer</button></div></div><div class="report-period-meta"><b>Período analizado: ${esc(rangeTxt)}</b><span>${periodOrders.length} orden(es) · ${periodCalls.length} gestión(es)</span><span>${workMode?'Tiempo laborable activo':'Tiempo calendario activo'} · ${operationHolidayList(opCfg.feriados||[]).length} feriado(s)</span><span>Actualizado: ${new Date().toLocaleString('es-DO')}</span></div></div>
+  <div class="report-kpi-grid">${reportKpiCard({id:'period',label:'Facturado del período',value:money(amount),small:`${invoiced.length} orden(es) facturadas`,trend:reportTrendHtml(amount,prevAmount),primary:true,info:'Suma total_factura. Cuando falta, usa total_estimado únicamente en estados facturados o posteriores.'})}${reportKpiCard({id:'today',label:'Facturado hoy',value:money(todayAmount),small:`${todayOrders.length} orden(es)`,trend:reportTrendHtml(todayAmount,yesterdayAmount,'ayer'),info:'Monto facturado correspondiente al día de hoy.'})}${reportKpiCard({id:'ticket',label:'Ticket promedio',value:money(ticket),small:`${invoiced.length} orden(es) con monto`,trend:reportTrendHtml(ticket,prevTicket),info:'Facturado del período dividido entre órdenes con monto.'})}${reportKpiCard({id:'orders',label:'Órdenes del período',value:String(periodOrders.length),small:`${periodOrders.filter(o=>reportClosedState(effectiveOrderState(o)||o.estado||'')).length} cerradas`,trend:reportTrendHtml(periodOrders.length,previousOrders.length),info:'Órdenes no anuladas dentro del período.'})}${reportKpiCard({id:'calls',label:'Gestiones CRM',value:String(periodCalls.length),small:`${new Set(periodCalls.map(l=>Number(l.cliente_id)).filter(Boolean)).size} cliente(s)`,trend:reportTrendHtml(periodCalls.length,previousCalls.length),info:'Llamadas o gestiones registradas en el período.'})}${reportKpiCard({id:'active',label:'Órdenes activas',value:String(activeOrders.length),small:'Foto actual del flujo',info:'Incluye etapas abiertas y excluye estados finales.'})}</div>
+  <div class="operation-kpi-grid"><button class="operation-kpi ${slaCompliance>=90?'ok':slaCompliance>=70?'warn':'bad'}" data-report-operation="sla"><span>Cumplimiento SLA</span><strong>${completedForSla?slaCompliance+'%':'Sin base'}</strong><small>${completedForSla} etapa(s) válidas</small></button><button class="operation-kpi ${stalled.length?'bad':'ok'}" data-report-operation="stalled"><span>Órdenes detenidas</span><strong>${stalled.length}</strong><small>Superaron el SLA actual</small></button><button class="operation-kpi ${reopenedOrders.length?'warn':'ok'}" data-report-operation="reopened"><span>Órdenes reabiertas</span><strong>${reopenedOrders.length}</strong><small>${opCfg.excluirReaperturasPromedio!==false?'Excluidas del promedio':'Incluidas en promedio'}</small></button><button class="operation-kpi ${outlierOrders.length?'warn':'ok'}" data-report-operation="outliers"><span>Casos extremos</span><strong>${outlierOrders.length}</strong><small>${bottleneck?`Cuello: ${stageLabel(bottleneck.stage)}`:'Sin cuello definido'}</small></button></div>
+  <div class="report-quality-grid"><button data-report-quality="amount" class="report-quality ${missingAmount?'warn':'ok'}"><span>Facturadas sin monto</span><strong>${missingAmount}</strong></button><button data-report-quality="items" class="report-quality ${missingItems?'warn':'ok'}"><span>Órdenes sin productos</span><strong>${missingItems}</strong></button><button data-report-quality="history" class="report-quality ${noHistory?'warn':'ok'}"><span>Sin historial de estados</span><strong>${noHistory}</strong></button><div class="report-quality ${missingDate?'bad':'ok'}"><span>Órdenes globales sin fecha</span><strong>${missingDate}</strong></div></div>
   <div class="report-grid"><div class="panel panel-clean"><div class="panel-head"><div><h3>Órdenes por estado</h3><p>Cantidad y monto dentro del período. Pulse una barra para abrir el detalle.</p></div></div><div class="report-bars">${stateGroups.map(([k,v])=>reportStateRow(k,v,stateAmounts[k]||0,maxState)).join('')||'<div class="empty">Sin órdenes para estos filtros.</div>'}</div></div>
-  <div class="panel panel-clean"><div class="panel-head"><div><h3>Tiempos por etapa</h3><p>Promedio calendario únicamente de etapas con entrada y salida registradas. El cálculo laborable se integrará en V9.2.14.</p></div></div><div class="stage-report-grid">${stageRows.map(r=>`<button class="stage-report clickable ${r.count?'':'stage-no-data'}" data-report-stage="${r.stage}" title="Abrir órdenes usadas en este cálculo"><b>${esc(stageLabel(r.stage))}</b><strong>${r.count?minutesText(r.avg):'Sin datos cerrados'}</strong><small>${r.count?`${r.count} orden(es) · mediana ${minutesText(r.median)} · máx. ${minutesText(r.max)}`:'No hay una entrada y salida completas para calcular esta etapa.'}</small></button>`).join('')}</div></div></div>
+  <div class="panel panel-clean"><div class="panel-head"><div><h3>Tiempos y SLA por etapa</h3><p>${workMode?'Descuenta almuerzo, horas cerradas y feriados configurados.':'Usa tiempo calendario.'} Reaperturas ${opCfg.excluirReaperturasPromedio!==false?'excluidas':'incluidas'} del promedio principal.</p></div></div><div class="stage-report-grid">${stageRows.map(r=>`<button class="stage-report clickable ${reportStageClass(r)}" data-report-stage="${r.stage}" title="Abrir órdenes usadas en este cálculo"><b>${esc(stageLabel(r.stage))}</b><strong>${r.count?minutesText(r.avg):'Sin datos cerrados'}</strong><small>${r.count?`Mediana ${minutesText(r.median)} · SLA ${r.sla} min · ${r.compliance}% cumple · ${r.over} fuera`:'No hay entrada y salida completas sin exclusiones.'}</small></button>`).join('')}</div></div></div>
+  <div class="panel operation-exceptions"><div class="panel-head"><div><h3>Cuellos de botella y excepciones</h3><p>Prioriza las órdenes que requieren intervención y separa reaperturas de los tiempos normales.</p></div><span class="badge ${bottleneck&&bottleneck.compliance<70?'bad':bottleneck?'warn':'ok'}">${bottleneck?`Mayor presión: ${esc(stageLabel(bottleneck.stage))}`:'Sin cuello detectado'}</span></div><div class="exception-grid"><div><div class="section-title">Detenidas fuera de SLA</div><div class="exception-list">${stalled.slice(0,8).map(x=>`<button class="exception-row bad" data-report-stalled="${x.o.id}"><div><b>${esc(x.o.codigo||('ORD-'+x.o.id))} · ${esc(orderClientName(x.o))}</b><small>${esc(stageLabel(x.stage))} · ${esc(operationMinutesText(x.minutes))} / SLA ${x.sla} min</small></div><span>${x.ratio.toFixed(1)}×</span></button>`).join('')||'<div class="empty compact">No hay órdenes detenidas fuera de SLA.</div>'}</div></div><div><div class="section-title">Reaperturas del período</div><div class="exception-list">${reopenedOrders.slice(0,8).map(o=>`<button class="exception-row warn" data-report-reopened="${o.id}"><div><b>${esc(o.codigo||('ORD-'+o.id))} · ${esc(orderClientName(o))}</b><small>${reportOrderReopenings(o).length} reapertura(s) · ${esc(effectiveOrderState(o)||o.estado||'')}</small></div><span>Revisar</span></button>`).join('')||'<div class="empty compact">No se detectaron reaperturas.</div>'}</div></div><div><div class="section-title">Casos extremos</div><div class="exception-list">${outlierOrders.slice(0,8).map(o=>`<button class="exception-row" data-report-outlier="${o.id}"><div><b>${esc(o.codigo||('ORD-'+o.id))} · ${esc(orderClientName(o))}</b><small>Duración atípica en una o más etapas</small></div><span>Ver</span></button>`).join('')||'<div class="empty compact">No se detectaron duraciones extremas.</div>'}</div></div></div></div>
   <div class="report-grid"><div class="panel panel-clean"><div class="panel-head"><div><h3>Productos más movidos</h3><p>Separados por unidad para evitar mezclar libras, unidades, paquetes o cajas.</p></div></div><div class="table-wrap"><table class="table report-product-table"><thead><tr><th>Producto</th><th>Unidad</th><th>Cantidad</th><th>Órdenes</th><th>Monto</th></tr></thead><tbody>${products.map(p=>`<tr data-report-product="${esc(p.producto)}" data-report-unit="${esc(p.unidad)}"><td><b>${esc(p.producto)}</b></td><td><span class="badge info">${esc(p.unidad)}</span></td><td>${Number(p.cantidad).toLocaleString('es-DO')}</td><td>${p.ordenes}</td><td>${money(p.monto)}</td></tr>`).join('')||'<tr><td colspan="5">Sin productos.</td></tr>'}</tbody></table></div></div>
   <div class="panel panel-clean"><div class="panel-head"><div><h3>Clientes con mayor movimiento</h3><p>Por monto de órdenes dentro del período seleccionado.</p></div></div><div class="report-bars">${clients.map(([k,v])=>`<button class="bar-row money report-client-button" data-report-client="${esc(k)}"><div><b>${esc(k)}</b><span>${money(v)}</span></div><div class="bar"><i style="width:${Math.min(100,pct(v,amount||1))}%"></i></div></button>`).join('')||'<div class="empty">Sin ventas en el período.</div>'}</div></div></div>
   <div class="report-grid"><div class="panel panel-clean"><div class="panel-head"><div><h3>Productividad por despachador</h3><p>Conteo preliminar de órdenes preparadas. Pulse un nombre para revisar las órdenes atribuidas.</p></div></div><div class="report-bars">${prep.map(([k,v])=>`<button class="bar-row report-prep-button" data-report-prep="${esc(k)}"><div><b>${esc(k)}</b><span>${v}</span></div><div class="bar"><i style="width:${Math.min(100,pct(v,Math.max(1,...prep.map(x=>x[1]))))}%"></i></div></button>`).join('')||'<div class="empty">Aún no hay preparaciones finalizadas.</div>'}</div></div>
   <div class="panel panel-clean"><div class="panel-head"><div><h3>Delivery / ruta</h3><p>Órdenes asignadas dentro del período. Pulse un delivery para abrir el detalle.</p></div></div><div class="report-bars">${deliveries.map(([k,v])=>`<button class="bar-row report-delivery-button" data-report-delivery="${esc(k)}"><div><b>${esc(k)}</b><span>${v}</span></div><div class="bar"><i style="width:${Math.min(100,pct(v,Math.max(1,...deliveries.map(x=>x[1]))))}%"></i></div></button>`).join('')||'<div class="empty">Sin órdenes asignadas a delivery.</div>'}</div></div></div>`;
   $$('[data-go]',c).forEach(b=>b.onclick=()=>{state.page=b.dataset.go; render();});
+  $('#reportConfigBtn',c).onclick=()=>{state.page='config';state.configTab='alertas';render();};
   $('#reportPreset',c).onchange=e=>{ state.reportPreset=e.target.value; if(state.reportPreset!=='custom'){ const r=reportRangeForPreset(state.reportPreset); state.reportFrom=r.from; state.reportTo=r.to; renderReportes(c); } };
   $('#reportFrom',c).onchange=e=>{state.reportFrom=e.target.value; state.reportPreset='custom';};
   $('#reportTo',c).onchange=e=>{state.reportTo=e.target.value; state.reportPreset='custom';};
@@ -1895,15 +1985,24 @@ function renderReportes(c){
     if(id==='active') return openReportOrdersDetail('Órdenes activas',activeOrders,'Foto actual del flujo operativo');
     if(id==='calls') return openReportCallsDetail('Gestiones CRM del período',periodCalls,rangeTxt);
   });
+  $$('[data-report-operation]',c).forEach(b=>b.onclick=()=>{
+    const id=b.dataset.reportOperation;
+    if(id==='stalled') return openReportOrdersDetail('Órdenes detenidas',stalled.map(x=>x.o),'Superaron el SLA de su etapa actual');
+    if(id==='reopened') return openReportOrdersDetail('Órdenes reabiertas',reopenedOrders,'Transiciones hacia una etapa anterior');
+    if(id==='outliers') return openReportOrdersDetail('Casos extremos',outlierOrders,'Duraciones por encima del umbral estadístico y operativo');
+    if(id==='sla'&&bottleneck) return openReportStageDetail(bottleneck);
+  });
   $$('[data-report-state-value]',c).forEach(b=>b.onclick=()=>{const st=b.dataset.reportStateValue;openReportOrdersDetail('Estado: '+st,periodBase.filter(o=>(effectiveOrderState(o)||o.estado||'Sin estado')===st),rangeTxt);});
-  $$('[data-report-stage]',c).forEach(b=>b.onclick=()=>{const r=stageRows.find(x=>x.stage===b.dataset.reportStage);openReportOrdersDetail('Tiempo de '+stageLabel(r.stage),r.completed.map(x=>x.o),`${r.count} etapa(s) cerradas · promedio ${minutesText(r.avg)}`);});
+  $$('[data-report-stage]',c).forEach(b=>{const r=stageRows.find(x=>x.stage===b.dataset.reportStage);b.onclick=()=>openReportStageDetail(r);});
   $$('[data-report-product]',c).forEach(r=>r.onclick=()=>{const name=r.dataset.reportProduct,unit=r.dataset.reportUnit;openReportOrdersDetail('Producto: '+name,periodOrders.filter(o=>(o.items||[]).some(i=>(i.producto_nombre||'Producto')===name && (i.unidad||'—')===unit)),`${unit} · ${rangeTxt}`);});
   $$('[data-report-client]',c).forEach(b=>b.onclick=()=>openReportOrdersDetail('Cliente: '+b.dataset.reportClient,periodOrders.filter(o=>orderClientName(o)===b.dataset.reportClient),rangeTxt));
   $$('[data-report-prep]',c).forEach(b=>b.onclick=()=>openReportOrdersDetail('Preparado por: '+b.dataset.reportPrep,periodOrders.filter(o=>preparedByDisplay(o)===b.dataset.reportPrep),rangeTxt));
   $$('[data-report-delivery]',c).forEach(b=>b.onclick=()=>openReportOrdersDetail('Delivery: '+b.dataset.reportDelivery,periodOrders.filter(o=>o.delivery_nombre===b.dataset.reportDelivery),rangeTxt));
+  $$('[data-report-stalled]',c).forEach(b=>b.onclick=()=>openOrderStatusModal(activeOrders.find(o=>String(o.id)===String(b.dataset.reportStalled))));
+  $$('[data-report-reopened]',c).forEach(b=>b.onclick=()=>openOrderStatusModal(periodOrders.find(o=>String(o.id)===String(b.dataset.reportReopened))));
+  $$('[data-report-outlier]',c).forEach(b=>b.onclick=()=>openOrderStatusModal(outlierOrders.find(o=>String(o.id)===String(b.dataset.reportOutlier))));
   $$('[data-report-quality]',c).forEach(b=>b.onclick=()=>{const t=b.dataset.reportQuality; const rows=t==='amount'?periodOrders.filter(o=>['Facturada','Validada para delivery','Asignada a delivery','En ruta','Entregado','Cobrado','Entregado a crédito','Cerrado'].includes(effectiveOrderState(o)||o.estado||'')&&reportInvoicedAmount(o)<=0):t==='items'?periodOrders.filter(o=>!(o.items||[]).length):periodOrders.filter(o=>!orderHistoryFor(o).length); openReportOrdersDetail('Calidad de datos',rows,'Registros que requieren revisión');});
 }
-
 function renderAuditoria(c){
   const q=state.auditSearch||''; const tipo=state.auditType||'todos';
   const all=auditEvents();
@@ -1962,41 +2061,213 @@ function renderConfigDeliverys(c){
   renderConfigEmpleados(c);
   toast('Delivery ahora se administra desde Empleados → Área Delivery');
 }
+const USER_ROLES=['Gerente','Supervisor','Control','Vendedor','Carnicería','Facturación','Validación','Delivery','Liquidación','Cobrador','Sin perfil'];
+function sameUserId(a,b){ return String(a||'')===String(b||''); }
+function userBaseLevel(role,moduleId){
+  if(role==='Gerente') return 'editar';
+  const rp=(state.permisos||[]).find(x=>String(x.rol||'')===String(role||'') && x.modulo===moduleId);
+  return rp?.nivel||'none';
+}
+function userOverrideRow(userId,moduleId){
+  return (state.usuarioModulos||[]).find(x=>sameUserId(x.usuario_id,userId) && x.modulo===moduleId) || null;
+}
+function userFinalLevel(u,moduleId){
+  if(!u || u.activo===false) return 'none';
+  if(u.rol==='Gerente') return 'editar';
+  const ov=userOverrideRow(u.id,moduleId);
+  return ov?.nivel||userBaseLevel(u.rol,moduleId);
+}
+function userAccessSummary(u){
+  return navItems.map(([id,n])=>({id,n,nivel:userFinalLevel(u,id)})).filter(x=>x.nivel!=='none');
+}
+function permissionBadge(level){
+  const label=level==='editar'?'Editar':level==='ver'?'Solo ver':'Sin acceso';
+  const cls=level==='editar'?'ok':level==='ver'?'info':'bad';
+  return `<span class="badge ${cls}">${label}</span>`;
+}
 function roleMapHtml(){
-  const roles=['Gerente','Control','Carnicería','Facturación','Validación','Delivery','Liquidación','Supervisor'];
+  const roles=Array.from(new Set([...USER_ROLES.filter(x=>x!=='Sin perfil'),...(state.permisos||[]).map(x=>x.rol).filter(Boolean)])).sort((a,b)=>USER_ROLES.indexOf(a)-USER_ROLES.indexOf(b));
   const deps={
     'Gerente':'Todo el sistema y configuración.',
+    'Supervisor':'Vista y control operativo del flujo. La configuración técnica solo se habilita si recibe permiso personalizado.',
     'Control':'Clientes, llamadas, órdenes y productos para registrar ventas.',
-    'Carnicería':'Órdenes, clientes, productos, detalle y empleados de carnicería para preparar/pesar.',
-    'Facturación':'Órdenes listas, clientes, detalle, productos y pesajes para imprimir y registrar factura.',
-    'Validación':'Órdenes facturadas, clientes, deliverys, detalle y pesajes para validar/asignar.',
-    'Delivery':'Sus entregas asignadas, cliente, dirección/teléfono y estado de ruta.',
+    'Vendedor':'Mismo flujo comercial de Control: clientes, gestiones y órdenes.',
+    'Carnicería':'Órdenes, clientes, productos, detalle y personal operativo para preparar y pesar.',
+    'Facturación':'Órdenes listas, clientes, detalle, productos y pesajes para imprimir y facturar.',
+    'Validación':'Órdenes facturadas, clientes, deliverys, detalle y pesajes para validar y asignar.',
+    'Delivery':'Sus entregas asignadas, cliente, dirección, teléfono y estado de ruta.',
     'Liquidación':'Órdenes entregadas, clientes, pagos, CXC y cierre de cobros.',
-    'Supervisor':'Vista y control operativo de todo el flujo, sin configuración técnica completa.'
+    'Cobrador':'Clientes, órdenes, delivery en lectura y liquidación/CXC.'
   };
-  const rows=roles.map(r=>{ const mods=navItems.map(([id,n])=>{ const rp=state.permisos.find(x=>x.rol===r&&x.modulo===id); const nivel=r==='Gerente'?'editar':(rp?.nivel||'none'); return nivel==='none'?null:`${n} (${nivel==='editar'?'editar':'ver'})`; }).filter(Boolean); return `<tr><td><b>${esc(r)}</b></td><td><small>${mods.map(esc).join(' · ')||'Sin módulos'}</small></td><td><small>${esc(deps[r]||'')}</small></td></tr>`; }).join('');
-  return `<div class="section-title">Mapa base de roles</div><div class="hint" style="margin-bottom:10px">Este mapa controla los módulos visibles. El SQL V5.5.1 también abre los datos dependientes necesarios; por ejemplo, Carnicería no ve el módulo Clientes, pero sí puede leer el nombre, teléfono, sector y productos de las órdenes que prepara.</div><div class="table-wrap"><table class="table"><thead><tr><th>Rol</th><th>Módulos visibles</th><th>Datos operativos incluidos</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  const rows=roles.map(r=>{
+    const mods=navItems.map(([id,n])=>{
+      const nivel=userBaseLevel(r,id);
+      return nivel==='none'?null:`${n} (${nivel==='editar'?'editar':'ver'})`;
+    }).filter(Boolean);
+    return `<tr><td><b>${esc(r)}</b></td><td><small>${mods.map(esc).join(' · ')||'Sin módulos base'}</small></td><td><small>${esc(deps[r]||'Rol detectado en la base de datos.')}</small></td></tr>`;
+  }).join('');
+  return `<div class="section-title">Mapa base de roles</div>
+  <div class="hint" style="margin-bottom:10px">El acceso final combina el rol base con permisos personalizados. Un permiso personalizado puede heredar el rol, negar acceso, permitir solo lectura o permitir edición.</div>
+  <div class="table-wrap"><table class="table"><thead><tr><th>Rol</th><th>Módulos base</th><th>Alcance operativo</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function renderConfigUsuarios(c){
   const canEdit=puede('config',true);
-  c.innerHTML=`<div class="panel-head"><div><h3>Usuarios y módulos</h3><p>V8.4: configuración central conectada con roles, módulos y permisos operativos.</p></div><button class="btn gray" id="authGuide">Guía crear login</button></div>
+  const q=state.userSearch||'';
+  const roleFilter=state.userRoleFilter||'Todos';
+  const statusFilter=state.userStatusFilter||'Todos';
+  const roles=Array.from(new Set((state.usuarios||[]).map(u=>u.rol||'Sin perfil'))).sort();
+  const rows=(state.usuarios||[]).filter(u=>{
+    const matchesSearch=!q || norm([u.nombre,u.correo,u.email,u.rol,u.vendedor,u.id].join(' ')).includes(norm(q));
+    const matchesRole=roleFilter==='Todos'||(u.rol||'Sin perfil')===roleFilter;
+    const st=u.activo===false?'Inactivo':'Activo';
+    return matchesSearch&&matchesRole&&(statusFilter==='Todos'||st===statusFilter);
+  });
+  const overrides=(state.usuarioModulos||[]).length;
+  c.innerHTML=`<div class="panel-head"><div><h3>Usuarios, roles y permisos</h3><p>V9.2.14: administración de perfiles, estado, rol y acceso personalizado por módulo.</p></div><div class="actions"><button class="btn gray" id="refreshUsers">Actualizar</button><button class="btn gray" id="authGuide">Guía crear login</button></div></div>
   <div class="grid3">
     <div class="card"><h3>${state.usuarios.length}</h3><p class="hint">perfiles registrados</p></div>
     <div class="card"><h3>${state.usuarios.filter(u=>u.activo!==false).length}</h3><p class="hint">usuarios activos</p></div>
-    <div class="card"><h3>${state.usuarios.filter(u=>u.activo===false).length}</h3><p class="hint">usuarios inactivos</p></div>
+    <div class="card"><h3>${overrides}</h3><p class="hint">permisos personalizados</p></div>
   </div>
-  <div class="table-wrap"><table class="table"><thead><tr><th>Nombre</th><th>Rol</th><th>Acceso final</th><th>Estado</th><th>Módulos</th></tr></thead><tbody>${state.usuarios.map(u=>{ const mods=navItems.map(([id,n])=>{ const um=state.usuarioModulos.find(x=>x.usuario_id===u.id&&x.modulo===id); const rp=state.permisos.find(x=>x.rol===u.rol&&x.modulo===id); const nivel=u.rol==='Gerente'?'editar':(um?.nivel||rp?.nivel||'none'); return nivel==='none'?null:n; }).filter(Boolean); return `<tr><td><b>${esc(u.nombre||'Sin nombre')}</b><br><small>${esc(u.id)}</small></td><td>${esc(u.rol||'')}</td><td><small>${mods.slice(0,4).map(esc).join(' · ')}${mods.length>4?' · +'+(mods.length-4):''}</small></td><td><span class="badge ${u.activo!==false?'ok':'bad'}">${u.activo!==false?'Activo':'Inactivo'}</span></td><td><button class="btn small gray" data-user="${u.id}" ${canEdit?'':'disabled'}>Editar</button></td></tr>`}).join('')}</tbody></table></div>${roleMapHtml()}`;
+  <div class="user-filter-grid" style="margin:14px 0">
+    <input id="userSearch" value="${esc(q)}" placeholder="Buscar nombre, rol, correo o ID...">
+    <select id="userRoleFilter"><option>Todos</option>${roles.map(r=>`<option ${r===roleFilter?'selected':''}>${esc(r)}</option>`).join('')}</select>
+    <select id="userStatusFilter">${['Todos','Activo','Inactivo'].map(v=>`<option ${v===statusFilter?'selected':''}>${v}</option>`).join('')}</select>
+  </div>
+  ${!canEdit?'<div class="error"><b>Acceso de lectura:</b> tu perfil puede ver esta sección, pero necesita Configuración = Editar para modificar usuarios.</div>':''}
+  <div class="table-wrap"><table class="table"><thead><tr><th>Usuario</th><th>Rol</th><th>Acceso final</th><th>Personalizados</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${rows.map(u=>{
+    const mods=userAccessSummary(u);
+    const custom=(state.usuarioModulos||[]).filter(x=>sameUserId(x.usuario_id,u.id)).length;
+    const identity=u.correo||u.email||u.id;
+    return `<tr><td><b>${esc(u.nombre||'Sin nombre')}</b><br><small>${esc(identity||'Sin identificación')}</small></td><td>${esc(u.rol||'Sin perfil')}</td><td><small>${mods.slice(0,4).map(x=>`${esc(x.n)} (${x.nivel==='editar'?'editar':'ver'})`).join(' · ')}${mods.length>4?' · +'+(mods.length-4):''}${!mods.length?'Sin acceso':''}</small></td><td><span class="badge ${custom?'info':''}">${custom}</span></td><td><span class="badge ${u.activo!==false?'ok':'bad'}">${u.activo!==false?'Activo':'Inactivo'}</span></td><td><button class="btn small gray" data-user="${u.id}" ${canEdit?'':'disabled'}>Editar</button></td></tr>`;
+  }).join('')||'<tr><td colspan="6"><div class="empty">No hay usuarios con esos filtros.</div></td></tr>'}</tbody></table></div>${roleMapHtml()}`;
   $('#authGuide').onclick=()=>openAuthGuide();
-  $$('[data-user]').forEach(b=>b.onclick=()=>openUserPerms(state.usuarios.find(x=>x.id===b.dataset.user)));
+  $('#refreshUsers').onclick=async()=>{ await loadAll(); state.configTab='usuarios'; renderConfig($('#content')); toast('Usuarios actualizados'); };
+  $('#userSearch').oninput=e=>{const pos=e.target.selectionStart||e.target.value.length;state.userSearch=e.target.value;renderConfigUsuarios(c);focusAfterRender('userSearch',pos);};
+  $('#userRoleFilter').onchange=e=>{state.userRoleFilter=e.target.value;renderConfigUsuarios(c);};
+  $('#userStatusFilter').onchange=e=>{state.userStatusFilter=e.target.value;renderConfigUsuarios(c);};
+  $$('[data-user]',c).forEach(b=>b.onclick=()=>{
+    const u=state.usuarios.find(x=>sameUserId(x.id,b.dataset.user));
+    if(!u) return alert('No encontré este usuario. Actualiza la pantalla e intenta nuevamente.');
+    openUserPerms(u);
+  });
+}
+async function saveUserPermissionsDirect(u,profilePatch,overrides){
+  const oldProfile={nombre:u.nombre||'',rol:u.rol||'Sin perfil',activo:u.activo!==false,vendedor:u.vendedor||null};
+  const oldOverrides=(state.usuarioModulos||[]).filter(x=>sameUserId(x.usuario_id,u.id)).map(x=>({usuario_id:u.id,modulo:x.modulo,nivel:x.nivel,actualizado_en:x.actualizado_en||new Date().toISOString()}));
+  const upd=await sb.from('perfiles').update(profilePatch).eq('id',u.id);
+  if(upd.error) throw upd.error;
+  const del=await sb.from('usuario_modulos').delete().eq('usuario_id',u.id);
+  if(del.error){
+    await sb.from('perfiles').update(oldProfile).eq('id',u.id);
+    throw del.error;
+  }
+  if(overrides.length){
+    const ins=await sb.from('usuario_modulos').insert(overrides.map(x=>({usuario_id:u.id,modulo:x.modulo,nivel:x.nivel,actualizado_en:new Date().toISOString()})));
+    if(ins.error){
+      await sb.from('perfiles').update(oldProfile).eq('id',u.id);
+      await sb.from('usuario_modulos').delete().eq('usuario_id',u.id);
+      if(oldOverrides.length) await sb.from('usuario_modulos').insert(oldOverrides);
+      throw ins.error;
+    }
+  }
+  return {fallback:true};
+}
+async function saveUserPermissions(u,profilePatch,overrides){
+  const args={p_usuario_id:u.id,p_nombre:profilePatch.nombre,p_rol:profilePatch.rol,p_activo:profilePatch.activo,p_vendedor:profilePatch.vendedor||null,p_modulos:overrides};
+  const rpc=await sb.rpc('actualizar_usuario_permisos_v9214',args);
+  if(!rpc.error) return rpc.data;
+  const msg=String(rpc.error.message||rpc.error.details||'');
+  if(/Could not find the function|function .* does not exist|PGRST202|schema cache/i.test(msg)){
+    return await saveUserPermissionsDirect(u,profilePatch,overrides);
+  }
+  throw rpc.error;
+}
+function openUserPerms(u){
+  if(!u) return alert('Usuario no encontrado.');
+  if(!puede('config',true)) return alert('Tu perfil no tiene permiso para editar Configuración.');
+  const roleOptions=Array.from(new Set([...USER_ROLES,...(state.usuarios||[]).map(x=>x.rol).filter(Boolean),...(state.permisos||[]).map(x=>x.rol).filter(Boolean)]));
+  const moduleRows=navItems.map(([id,n,d])=>{
+    const ov=userOverrideRow(u.id,id);
+    const selected=ov?.nivel||'heredar';
+    return `<tr data-user-perm-row="${id}"><td><b>${esc(n)}</b><br><small>${esc(d)}</small></td><td data-user-perm-base="${id}">${permissionBadge(userBaseLevel(u.rol,id))}</td><td><select data-user-perm="${id}">
+      <option value="heredar" ${selected==='heredar'?'selected':''}>Heredar del rol</option>
+      <option value="none" ${selected==='none'?'selected':''}>Sin acceso</option>
+      <option value="ver" ${selected==='ver'?'selected':''}>Solo ver</option>
+      <option value="editar" ${selected==='editar'?'selected':''}>Editar</option>
+    </select></td><td data-user-perm-final="${id}">${permissionBadge(userFinalLevel(u,id))}</td></tr>`;
+  }).join('');
+  const body=`<div class="grid2"><div class="card"><h3>Identidad y estado</h3>
+    <div class="field"><label>Nombre visible</label><input id="usrName" value="${esc(u.nombre||'')}"></div>
+    <div class="field"><label>Correo / identificación</label><input value="${esc(u.correo||u.email||u.id||'')}" readonly></div>
+    <div class="field"><label>Rol base</label><select id="usrRole">${roleOptions.map(r=>`<option value="${esc(r)}" ${r===(u.rol||'Sin perfil')?'selected':''}>${esc(r)}</option>`).join('')}</select></div>
+    <div class="field"><label>Nombre operativo relacionado (opcional)</label><input id="usrWorker" value="${esc(u.vendedor||'')}" placeholder="Ej.: César Martínez"></div>
+    <label class="checkrow"><input id="usrActive" type="checkbox" ${u.activo!==false?'checked':''}> <b>Usuario activo</b><span>Al desactivarlo no podrá entrar al CRM.</span></label>
+    <div class="hint">La contraseña y el correo de acceso se administran en Supabase Authentication. Esta pantalla controla el perfil y los módulos del CRM.</div>
+  </div><div class="card"><h3>Resumen de seguridad</h3>
+    <div class="kv"><b>Permisos personalizados actuales</b><span>${(state.usuarioModulos||[]).filter(x=>sameUserId(x.usuario_id,u.id)).length}</span></div>
+    <div class="kv"><b>Usuario actual</b><span>${sameUserId(u.id,state.user?.id)?'Sí - protección contra autobloqueo':'No'}</span></div>
+    <div class="kv"><b>Regla</b><span>Heredar usa el mapa del rol; cualquier otra opción crea una excepción personal.</span></div>
+    <button class="btn gray" id="resetUserOverrides" type="button">Restablecer todos a “Heredar”</button>
+  </div></div>
+  <div class="section-title">Permisos por módulo</div>
+  <div class="table-wrap"><table class="table"><thead><tr><th>Módulo</th><th>Rol base</th><th>Permiso personalizado</th><th>Acceso final</th></tr></thead><tbody>${moduleRows}</tbody></table></div>
+  <div class="actions" style="margin-top:16px"><button class="btn" id="saveUserPerms">Guardar usuario y permisos</button></div>`;
+  const m=openModal('Editar usuario y módulos',body,'Los cambios afectan el menú y las acciones permitidas la próxima vez que el usuario actualice o vuelva a entrar.');
+  const preview=()=>{
+    const role=$('#usrRole',m).value;
+    $$('[data-user-perm]',m).forEach(sel=>{
+      const moduleId=sel.dataset.userPerm;
+      const base=userBaseLevel(role,moduleId);
+      const final=role==='Gerente'?'editar':(sel.value==='heredar'?base:sel.value);
+      const baseCell=$(`[data-user-perm-base="${moduleId}"]`,m);
+      const finalCell=$(`[data-user-perm-final="${moduleId}"]`,m);
+      if(baseCell) baseCell.innerHTML=permissionBadge(base);
+      if(finalCell) finalCell.innerHTML=permissionBadge(final);
+      sel.disabled=role==='Gerente';
+    });
+  };
+  $('#usrRole',m).onchange=preview;
+  $$('[data-user-perm]',m).forEach(s=>s.onchange=preview);
+  $('#resetUserOverrides',m).onclick=()=>{$$('[data-user-perm]',m).forEach(s=>s.value='heredar');preview();};
+  preview();
+  $('#saveUserPerms',m).onclick=async()=>{
+    const btn=$('#saveUserPerms',m);
+    const nombre=$('#usrName',m).value.trim();
+    const rol=$('#usrRole',m).value;
+    const activo=$('#usrActive',m).checked;
+    const vendedor=$('#usrWorker',m).value.trim()||null;
+    if(!nombre) return alert('Escribe el nombre visible del usuario.');
+    if(!rol) return alert('Selecciona un rol.');
+    const overrides=rol==='Gerente'?[]:$$('[data-user-perm]',m).map(s=>({modulo:s.dataset.userPerm,nivel:s.value})).filter(x=>x.nivel!=='heredar');
+    const configOverride=rol==='Gerente'?'editar':(overrides.find(x=>x.modulo==='config')?.nivel||userBaseLevel(rol,'config'));
+    if(sameUserId(u.id,state.user?.id) && (!activo || configOverride!=='editar')){
+      return alert('Para evitar que pierdas el acceso administrativo, no puedes desactivar tu propio usuario ni quitarte Configuración = Editar desde esta sesión.');
+    }
+    btn.disabled=true; btn.textContent='Guardando...';
+    try{
+      await saveUserPermissions(u,{nombre,rol,activo,vendedor,actualizado_en:new Date().toISOString()},overrides);
+      m.remove();
+      await loadAll();
+      state.configTab='usuarios';
+      renderConfig($('#content'));
+      toast('Usuario y permisos actualizados');
+    }catch(e){
+      console.error(e);
+      alert('No se pudo guardar el usuario: '+(e.message||e)+'. Revisa el SQL 24_actualizacion_v9214_usuarios_permisos.sql y las políticas RLS.');
+      btn.disabled=false; btn.textContent='Guardar usuario y permisos';
+    }
+  };
 }
 function openAuthGuide(){
-  openModal('Guía para crear login del empleado',`<div class="card"><h3>Paso 1: crear credencial en Supabase</h3><p class="hint">Supabase → Authentication → Users → Add user. Escribe correo y contraseña temporal.</p><h3>Paso 2: crear o confirmar perfil</h3><p class="hint">El ID del usuario de Auth debe existir en la tabla perfiles. En V5.6 haremos este paso automático desde el sistema con una función segura.</p><h3>Paso 3: asignar módulos</h3><p class="hint">En esta pantalla eliges rol, activo/inactivo y permiso por módulo: Sin acceso, Solo ver o Editar.</p><div class="error"><b>Seguridad:</b> No se debe poner la service_role key dentro del HTML público. Por eso la creación automática será la V5.6.</div></div>`);
+  openModal('Guía para crear login del empleado',`<div class="card"><h3>1. Crear la credencial</h3><p class="hint">Supabase → Authentication → Users → Add user. Escribe el correo y una contraseña temporal.</p><h3>2. Confirmar el perfil</h3><p class="hint">El mismo ID de Authentication debe existir en la tabla <b>perfiles</b>. El SQL de usuarios incluye un diagnóstico para detectar credenciales sin perfil y perfiles sin credencial.</p><h3>3. Asignar acceso</h3><p class="hint">Regresa a Configuración → Usuarios, pulsa Editar y define rol, estado y excepciones por módulo.</p><h3>4. Contraseña</h3><p class="hint">El propio empleado puede usar “Mi acceso” para cambiar su contraseña. El correo y las contraseñas nunca se administran con una service_role dentro del navegador.</p><div class="success"><b>Seguridad:</b> el frontend solo usa la clave publicable. La modificación de perfiles y permisos se protege con sesión, RLS y una función transaccional en Supabase.</div></div>`);
 }
+
 function renderConfigGeneral(c){
   const sc=normalizeSystemConfig(state.systemConfig||{}); const wc=normalizeWeightConfig(state.weightConfig||{});
   sc.empresa=sc.empresa||defaultSystemConfig().empresa; sc.alertas=sc.alertas||defaultSystemConfig().alertas; sc.impresion=sc.impresion||defaultSystemConfig().impresion; sc.recibos=sc.recibos||defaultSystemConfig().recibos; sc.respaldo=sc.respaldo||defaultSystemConfig().respaldo; sc.atajos=sc.atajos||defaultSystemConfig().atajos; sc.seguridad=sc.seguridad||defaultSystemConfig().seguridad;
   const enabled=navItems.filter(([id])=>moduleEnabled(id)).length;
-  c.innerHTML=`<div class="panel-head"><div><h3>Centro de configuración</h3><p>Todo lo que cambies aquí alimenta los módulos operativos del sistema.</p></div><span class="badge info">V9.2.13</span></div>
+  c.innerHTML=`<div class="panel-head"><div><h3>Centro de configuración</h3><p>Todo lo que cambies aquí alimenta los módulos operativos del sistema.</p></div><span class="badge info">V9.2.14</span></div>
   <div class="config-overview">
     ${configCardStatus('Empresa',!!sc.empresa.nombre,`Nombre: ${sc.empresa.nombre || 'sin configurar'}`)}
     ${configCardStatus('Menú',enabled>0,`${enabled} módulos activos de ${navItems.length}`)}
@@ -2012,7 +2283,7 @@ function renderConfigGeneral(c){
   $$('[data-config-go]').forEach(b=>b.onclick=()=>{state.configTab=b.dataset.configGo; renderConfig($('#content'));});
 }
 function renderConfigEmpresa(c){ const e=normalizeSystemConfig(state.systemConfig||{}).empresa || defaultSystemConfig().empresa;
-  c.innerHTML=`<div class="panel-head"><div><h3>Configuración general del negocio</h3><p>Datos maestros que salen en menú, reportes, hojas de ruta, recibos y facturas internas.</p></div><span class="badge info">V9.2.13</span></div><div class="grid2"><div class="card"><div class="field"><label>Nombre comercial</label><input id="empNombre" value="${esc(e.nombre)}"></div><div class="field"><label>Subtítulo del sistema</label><input id="empSub" value="${esc(e.subtitulo)}"></div><div class="grid2"><div class="field"><label>Texto del logo</label><input id="empLogo" maxlength="6" value="${esc(e.logoTexto)}"></div><div class="field"><label>Moneda</label><input id="empMoneda" value="${esc(e.moneda)}"></div></div><div class="field"><label>Logo URL opcional</label><input id="empLogoUrl" value="${esc(e.logoUrl||'')}" placeholder="https://.../logo.png"><div class="hint">Opcional. Si se deja vacío, se usa el texto del logo.</div></div></div><div class="card"><div class="grid2"><div class="field"><label>Teléfono</label><input id="empTel" value="${esc(e.telefono)}"></div><div class="field"><label>RNC</label><input id="empRnc" value="${esc(e.rnc||'')}"></div></div><div class="field"><label>Correo</label><input id="empCorreo" value="${esc(e.correo||'')}"></div><div class="field"><label>Dirección</label><textarea id="empDir">${esc(e.direccion)}</textarea></div><div class="success"><b>Conectado:</b> estos datos se usan en reportes, recibos, hoja de ruta, tickets y encabezado del sistema.</div><button class="btn" id="saveEmpresa">Guardar configuración general</button></div></div>`;
+  c.innerHTML=`<div class="panel-head"><div><h3>Configuración general del negocio</h3><p>Datos maestros que salen en menú, reportes, hojas de ruta, recibos y facturas internas.</p></div><span class="badge info">V9.2.14</span></div><div class="grid2"><div class="card"><div class="field"><label>Nombre comercial</label><input id="empNombre" value="${esc(e.nombre)}"></div><div class="field"><label>Subtítulo del sistema</label><input id="empSub" value="${esc(e.subtitulo)}"></div><div class="grid2"><div class="field"><label>Texto del logo</label><input id="empLogo" maxlength="6" value="${esc(e.logoTexto)}"></div><div class="field"><label>Moneda</label><input id="empMoneda" value="${esc(e.moneda)}"></div></div><div class="field"><label>Logo URL opcional</label><input id="empLogoUrl" value="${esc(e.logoUrl||'')}" placeholder="https://.../logo.png"><div class="hint">Opcional. Si se deja vacío, se usa el texto del logo.</div></div></div><div class="card"><div class="grid2"><div class="field"><label>Teléfono</label><input id="empTel" value="${esc(e.telefono)}"></div><div class="field"><label>RNC</label><input id="empRnc" value="${esc(e.rnc||'')}"></div></div><div class="field"><label>Correo</label><input id="empCorreo" value="${esc(e.correo||'')}"></div><div class="field"><label>Dirección</label><textarea id="empDir">${esc(e.direccion)}</textarea></div><div class="success"><b>Conectado:</b> estos datos se usan en reportes, recibos, hoja de ruta, tickets y encabezado del sistema.</div><button class="btn" id="saveEmpresa">Guardar configuración general</button></div></div>`;
   $('#saveEmpresa').onclick=async()=>{ const val={nombre:$('#empNombre').value.trim()||'Productos César',subtitulo:$('#empSub').value.trim()||'CRM · Despacho · CXC',logoTexto:$('#empLogo').value.trim()||'PC',logoUrl:$('#empLogoUrl').value.trim(),moneda:$('#empMoneda').value.trim()||'RD$',telefono:$('#empTel').value.trim(),rnc:$('#empRnc').value.trim(),correo:$('#empCorreo').value.trim(),direccion:$('#empDir').value.trim()}; await saveConfigKey('empresa',val); render(); state.configTab='empresa'; state.page='config'; setTimeout(()=>renderConfig($('#content')),50); };
 }
 function renderConfigRecibos(c){ const cfg=normalizeSystemConfig(state.systemConfig||{}); const r=cfg.recibos||defaultSystemConfig().recibos; const e=cfg.empresa||{};
@@ -2062,9 +2333,23 @@ function renderConfigFacturacion(c){
     await saveConfigKey('facturacion',val); renderConfig($('#content'));
   };
 }
-function renderConfigAlertas(c){ const a=normalizeSystemConfig(state.systemConfig||{}).alertas || defaultSystemConfig().alertas;
-  c.innerHTML=`<div class="panel-head"><div><h3>Alertas y tiempo operativo</h3><p>Controla sonido, parpadeo y tiempos de referencia para identificar atrasos.</p></div></div><div class="grid2"><div class="card"><div class="field"><label>Parpadeo de órdenes nuevas</label><select id="alParpadeo"><option value="true" ${a.parpadeoNuevas!==false?'selected':''}>Activo</option><option value="false" ${a.parpadeoNuevas===false?'selected':''}>Apagado</option></select></div><div class="field"><label>Sonido activo por defecto</label><select id="alSonido"><option value="false" ${!a.sonidoDefault?'selected':''}>No</option><option value="true" ${a.sonidoDefault?'selected':''}>Sí</option></select></div><div class="field"><label>Revisión automática cada segundos</label><input id="alRevision" type="number" min="10" max="300" value="${a.revisionSegundos||30}"></div></div><div class="card"><h3>Tiempo máximo recomendado por etapa</h3><div class="grid2"><div class="field"><label>Carnicería min.</label><input id="alCarn" type="number" value="${a.carniceriaMaxMin}"></div><div class="field"><label>Facturación min.</label><input id="alFact" type="number" value="${a.facturacionMaxMin}"></div><div class="field"><label>Validación min.</label><input id="alVal" type="number" value="${a.validacionMaxMin}"></div><div class="field"><label>Delivery min.</label><input id="alDel" type="number" value="${a.deliveryMaxMin}"></div><div class="field"><label>Liquidación min.</label><input id="alLiq" type="number" value="${a.liquidacionMaxMin}"></div></div><button class="btn" id="saveAlertas">Guardar alertas</button></div></div>`;
-  $('#saveAlertas').onclick=async()=>{ const val={parpadeoNuevas:$('#alParpadeo').value==='true',sonidoDefault:$('#alSonido').value==='true',revisionSegundos:+$('#alRevision').value||30,carniceriaMaxMin:+$('#alCarn').value||45,facturacionMaxMin:+$('#alFact').value||30,validacionMaxMin:+$('#alVal').value||30,deliveryMaxMin:+$('#alDel').value||120,liquidacionMaxMin:+$('#alLiq').value||60}; await saveConfigKey('alertas',val); startLivePolling(); render(); };
+function renderConfigAlertas(c){
+  const a=normalizeSystemConfig(state.systemConfig||{}).alertas || defaultSystemConfig().alertas;
+  const h=a.horarioLaboral||{}, ls=Array.isArray(h.lunesSabado)?h.lunesSabado:[], dom=Array.isArray(h.domingo)?h.domingo:[];
+  const ls1=ls[0]||['07:00','12:00'], ls2=ls[1]||['14:00','17:00'], ds=dom[0]||['07:00','12:00'];
+  c.innerHTML=`<div class="panel-head"><div><h3>Alertas, horario y SLA</h3><p>Configura el tiempo laborable real, los límites por etapa y las reglas del análisis operativo V9.2.14.</p></div><span class="badge info">V9.2.14</span></div>
+  <div class="grid2"><div class="card"><h3>Actualización y avisos</h3><div class="field"><label>Parpadeo de órdenes nuevas</label><select id="alParpadeo"><option value="true" ${a.parpadeoNuevas!==false?'selected':''}>Activo</option><option value="false" ${a.parpadeoNuevas===false?'selected':''}>Apagado</option></select></div><div class="field"><label>Sonido activo por defecto</label><select id="alSonido"><option value="false" ${!a.sonidoDefault?'selected':''}>No</option><option value="true" ${a.sonidoDefault?'selected':''}>Sí</option></select></div><div class="field"><label>Revisión automática cada segundos</label><input id="alRevision" type="number" min="10" max="300" value="${a.revisionSegundos||30}"></div></div>
+  <div class="card"><h3>SLA máximo por etapa</h3><p class="hint">Al superar este tiempo, la etapa se considera fuera de SLA. El aviso amarillo aparece al 70%.</p><div class="grid2"><div class="field"><label>Carnicería min.</label><input id="alCarn" type="number" min="1" value="${a.carniceriaMaxMin}"></div><div class="field"><label>Facturación min.</label><input id="alFact" type="number" min="1" value="${a.facturacionMaxMin}"></div><div class="field"><label>Validación min.</label><input id="alVal" type="number" min="1" value="${a.validacionMaxMin}"></div><div class="field"><label>Delivery min.</label><input id="alDel" type="number" min="1" value="${a.deliveryMaxMin}"></div><div class="field"><label>Liquidación min.</label><input id="alLiq" type="number" min="1" value="${a.liquidacionMaxMin}"></div><div class="field"><label>Factor de caso extremo</label><input id="alExtreme" type="number" min="1" max="10" step="0.5" value="${Number(a.extremoFactor||3)}"><div class="hint">Ej.: 3 = duración mayor a 3 veces el SLA, además del análisis estadístico.</div></div></div></div></div>
+  <div class="grid2"><div class="card"><h3>Horario para tiempo laborable</h3><label class="checkrow"><input id="alUseWork" type="checkbox" ${a.usarTiempoLaborable!==false?'checked':''}> <b>Usar tiempo laborable en cronómetros y reportes</b><span>Descuenta almuerzo, horas fuera del negocio y feriados registrados.</span></label><div class="section-title">Lunes a sábado</div><div class="grid2"><div class="field"><label>Inicio mañana</label><input id="alLs1Start" type="time" value="${esc(ls1[0])}"></div><div class="field"><label>Fin mañana</label><input id="alLs1End" type="time" value="${esc(ls1[1])}"></div><div class="field"><label>Inicio tarde</label><input id="alLs2Start" type="time" value="${esc(ls2[0])}"></div><div class="field"><label>Fin tarde</label><input id="alLs2End" type="time" value="${esc(ls2[1])}"></div></div><div class="section-title">Domingo</div><div class="grid2"><div class="field"><label>Inicio</label><input id="alSunStart" type="time" value="${esc(ds[0])}"></div><div class="field"><label>Fin</label><input id="alSunEnd" type="time" value="${esc(ds[1])}"></div></div></div>
+  <div class="card"><h3>Feriados y calidad del promedio</h3><div class="field"><label>Feriados sin operación</label><textarea id="alHolidays" placeholder="2026-01-01, 2026-01-06">${esc(operationHolidayList(a.feriados||[]).join('\n'))}</textarea><div class="hint">Escriba una fecha por línea o separada por comas en formato AAAA-MM-DD.</div></div><label class="checkrow"><input id="alExcludeReopen" type="checkbox" ${a.excluirReaperturasPromedio!==false?'checked':''}> <b>Excluir reaperturas del promedio principal</b><span>Las órdenes reabiertas siguen visibles en un indicador separado, pero no distorsionan el promedio normal.</span></label><div class="success"><b>Horario predeterminado de Productos César:</b><br>Lunes a sábado 7:00–12:00 y 2:00–5:00 · Domingo 7:00–12:00.</div></div></div>
+  <div class="actions"><button class="btn" id="saveAlertas">Guardar horario y SLA</button><button class="btn gray" data-go="reportes">Ver reportes</button></div>`;
+  $('#saveAlertas').onclick=async()=>{
+    const pairs=[[$('#alLs1Start').value,$('#alLs1End').value,'mañana L-S'],[$('#alLs2Start').value,$('#alLs2End').value,'tarde L-S'],[$('#alSunStart').value,$('#alSunEnd').value,'domingo']];
+    const invalid=pairs.find(([a,b])=>a&&b&&a>=b); if(invalid) return alert(`El horario de ${invalid[2]} tiene una hora final menor o igual a la inicial.`);
+    const val={parpadeoNuevas:$('#alParpadeo').value==='true',sonidoDefault:$('#alSonido').value==='true',revisionSegundos:+$('#alRevision').value||30,carniceriaMaxMin:+$('#alCarn').value||45,facturacionMaxMin:+$('#alFact').value||30,validacionMaxMin:+$('#alVal').value||30,deliveryMaxMin:+$('#alDel').value||120,liquidacionMaxMin:+$('#alLiq').value||60,usarTiempoLaborable:$('#alUseWork').checked,horarioLaboral:{lunesSabado:[[pairs[0][0],pairs[0][1]],[pairs[1][0],pairs[1][1]]].filter(x=>x[0]&&x[1]),domingo:[[pairs[2][0],pairs[2][1]]].filter(x=>x[0]&&x[1])},feriados:operationHolidayList($('#alHolidays').value),excluirReaperturasPromedio:$('#alExcludeReopen').checked,extremoFactor:Math.max(1,+$('#alExtreme').value||3)};
+    await saveConfigKey('alertas',val); startLivePolling(); render();
+  };
+  $$('[data-go="reportes"]',c).forEach(b=>b.onclick=()=>{state.page='reportes';render();});
 }
 function renderConfigImpresion(c){ const im=normalizeSystemConfig(state.systemConfig||{}).impresion || defaultSystemConfig().impresion;
   c.innerHTML=`<div class="panel-head"><div><h3>Impresión y tickets</h3><p>Parámetros para tickets internos de carnicería y facturación.</p></div></div><div class="grid2"><div class="card"><div class="field"><label>Ticket de carnicería</label><select id="impCarn"><option ${im.ticketCarniceria==='80mm'?'selected':''}>80mm</option><option ${im.ticketCarniceria==='Carta'?'selected':''}>Carta</option></select></div><div class="field"><label>Ticket de facturación</label><select id="impFact"><option ${im.ticketFacturacion==='80mm'?'selected':''}>80mm</option><option ${im.ticketFacturacion==='Carta'?'selected':''}>Carta</option></select></div><div class="field"><label>Pie de ticket</label><input id="impPie" value="${esc(im.pieTicket)}"></div></div><div class="card"><label class="checkrow"><input id="impLogo" type="checkbox" ${im.mostrarLogo!==false?'checked':''}> <b>Mostrar logo</b><span>Usa el texto configurado en Empresa.</span></label><label class="checkrow"><input id="impTel" type="checkbox" ${im.mostrarTelefono!==false?'checked':''}> <b>Mostrar teléfono</b><span>Sale en tickets si está definido.</span></label><label class="checkrow"><input id="impDir" type="checkbox" ${im.mostrarDireccion!==false?'checked':''}> <b>Mostrar dirección</b><span>Sale en tickets si está definida.</span></label><button class="btn" id="saveImpresion">Guardar impresión</button></div></div>`;
