@@ -883,49 +883,29 @@ function createdAtOf(o){ return o?.creado_en || o?.created_at || o?.fecha; }
 function createdClockBadge(o){ const m=minutesSince(createdAtOf(o)); const cls=m!==null && m>60?'warn':'info'; return `<span class="badge ${cls}">⏱ Creada hace ${esc(elapsedTextSince(createdAtOf(o)))}</span>`; }
 function isOrderReady(o){ return ['Lista para facturar','Impresa para facturar'].includes(o?.estado); }
 function isOrderInProcess(o){ return ['En preparación','Lista para facturar','Impresa para facturar','Facturada','Validada para delivery','Asignada a delivery','En ruta'].includes(o?.estado); }
-// V9.3.0 R4 - relojes operativos protegidos contra acciones sin transición
 function orderProcessStartedAt(o){
-  const stage=currentModuleOfOrder(o);
-  return stage ? (stageEntryAt(o,stage) || createdAtOf(o)) : createdAtOf(o);
+  const h=state.historialEstados.find(x=>Number(x.orden_id)===Number(o?.id) && x.estado_nuevo===o?.estado);
+  if(h?.creado_en) return h.creado_en;
+  if(o?.estado==='En preparación') return o.tomado_en || o.preparado_en || createdAtOf(o);
+  if(['Lista para facturar','Impresa para facturar'].includes(o?.estado)) return histFirstTimeFor(o,['Lista para facturar','Impresa para facturar']) || o.preparado_en || createdAtOf(o);
+  if(o?.estado==='Facturada') return o.facturado_en || createdAtOf(o);
+  if(['Validada para delivery','Asignada a delivery'].includes(o?.estado)) return o.asignado_delivery_en || o.validado_en || createdAtOf(o);
+  if(o?.estado==='En ruta') return o.en_ruta_en || createdAtOf(o);
+  return createdAtOf(o);
 }
 function processClockBadge(o){ if(!isOrderInProcess(o)) return ''; const start=orderProcessStartedAt(o); const m=minutesSince(start); const cls=m!==null && m>45?'bad':'info'; return `<span class="badge ${cls}">⏱ En proceso ${esc(elapsedTextSince(start))}</span>`; }
-function orderHistoryFor(o){
-  return (state.historialEstados||[]).filter(h=>Number(h.orden_id)===Number(o?.id));
-}
-function stateStageName(value){
-  const st=String(value||'').trim();
-  if(['Pedido recibido','En preparación'].includes(st)) return 'carniceria';
-  if(['Lista para facturar','Impresa para facturar'].includes(st)) return 'facturacion';
-  if(['Facturada','Validada para delivery'].includes(st)) return 'validacion';
-  if(['Asignada a delivery','En ruta'].includes(st)) return 'delivery';
-  if(['Entregado','Cobrado','Entregado a crédito','No entregado','Devuelto parcial','Cerrado'].includes(st)) return 'liquidacion';
-  return '';
-}
-function isRealStateTransition(h){
-  const before=String(h?.estado_anterior||'').trim();
-  const after=String(h?.estado_nuevo||'').trim();
-  return !!after && before!==after;
-}
-function historyTransitionsFor(o){
-  return orderHistoryFor(o).filter(isRealStateTransition);
-}
-function histTimeFor(o, estados, {transitionsOnly=true}={}){
+function orderHistoryFor(o){ return (state.historialEstados||[]).filter(h=>Number(h.orden_id)===Number(o?.id)); }
+function histTimeFor(o, estados){
   const names=Array.isArray(estados)?estados:[estados];
-  const sourceRows=transitionsOnly ? historyTransitionsFor(o) : orderHistoryFor(o);
-  const rows=sourceRows
-    .filter(h=>names.includes(h.estado_nuevo))
-    .sort((a,b)=>new Date(b.creado_en)-new Date(a.creado_en));
+  const rows=orderHistoryFor(o).filter(h=>names.includes(h.estado_nuevo)).sort((a,b)=>new Date(b.creado_en)-new Date(a.creado_en));
   return rows[0]?.creado_en || null;
 }
-function stageTransitionTimeFor(o,stage){
-  const rows=historyTransitionsFor(o)
-    .filter(h=>stateStageName(h.estado_nuevo)===stage && stateStageName(h.estado_anterior)!==stage)
-    .sort((a,b)=>new Date(b.creado_en)-new Date(a.creado_en));
+function histFirstTimeFor(o, estados){
+  const names=Array.isArray(estados)?estados:[estados];
+  const rows=orderHistoryFor(o).filter(h=>names.includes(h.estado_nuevo)).sort((a,b)=>new Date(a.creado_en)-new Date(b.creado_en));
   return rows[0]?.creado_en || null;
 }
-function closedAtOf(o){
-  return histTimeFor(o,['Cobrado','Entregado a crédito','No entregado','Devuelto parcial','Cerrado','Anulado']);
-}
+function closedAtOf(o){ return histTimeFor(o,['Cobrado','Entregado a crédito','No entregado','Devuelto parcial','Cerrado','Anulado']); }
 function totalOrderClockBadge(o){
   const start=createdAtOf(o); if(!start) return '';
   const end=closedAtOf(o); const txt=end?elapsedBetweenText(start,end):elapsedTextSince(start);
@@ -980,13 +960,11 @@ function currentModuleOfOrder(o){
 }
 function stageEntryAt(o,stage){
   if(!o) return null;
-  const transitionAt=stageTransitionTimeFor(o,stage);
-  if(transitionAt) return transitionAt;
-  if(stage==='carniceria') return createdAtOf(o);
-  if(stage==='facturacion') return o.preparado_en || null;
-  if(stage==='validacion') return o.facturado_en || null;
-  if(stage==='delivery') return o.asignado_delivery_en || o.en_ruta_en || null;
-  if(stage==='liquidacion') return o.recibido_en || null;
+  if(stage==='carniceria') return histTimeFor(o,['Pedido recibido','En preparación']) || o.tomado_en || createdAtOf(o);
+  if(stage==='facturacion') return histFirstTimeFor(o,['Lista para facturar','Impresa para facturar']) || o.preparado_en || null;
+  if(stage==='validacion') return histTimeFor(o,['Facturada','Validada para delivery']) || o.facturado_en || o.validado_en || null;
+  if(stage==='delivery') return histTimeFor(o,['Asignada a delivery','En ruta']) || o.asignado_delivery_en || o.en_ruta_en || null;
+  if(stage==='liquidacion') return histTimeFor(o,['En ruta','Entregado','Cobrado','Entregado a crédito','No entregado','Devuelto parcial']) || o.en_ruta_en || o.asignado_delivery_en || null;
   return null;
 }
 function stageExitAt(o,stage){

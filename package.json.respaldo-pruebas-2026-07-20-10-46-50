@@ -1,0 +1,19 @@
+{
+  "name": "productos-cesar-crm-v930",
+  "version": "9.3.0-r3",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node tests/auditoria_validacion.mjs && node tests/auditoria_kanban.mjs && node tests/auditoria_reportes.mjs && node tests/auditoria_operacion_v9214.mjs && node tests/auditoria_usuarios_v9214.mjs && node tests/auditoria_comercial_v9215.mjs && node tests/auditoria_mobile_v930.mjs && node tests/auditoria_recuperacion_v930r2.mjs && node tests/auditoria_mobile_v930r3.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {}
+}
