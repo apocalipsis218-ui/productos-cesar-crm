@@ -1,0 +1,23 @@
+HOTFIX V9.3.0 R10.1 - AUDITORIA R9 EN WINDOWS
+
+Corrige exclusivamente la ruta usada por:
+tests/auditoria_usuarios_empleados_v930r9.mjs
+
+Problema anterior:
+C:\C:\proyectos\productos-cesar-crm\src\main.js
+
+Causa:
+new URL(import.meta.url).pathname conserva /C:/ en Windows y path.resolve lo interpreta incorrectamente.
+
+Correccion:
+Se usa fileURLToPath(import.meta.url), compatible con Windows, Linux y macOS.
+
+No modifica:
+- src/main.js
+- Supabase
+- la interfaz
+- dist
+- Cloudflare
+
+Aplicacion:
+powershell -ExecutionPolicy Bypass -File ".\HOTFIX_V9.3.0_R10.1_AUDITORIA_R9_WINDOWS\APLICAR_V930_R10_1_FIX_AUDITORIA_R9.ps1"

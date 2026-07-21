@@ -1,9 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const here=path.dirname(fileURLToPath(import.meta.url));
-const root=path.resolve(here,'..');
+const root=path.resolve(path.dirname(new URL(import.meta.url).pathname),'..');
 const main=fs.readFileSync(path.join(root,'src','main.js'),'utf8');
 const sql=fs.readFileSync(path.join(root,'supabase','26_actualizacion_v930r9_vincular_usuarios_empleados.sql'),'utf8');
 const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
