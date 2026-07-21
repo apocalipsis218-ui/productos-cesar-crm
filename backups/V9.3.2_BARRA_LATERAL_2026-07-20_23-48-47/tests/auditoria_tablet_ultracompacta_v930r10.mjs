@@ -18,7 +18,7 @@ ok(main.includes('order-notes-details-r10'),'notas adicionales plegables en tabl
 ok(css.includes('@media(max-width:1024px)'),'diseño específico para tablet');
 ok(css.includes('grid-template-columns:64px minmax(76px,.84fr) minmax(102px,1fr) minmax(75px,.72fr)'),'cuatro columnas compactas en despacho');
 ok(css.includes('.order-remove-r10:after'),'botón quitar compacto en tablet');
-ok(['9.3.0-r10','9.3.0-r10.1','9.3.1','9.3.2'].includes(pkg.version),'package actualizado a r10/r10.1');
+ok(['9.3.0-r10','9.3.0-r10.1','9.3.1'].includes(pkg.version),'package actualizado a r10/r10.1');
 ok(pkg.scripts.test.includes('auditoria_tablet_ultracompacta_v930r10.mjs'),'auditoría R10 integrada en npm test');
 
 console.log('Auditoría Operación Tablet Ultracompacta V9.3.0 R10 aprobada.');

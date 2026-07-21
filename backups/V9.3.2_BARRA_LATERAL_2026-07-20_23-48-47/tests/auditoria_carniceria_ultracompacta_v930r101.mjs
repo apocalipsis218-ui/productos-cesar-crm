@@ -19,7 +19,7 @@ ok(css.includes('.prep-row-r8 > .prep-compact-grid-r101'),'selector compatible y
 ok(css.includes('flex-flow:row nowrap!important'),'cuatro campos forzados en una sola línea');
 ok(css.includes('background:transparent!important'),'faltante sin celda larga de color');
 ok(css.includes('height:30px!important'),'controles de preparación reducidos');
-ok(['9.3.0-r10.1','9.3.1','9.3.2'].includes(pkg.version),'package actualizado a r10.1');
+ok(['9.3.0-r10.1','9.3.1'].includes(pkg.version),'package actualizado a r10.1');
 ok(pkg.scripts.test.includes('auditoria_carniceria_ultracompacta_v930r101.mjs'),'auditoría R10.1 integrada en npm test');
 
 console.log('Auditoría Carnicería Ultracompacta V9.3.0 R10.1 aprobada.');

@@ -1,0 +1,16 @@
+PRODUCTOS CESAR CRM - V9.3.2
+BARRA LATERAL PLEGABLE
+
+Cambios:
+- Boton en el borde del menu para ocultarlo o mostrarlo.
+- El contenido principal usa todo el ancho al ocultar la barra.
+- La preferencia se guarda en cada dispositivo mediante localStorage.
+- La navegacion movil inferior permanece igual.
+- No requiere SQL ni cambios en Supabase.
+
+Aplicacion:
+1. Copie este HOTFIX dentro de C:\proyectos\productos-cesar-crm
+2. Ejecute:
+   powershell -ExecutionPolicy Bypass -File ".\HOTFIX_V9.3.2_BARRA_LATERAL_PLEGABLE\APLICAR_V932_BARRA_LATERAL.ps1"
+3. Publique:
+   npx.cmd wrangler deploy
