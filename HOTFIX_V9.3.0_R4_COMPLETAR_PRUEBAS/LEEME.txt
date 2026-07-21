@@ -1,6 +1,0 @@
-Productos Cesar CRM - V9.3.0 R4
-
-Este parche restaura la auditoria comercial V9.2.15 que faltaba en la carpeta tests
-y agrega la auditoria de relojes R4 al comando general npm test.
-
-No modifica src/main.js ni Supabase.

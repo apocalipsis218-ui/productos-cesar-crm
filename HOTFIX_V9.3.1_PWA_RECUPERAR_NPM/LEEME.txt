@@ -1,5 +1,0 @@
-RECUPERACION V9.3.1 PWA
-
-Use este HOTFIX cuando la instalacion anterior fallo con una URL packages.applied-caas-gateway...internal.api.openai.org.
-
-No vuelve a copiar el CRM. Solo corrige package-lock.json, crea .npmrc con el registro publico, instala dependencias, ejecuta pruebas y compila.
