@@ -1,0 +1,9 @@
+HOTFIX V9.3.3.1 - MODULOS INITIALCUSTOMERTYPE
+
+Causa corregida:
+La funcion global isInternalSale() usaba initialCustomerType, una variable que solo existe dentro del formulario Crear orden. Al renderizar Ordenes, Carniceria, Facturacion, Validacion y otros modulos, JavaScript lanzaba "initialCustomerType is not defined".
+
+Correccion:
+isInternalSale(o) ahora determina el tipo mediante orderCustomerType(o), que recibe la orden y funciona en todos los modulos.
+
+No requiere SQL nuevo.

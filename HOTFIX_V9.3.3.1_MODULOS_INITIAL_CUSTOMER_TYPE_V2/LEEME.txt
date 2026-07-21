@@ -1,0 +1,9 @@
+HOTFIX V9.3.3.1 V2
+Corrige el error global: initialCustomerType is not defined.
+
+1. Coloque el ZIP en la raiz del proyecto.
+2. Descomprima con Expand-Archive.
+3. Ejecute APLICAR_V9331_FIX_MODULOS_V2.ps1.
+4. Publique con npx.cmd wrangler deploy.
+
+No requiere SQL nuevo.

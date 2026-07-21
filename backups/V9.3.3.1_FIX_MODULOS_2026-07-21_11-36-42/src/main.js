@@ -1162,7 +1162,7 @@ function orderDeliveryMode(o){
   return o?.requiere_delivery===false ? 'Retiro en negocio' : 'Delivery';
 }
 function isStorePickup(o){ return orderDeliveryMode(o)==='Retiro en negocio'; }
-function isInternalSale(o){ return orderCustomerType(o)==='Venta interna'; }
+function isInternalSale(o){ return initialCustomerType==='Venta interna'; }
 function pickupNoticeText(){ return appCfg('impresion.textoAvisoRetiro','RETIRO EN NEGOCIO · NO ENVIAR A DELIVERY'); }
 function orderDeliveryModeBadge(o){
   const mode=orderDeliveryMode(o);

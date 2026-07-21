@@ -911,18 +911,3 @@ body.theme-blue{--red:#2563eb;--red2:#1d4ed8}body.theme-green{--red:#059669;--re
   .shell.sidebar-collapsed .main{grid-column:auto}
 }
 @media print{.sidebar-toggle{display:none!important}}
-
-
-/* =========================================================
-   V9.3.3 — RETIROS, VENTAS INTERNAS E IMPRESIÓN CONFIGURABLE
-   ========================================================= */
-.pickup-badge{background:#fef3c7!important;color:#92400e!important;border:1px solid #f59e0b!important;font-weight:950!important}
-.internal-sale-badge{background:#ede9fe!important;color:#6d28d9!important;border:1px solid #c4b5fd!important}
-.store-pickup-order{border-left:5px solid #f59e0b!important;background:linear-gradient(90deg,rgba(254,243,199,.62),#fff 24%)!important}
-.pickup-alert{display:grid;gap:4px;border:2px solid #f59e0b;background:#fffbeb;color:#78350f;border-radius:16px;padding:12px 14px;margin:10px 0;font-weight:800}
-.pickup-alert b{font-size:15px;font-weight:950}.pickup-alert span{font-size:12px;color:#92400e}
-.pickup-confirm-btn{background:#d97706!important;color:#fff!important}.pickup-confirm-btn:hover{background:#b45309!important}
-.order-customer-mode-grid{margin-bottom:10px}.ticket-preview{display:grid;gap:8px;border:1px dashed #94a3b8;border-radius:14px;padding:14px;margin:12px 0;background:#fff;text-align:center}.ticket-preview span{font-weight:800}
-.pickup-panel .compact-list .client-card{padding:12px 14px}
-.kanban-col[data-kanban-col="retiros"] header{background:#fffbeb}.kanban-col[data-kanban-col="retiros"] header em{background:#f59e0b;color:#fff}
-@media(max-width:760px){.order-customer-mode-grid{grid-template-columns:1fr}.pickup-panel .card-actions{justify-content:flex-start}}

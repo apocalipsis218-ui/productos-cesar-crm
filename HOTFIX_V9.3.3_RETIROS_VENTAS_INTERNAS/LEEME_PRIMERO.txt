@@ -1,0 +1,10 @@
+PRODUCTOS CESAR CRM V9.3.3
+
+ORDEN OBLIGATORIO:
+1. Ejecutar SQL_27_V9.3.3_Retiros_Ventas_Internas.sql en Supabase SQL Editor.
+2. Confirmar que termine sin errores.
+3. Aplicar este HOTFIX desde la carpeta del proyecto.
+4. Ejecutar npx.cmd wrangler deploy.
+5. En la PWA, guardar el trabajo abierto y pulsar Actualizar ahora.
+
+No publique el frontend antes de instalar el SQL 27.

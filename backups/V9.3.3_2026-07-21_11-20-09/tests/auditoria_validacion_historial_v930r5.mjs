@@ -18,7 +18,7 @@ function bodyOf(name){
 }
 
 ok('marcador V9.3.0 R5',main.includes('V9.3.0 R5'));
-ok('pestañas pendientes e historial',main.includes("['pendientes',") && main.includes("['historial',") && main.includes('renderValidationHistory'));
+ok('pestañas pendientes e historial',main.includes("['pendientes','Pendientes de entregar']") && main.includes("['historial','Historial de entregas']"));
 ok('historial inicia en hoy',main.includes('validationHistoryFrom:today()') && main.includes('validationHistoryTo:today()'));
 ok('filtros de historial',main.includes('validationHistDelivery') && main.includes('validationHistSearch') && main.includes('data-validation-preset'));
 ok('snapshot de hoja de ruta',main.includes('buildDeliveryRouteSnapshot') && main.includes('hoja_ruta_snapshot'));
