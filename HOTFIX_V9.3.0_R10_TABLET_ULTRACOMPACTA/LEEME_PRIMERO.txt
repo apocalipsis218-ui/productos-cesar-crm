@@ -1,0 +1,16 @@
+PRODUCTOS CÉSAR CRM — V9.3.0 R10
+
+Esta actualización optimiza para tablet:
+- Crear orden.
+- Preparar / pesar orden.
+
+No requiere SQL nuevo.
+Debe aplicarse sobre V9.3.0 R9.
+
+Comando:
+powershell -ExecutionPolicy Bypass -File ".\HOTFIX_V9.3.0_R10_TABLET_ULTRACOMPACTA\APLICAR_V930_R10.ps1"
+
+Después:
+npm.cmd test
+npm.cmd run build
+npm.cmd run dev

@@ -1,0 +1,14 @@
+PRODUCTOS CESAR CRM - V9.3.0 R10.1
+
+Ajusta solamente la interfaz de Carniceria en tablet:
+- Solicitado, Preparado, Estado y Faltante en una sola fila.
+- Controles mas bajos y compactos.
+- Faltante como texto, sin celda larga.
+- Productos por unidad muestran faltante en unidades.
+- La observacion solo aparece cuando existe.
+- La computadora conserva la vista amplia.
+
+No requiere SQL.
+
+Comando:
+powershell -ExecutionPolicy Bypass -File ".\HOTFIX_V9.3.0_R10.1_CARNICERIA_ULTRACOMPACTA\APLICAR_V930_R10_1.ps1"

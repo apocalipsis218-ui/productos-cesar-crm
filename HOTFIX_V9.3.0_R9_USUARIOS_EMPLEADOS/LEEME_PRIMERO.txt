@@ -1,0 +1,15 @@
+PRODUCTOS CÉSAR CRM · V9.3.0 R9
+
+1. Ejecute primero en Supabase:
+   supabase/26_actualizacion_v930r9_vincular_usuarios_empleados.sql
+
+2. Descomprima este HOTFIX dentro de:
+   C:\proyectos\productos-cesar-crm
+
+3. Ejecute:
+   powershell -ExecutionPolicy Bypass -File ".\HOTFIX_V9.3.0_R9_USUARIOS_EMPLEADOS\APLICAR_V930_R9.ps1"
+
+4. Luego:
+   npm.cmd test
+   npm.cmd run build
+   npm.cmd run dev
