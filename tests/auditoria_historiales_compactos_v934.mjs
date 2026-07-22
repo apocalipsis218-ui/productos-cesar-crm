@@ -1,0 +1,24 @@
+import fs from 'node:fs';
+const main=fs.readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+const css=fs.readFileSync(new URL('../src/styles.css',import.meta.url),'utf8');
+const pwa=fs.readFileSync(new URL('../src/pwa.js',import.meta.url),'utf8');
+const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
+function ok(cond,msg){ if(!cond){console.error('FALLO - '+msg);process.exit(1);} console.log('OK - '+msg); }
+ok(/^9\.3\.(?:4|5|6)$/.test(pkg.version),'package conserva V9.3.4 o superior');
+ok((main.includes('V9.3.4 PWA')||main.includes('V9.3.5 PWA')||main.includes('V9.3.5.1 PWA')||main.includes('V9.3.6 PWA'))&&(pwa.includes("APP_VERSION = 'V9.3.4 PWA'")||pwa.includes("APP_VERSION = 'V9.3.5 PWA'")||pwa.includes("APP_VERSION = 'V9.3.5.1 PWA'")||pwa.includes("APP_VERSION = 'V9.3.6 PWA'")),'versión V9.3.4 o superior visible');
+ok(main.includes("BUSINESS_TIME_ZONE = 'America/Santo_Domingo'")&&main.includes('businessDateKey(dateStr)'),'filtros usan zona horaria dominicana');
+ok(main.includes("deliveryTab:'activos'")&&main.includes('data-delivery-tab="historial"'),'Delivery separa pedidos activos e historial');
+ok(main.includes('data-history-preset="hoy"')&&main.includes('data-history-preset="7dias"'),'filtros rápidos de fecha');
+ok(main.includes('deliveryHistoryLimit:10')&&main.includes('liquidacionHistoryLimit:10'),'paginación inicial de diez lotes');
+ok(main.includes('data-history-toggle')&&main.includes('data-history-collapse-all'),'lotes plegables y ocultar todos');
+ok(main.includes('data-history-more')&&!main.includes('rows.slice(0,20).map(liquidacionHistoryCard)'),'mostrar diez más sustituye corte silencioso de veinte');
+ok(main.includes('SIN-LOTE-${o.id}')&&main.includes("history_key:`LIQ-${l.id"),'SIN-LOTE usa clave histórica única');
+ok(main.indexOf('liquidacionLoteDetalle')<main.indexOf('return ordersForBatch(l?.codigo_lote)'),'detalle formal tiene prioridad sobre reconstrucción');
+ok(main.includes('function historyDeliveryDate')&&main.includes('function orderDeliveryEvidenceDate')&&main.includes("['Validada para delivery','Asignada a delivery','En ruta']"),'recuperación de fecha de entrega integrada');
+ok(main.includes("function buildHistorySection")&&main.includes("buildHistorySection('delivery'")&&main.includes("buildHistorySection('liquidacion'"),'historial compartido entre Delivery y Liquidación');
+ok(main.includes('Mostrando ${Math.min(visible.length,rows.length)} de ${rows.length} lote(s)'),'contador de resultados visible');
+ok(css.includes('V9.3.4 — HISTORIALES COMPACTOS, FECHAS LOCALES Y LOTES PLEGABLES'),'estilos compactos V9.3.4 incluidos');
+ok(pkg.scripts.test.includes('auditoria_historiales_compactos_v934.mjs'),'auditoría V9.3.4 integrada');
+const key=(value)=>{const dt=new Date(value);const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Santo_Domingo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(dt);const get=t=>parts.find(p=>p.type===t)?.value||'';return `${get('year')}-${get('month')}-${get('day')}`;};
+ok(key('2026-07-21T02:37:00Z')==='2026-07-20','prueba funcional UTC nocturno corresponde al 20/07 en RD');
+console.log('Auditoría Historiales Compactos V9.3.4 aprobada.');

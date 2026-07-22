@@ -11,7 +11,7 @@ const pkg=JSON.parse(read('package.json'));
 const ok=(cond,msg)=>{ if(!cond){ console.error('ERROR - '+msg); process.exit(1); } console.log('OK - '+msg); };
 
 ok(Number(pkg.version.split('.')[0])===9 && Number(pkg.version.split('.')[1])===3 && Number(pkg.version.split('.')[2])>=2,'package V9.3.2 o superior');
-ok(/V9\.3\.(?:[2-9]|\d{2,}) PWA/.test(main),'versión V9.3.2 o superior visible');
+ok(/V9\.3\.(?:[2-9]|\d{2,})(?:\.\d+)? PWA/.test(main),'versión V9.3.2 o superior visible');
 ok(main.includes("pc_sidebar_collapsed_v932"),'preferencia local por dispositivo');
 ok(main.includes('id="sidebarToggle"'),'botón para ocultar y mostrar la barra');
 ok(main.includes('aria-controls="appSidebar"'),'botón accesible conectado al menú');

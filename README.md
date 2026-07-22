@@ -1,25 +1,24 @@
-# Productos César CRM V9.3.3 PWA
+# Productos César CRM V9.3.5.1 PWA
 
-Sistema operativo y comercial de Productos César, publicado como PWA mediante Cloudflare Workers y conectado a Supabase.
+## Novedades V9.3.4
 
-## Novedades V9.3.3
+- Fechas de Delivery y Liquidación comparadas y mostradas en `America/Santo_Domingo`.
+- Lotes históricos plegables, con Expandir todos y Ocultar todos.
+- Diez lotes iniciales y botón Mostrar 10 más, sin cortes silenciosos.
+- Delivery separado en Pedidos activos e Historial.
+- Filtros rápidos: Hoy, Ayer, 7 días y Este mes.
+- Búsqueda por cliente, lote, factura u orden.
+- Claves únicas para registros SIN-LOTE y prioridad al detalle formal de liquidación.
+- Recuperación de fecha de entrega desde lote, snapshot, orden o historial operativo.
+- Diseño más compacto y un componente común para ambos historiales.
 
-- Modalidad de entrega independiente: **Delivery**, **Retiro en negocio** o **No aplica**.
-- Flujo de retiro: Carnicería → Facturación → Lista para retiro → Entregada en negocio.
-- Los retiros no entran en Delivery, lotes de ruta ni Liquidación.
-- Ventas internas sin crear ficha de cliente, con nombre obligatorio, contado y retiro en negocio.
-- Copia histórica del nombre, teléfono y sector del comprador dentro de la orden.
-- Pestaña **Retiros en negocio** en Validación, con constancia de quién retiró y quién entregó.
-- Aviso grande de retiro en las impresiones de preparación y facturación.
-- Tamaño configurable para títulos y detalle de artículos impresos.
-- Identificación de retiros y ventas internas en Órdenes, Carnicería, Facturación, Validación, Kanban y paneles operativos.
+No requiere SQL nuevo. Conserva el SQL 27 y todas las funciones de V9.3.3.
 
-## Orden de instalación
+## V9.3.5.1
 
-1. Ejecutar `supabase/27_actualizacion_v933_retiros_ventas_internas.sql` en Supabase SQL Editor.
-2. Ejecutar `npm.cmd test`.
-3. Ejecutar `npm.cmd run build`.
-4. Publicar con `npx.cmd wrangler deploy`.
-5. En cada PWA instalada, guardar el trabajo abierto y pulsar **Actualizar ahora**.
+- Monto final editable en Validación por lote.
+- Monto final obligatorio en Validación individual.
+- El monto confirmado alimenta Delivery, Liquidación, reportes y recibos.
 
-No se debe publicar el frontend V9.3.3 antes de que el SQL 27 termine sin errores.
+## V9.3.5
+Facturación rápida con un clic, transición segura por modalidad, monto de factura visible en Validación y correcciones preventivas del armado de lotes.

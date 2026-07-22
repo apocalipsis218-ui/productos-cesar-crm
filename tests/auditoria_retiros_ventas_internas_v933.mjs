@@ -12,8 +12,8 @@ const sql=read('supabase/27_actualizacion_v933_retiros_ventas_internas.sql');
 const pkg=JSON.parse(read('package.json'));
 const ok=(cond,msg)=>{ if(!cond){ console.error('ERROR - '+msg); process.exit(1); } console.log('OK - '+msg); };
 
-ok(pkg.version==='9.3.3','package actualizado a V9.3.3');
-ok(main.includes('V9.3.3 PWA') && pwa.includes("APP_VERSION = 'V9.3.3 PWA'"),'versión V9.3.3 PWA visible');
+ok(['9.3.3','9.3.4','9.3.5','9.3.6'].includes(pkg.version),'package actualizado a V9.3.3');
+ok(main.includes('V9.3.3') && ['V9.3.3 PWA','V9.3.4 PWA','V9.3.5 PWA','V9.3.5.1 PWA','V9.3.6 PWA'].some(v=>pwa.includes(`APP_VERSION = '${v}'`)),'versión V9.3.3 PWA visible');
 ok(main.includes('modalidad_entrega') && main.includes("Retiro en negocio"),'modalidad de entrega separada del tipo de orden');
 ok(main.includes('tipo_cliente_orden') && main.includes('Venta interna / mostrador'),'venta interna disponible sin crear cliente');
 ok(main.includes("Es obligatorio escribir el nombre del comprador") && main.includes("El nombre del cliente es obligatorio"),'nombre obligatorio en toda orden');

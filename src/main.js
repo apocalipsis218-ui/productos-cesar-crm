@@ -4,8 +4,15 @@ import './styles.css';
 import { workingMinutesBetween as calculateWorkingMinutes, durationOutlierThreshold, isReopeningTransition } from './operationAnalytics.js';
 import { initPwa } from './pwa.js';
 import { percentageChange, buildDailySeries, aggregateProducts, aggregateClients, aggregateCrm } from './salesAnalytics.js';
+import { calculatePreparedInvoiceAmount, buildQuickInvoiceTransition, QUICK_INVOICE_ALLOWED_STATES } from './invoiceQuick.js';
+import { normalizeValidationInvoiceAmount, requireValidationInvoiceAmount } from './validationInvoice.js';
+import { buildOperationalLotGroups, evaluateLotCorrection, lotUiKey } from './lotOperationsV936.js';
 // Compatibilidad de auditoría: V9.2.15 permanece integrada en la V9.3.0 Mobile First.
 // Compatibilidad histórica de auditorías: V9.2.14 · Operación y tiempos | V9.2.15 · Ventas, clientes, productos y CRM.
+// V9.3.6 · Corrección segura de lotes y vistas operativas plegables.
+// V9.3.5.1 · Monto final editable y obligatorio en Validación por lote e individual.
+// V9.3.5 · Facturación rápida y monto visible en Validación.
+// V9.3.4 · Historiales compactos, fechas dominicanas y lotes plegables.
 // V9.3.3 · Retiros en negocio, ventas internas e impresión configurable.
 // V9.3.2 · Navegación lateral plegable por dispositivo.
 // V9.3.0 R10.1 · Ajuste final de Carnicería ultracompacta para tablet.
@@ -22,11 +29,28 @@ const $ = (s,el=document)=>el.querySelector(s);
 const $$ = (s,el=document)=>Array.from(el.querySelectorAll(s));
 const root = $('#root');
 const money = n => (appCfg('empresa.moneda','RD$') + ' ' + (Number(n)||0).toLocaleString('es-DO',{maximumFractionDigits:2}));
+const BUSINESS_TIME_ZONE = 'America/Santo_Domingo';
 function localIsoDate(d=new Date()){
   const x = new Date(d.getTime() - d.getTimezoneOffset()*60000);
   return x.toISOString().slice(0,10);
 }
-const today = () => localIsoDate();
+function businessDateKey(value=new Date()){
+  if(value===null || value===undefined || value==='') return '';
+  const dt=value instanceof Date?value:new Date(value);
+  if(isNaN(dt.getTime())) return String(value).slice(0,10);
+  try{
+    const parts=new Intl.DateTimeFormat('en-US',{timeZone:BUSINESS_TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(dt);
+    const get=t=>parts.find(p=>p.type===t)?.value||'';
+    return `${get('year')}-${get('month')}-${get('day')}`;
+  }catch(e){ return localIsoDate(dt); }
+}
+function businessDateTime(value,opts={}){
+  if(!value) return '—';
+  const dt=value instanceof Date?value:new Date(value);
+  if(isNaN(dt.getTime())) return String(value);
+  return new Intl.DateTimeFormat('es-DO',{timeZone:BUSINESS_TIME_ZONE,day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',...opts}).format(dt);
+}
+const today = () => businessDateKey(new Date());
 const esc = v => String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const norm = v => String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
 const onlyNum = v => String(v||'').replace(/\D/g,'');
@@ -102,7 +126,7 @@ function printFooterHtml(){ const rec=normalizeSystemConfig(state.systemConfig||
 function signatureHtml(label){ return `<div class="sign">${esc(label||'Firma')}</div>`; }
 function exportBackup(){
   const cfg=normalizeSystemConfig(state.systemConfig||{});
-  const payload={fecha:new Date().toISOString(),version:'V9.3.3 PWA',empresa:cfg.empresa,configuracion:cfg,clientes:state.clientes||[],ordenes:(state.ordenes||[]).map(o=>({codigo:o.codigo,fecha:o.fecha,estado:o.estado,cliente:orderClientName(o),total:o.total_factura||o.total_estimado,delivery:o.delivery_nombre,lote:o.lote_codigo})),productos:state.productos||[],empleados:state.empleadosOperativos||[],usuarios:state.usuarios||[],liquidaciones:state.liquidacionesLotes||[]};
+  const payload={fecha:new Date().toISOString(),version:'V9.3.6 PWA',empresa:cfg.empresa,configuracion:cfg,clientes:state.clientes||[],ordenes:(state.ordenes||[]).map(o=>({codigo:o.codigo,fecha:o.fecha,estado:o.estado,cliente:orderClientName(o),total:o.total_factura||o.total_estimado,delivery:o.delivery_nombre,lote:o.lote_codigo})),productos:state.productos||[],empleados:state.empleadosOperativos||[],usuarios:state.usuarios||[],liquidaciones:state.liquidacionesLotes||[]};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`backup-productos-cesar-${today()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); toast('Copia de seguridad descargada');
 }
@@ -126,6 +150,34 @@ function setupKeyboardShortcuts(){
 
 function pollSeconds(){ const n=Number(appCfg('alertas.revisionSegundos',30)); return Math.max(10, Math.min(300, n||30)); }
 function moduleEnabled(id){ const map=appCfg('menu.modulosActivos',{}); return map && Object.prototype.hasOwnProperty.call(map,id) ? map[id]!==false : true; }
+
+const HISTORY_UI_KEY='pc_history_ui_v934';
+function loadHistoryUi(){
+  const def={delivery:{},liquidacion:{},validationLots:{},deliveryActive:{},liquidacionPending:{}};
+  try{
+    const raw=JSON.parse(localStorage.getItem(HISTORY_UI_KEY)||'{}');
+    return Object.fromEntries(Object.keys(def).map(k=>[k,{...(raw[k]||{})}]));
+  }catch(e){ return def; }
+}
+function saveHistoryUi(){ try{localStorage.setItem(HISTORY_UI_KEY,JSON.stringify(state.historyUi||{}));}catch(e){} }
+function historyRowKey(l){
+  return String(l?.history_key || (l?.id?`LIQ-${l.id}`:`${l?.codigo_lote||'SIN-LOTE'}-${l?.fecha_liquidacion||l?.creado_en||''}`));
+}
+function historyIsOpen(scope,key){ return Boolean(state.historyUi?.[scope]?.[String(key)]); }
+function setHistoryOpen(scope,key,open){
+  state.historyUi=state.historyUi||{delivery:{},liquidacion:{},validationLots:{},deliveryActive:{},liquidacionPending:{}};
+  state.historyUi[scope]=state.historyUi[scope]||{};
+  state.historyUi[scope][String(key)]=Boolean(open);
+  saveHistoryUi();
+}
+function setHistoryRowsOpen(scope,rows,open){ (rows||[]).forEach(l=>setHistoryOpen(scope,historyRowKey(l),open)); }
+function historyHasPreference(scope,key){ return Object.prototype.hasOwnProperty.call(state.historyUi?.[scope]||{},String(key)); }
+function operationalLotOpen(scope,key,index=0,forceOpen=false){
+  if(forceOpen) return true;
+  return historyHasPreference(scope,key) ? historyIsOpen(scope,key) : index===0;
+}
+function setOperationalKeysOpen(scope,keys,open){ (keys||[]).forEach(key=>setHistoryOpen(scope,key,open)); }
+
 
 const VALIDATION_BATCH_DRAFT_KEY='pc_validacion_lote_draft_v9081';
 function emptyValidationBatchDraft(){ return {date:today(),deliveryValue:'',deliveryName:'',manual:'',rows:{}}; }
@@ -158,13 +210,15 @@ function saveBatchRowDraft(row){
   if(!id) return;
   const checked=!!$('[data-batch-check]',row)?.checked;
   const weight=String($('[data-batch-weight]',row)?.value||'').trim();
-  if(checked || weight){ d.rows[id]={checked,weight,updatedAt:new Date().toISOString()}; }
+  const amount=String($('[data-batch-amount]',row)?.value||'').trim();
+  const amountChanged=normalizeValidationInvoiceAmount(amount)!==normalizeValidationInvoiceAmount(row.dataset.originalAmount||0);
+  if(checked || weight || amountChanged){ d.rows[id]={checked,weight,amount,updatedAt:new Date().toISOString()}; }
   else { delete d.rows[id]; }
   saveValidationBatchDraftLocal();
 }
 function clearValidationBatchDraft(){ state.validationBatchDraft=emptyValidationBatchDraft(); saveValidationBatchDraftLocal(); }
 
-const state = {session:null,user:null,profile:null,page:'inicio',clientes:[],llamadas:[],productos:[],ordenes:[],cobranza:[],plantillas:[],catalogos:{},deliverys:[],empleados:[],pesos:[],entregas:[],pagos:[],historialEstados:[],entregaLotes:[],entregaLoteDetalle:[],entregaDocumentosHistorial:[],liquidacionesLotes:[],liquidacionLoteDetalle:[],casosHistorial:[],liquidacionSchemaOk:false,validacionR5SchemaOk:false,specialSearch:'',specialStatusFilter:'Todos',specialTypeFilter:'Todos',modulos:[],permisos:[],usuarios:[],usuarioModulos:[],errors:[],filter:'Todos',clientSearch:'',productSearch:'',productFilter:'Todos',productCategoryFilter:'Todas',productUnitFilter:'Todas',productWeightFilter:'Todos',modal:null,configTab:'general',controlTab:'gestiones',controlDate:today(),agendaDate:today(),callSearch:'',followPage:0,followSize:8,deliveryFiltro:'',orderSearch:'',carniceriaSearch:'',facturacionSearch:'',validacionSearch:'',validacionTab:'pendientes',validationHistoryFrom:today(),validationHistoryTo:today(),validationHistoryDelivery:'',validationHistorySearch:'',pickupSearch:'',pickupHistorySearch:'',deliverySearch:'',liquidacionSearch:'',liquidacionTab:'pendientes',liqHistFrom:today(),liqHistTo:today(),deliveryHistoryFrom:today(),deliveryHistoryTo:today(),orderView:'hoy',carniceriaTab:'libres',ui:loadUi(),weightConfig:loadWeightConfigLocal(),systemConfig:loadSystemConfigLocal(),liveStatus:'inactivo',liveLastRefresh:null,liveNotices:[],liveUnread:0,liveSound:localStorage.getItem('pc_live_sound_v61')==='1',liveLoading:false,liveFlashOrders:{},reportTab:'resumen',reportPreset:'mes',reportFrom:today().slice(0,8)+'01',reportTo:today(),reportStatus:'Todos',reportSeller:'Todos',reportZone:'Todas',reportClient:'Todos',reportProduct:'Todos',reportPayment:'Todas',prodMonth:String(new Date().getMonth()+1),prodYear:String(new Date().getFullYear()),prodRole:'Todos',auditSearch:'',auditType:'todos',alertSearch:'',alertLevel:'todos',kanbanSearch:'',kanbanClosedLimit:10,kanbanClosedHidden:false,kanbanHistorySearch:'',kanbanHistoryPeriod:'todos',kanbanHistoryStatus:'Todos',kanbanHistoryFrom:'',kanbanHistoryTo:'',kanbanHistoryPage:0,kanbanHistoryPageSize:25,userSearch:'',userRoleFilter:'Todos',userStatusFilter:'Todos',userLinkFilter:'Todos',kanbanMobileStage:'recibido',mobileMoreOpen:false,validationBatchDraft:loadValidationBatchDraftLocal()};
+const state = {session:null,user:null,profile:null,page:'inicio',clientes:[],llamadas:[],productos:[],ordenes:[],cobranza:[],plantillas:[],catalogos:{},deliverys:[],empleados:[],pesos:[],entregas:[],pagos:[],historialEstados:[],entregaLotes:[],entregaLoteDetalle:[],entregaDocumentosHistorial:[],liquidacionesLotes:[],liquidacionLoteDetalle:[],casosHistorial:[],deliveryLotCorrections:[],liquidacionSchemaOk:false,validacionR5SchemaOk:false,v936SchemaOk:false,specialSearch:'',specialStatusFilter:'Todos',specialTypeFilter:'Todos',modulos:[],permisos:[],usuarios:[],usuarioModulos:[],errors:[],filter:'Todos',clientSearch:'',productSearch:'',productFilter:'Todos',productCategoryFilter:'Todas',productUnitFilter:'Todas',productWeightFilter:'Todos',modal:null,configTab:'general',controlTab:'gestiones',controlDate:today(),agendaDate:today(),callSearch:'',followPage:0,followSize:8,deliveryFiltro:'',orderSearch:'',carniceriaSearch:'',facturacionSearch:'',validacionSearch:'',validacionTab:'pendientes',validationHistoryFrom:today(),validationHistoryTo:today(),validationHistoryDelivery:'',validationHistorySearch:'',pickupSearch:'',pickupHistorySearch:'',deliverySearch:'',deliveryTab:'activos',deliveryHistorySearch:'',deliveryHistoryLimit:10,liquidacionSearch:'',liqHistorySearch:'',liquidacionHistoryLimit:10,liquidacionTab:'pendientes',liqHistFrom:today(),liqHistTo:today(),deliveryHistoryFrom:today(),deliveryHistoryTo:today(),historyUi:loadHistoryUi(),orderView:'hoy',carniceriaTab:'libres',ui:loadUi(),weightConfig:loadWeightConfigLocal(),systemConfig:loadSystemConfigLocal(),liveStatus:'inactivo',liveLastRefresh:null,liveNotices:[],liveUnread:0,liveSound:localStorage.getItem('pc_live_sound_v61')==='1',liveLoading:false,liveFlashOrders:{},reportTab:'resumen',reportPreset:'mes',reportFrom:today().slice(0,8)+'01',reportTo:today(),reportStatus:'Todos',reportSeller:'Todos',reportZone:'Todas',reportClient:'Todos',reportProduct:'Todos',reportPayment:'Todas',prodMonth:String(new Date().getMonth()+1),prodYear:String(new Date().getFullYear()),prodRole:'Todos',auditSearch:'',auditType:'todos',alertSearch:'',alertLevel:'todos',kanbanSearch:'',kanbanClosedLimit:10,kanbanClosedHidden:false,kanbanHistorySearch:'',kanbanHistoryPeriod:'todos',kanbanHistoryStatus:'Todos',kanbanHistoryFrom:'',kanbanHistoryTo:'',kanbanHistoryPage:0,kanbanHistoryPageSize:25,userSearch:'',userRoleFilter:'Todos',userStatusFilter:'Todos',userLinkFilter:'Todos',kanbanMobileStage:'recibido',mobileMoreOpen:false,validationBatchDraft:loadValidationBatchDraftLocal()};
 const navItems = [
   ['inicio','Inicio','Resumen general'],['control','Control','Llamadas y gestiones'],['clientes','Clientes','Ficha y WhatsApp'],['ordenes','Órdenes','Panel completo'],
   ['carniceria','Carnicería','Preparar y pesar'],['facturacion','Facturación','Imprimir y facturar'],['validacion','Validación','Entregar a delivery'],['delivery','Delivery','Mis pedidos'],['liquidacion','Liquidación','Cobros y CXC'],['alertas','Alertas','Centro operativo'],['kanban','Kanban','Tablero de órdenes'],
@@ -460,7 +514,7 @@ async function loadAll(){
   const prof = await safe(sb.from('perfiles').select('*').eq('id',uid).maybeSingle(),'perfil');
   const email=(state.user?.email||'').toLowerCase();
   state.profile=prof.data || (email==='apocalipsis218@gmail.com' ? {id:uid,nombre:'César',rol:'Gerente',vendedor:'Cesar',activo:true} : {id:uid,nombre:state.user.email,rol:'Sin perfil',vendedor:null,activo:false});
-  const [mods,perms,ums,cats,items,pls,clientes,llamadas,productos,ordenes,cobranza,usuarios,deliverys,empleados,pesos,entregas,pagos,historialEstados,sistemaCfg,entregaLotes,entregaLoteDetalle,entregaDocumentosHistorial,liquidacionesLotes,liquidacionLoteDetalle,casosHistorial] = await Promise.all([
+  const [mods,perms,ums,cats,items,pls,clientes,llamadas,productos,ordenes,cobranza,usuarios,deliverys,empleados,pesos,entregas,pagos,historialEstados,sistemaCfg,entregaLotes,entregaLoteDetalle,entregaDocumentosHistorial,liquidacionesLotes,liquidacionLoteDetalle,casosHistorial,deliveryLotCorrections] = await Promise.all([
     safe(sb.from('modulos_sistema').select('*').order('orden'),'módulos'),
     safe(sb.from('roles_permisos').select('*'),'permisos'),
     safe(sb.from('usuario_modulos').select('*'),'permisos usuario'),
@@ -485,9 +539,10 @@ async function loadAll(){
     optionalSafe(sb.from('entrega_documentos_historial').select('*').order('fecha_evento',{ascending:false}).limit(2000),'entrega_documentos_historial'),
     optionalSafe(sb.from('liquidaciones_lotes').select('*').order('fecha_liquidacion',{ascending:false}).limit(500),'liquidaciones_lotes'),
     optionalSafe(sb.from('liquidacion_lote_detalle').select('*').order('id',{ascending:false}).limit(3000),'liquidacion_lote_detalle'),
-    optionalSafe(sb.from('orden_casos_historial').select('*').order('creado_en',{ascending:false}).limit(2000),'orden_casos_historial')
+    optionalSafe(sb.from('orden_casos_historial').select('*').order('creado_en',{ascending:false}).limit(2000),'orden_casos_historial'),
+    optionalSafe(sb.from('entrega_lote_correcciones').select('*').order('fecha_evento',{ascending:false}).limit(1000),'entrega_lote_correcciones')
   ]);
-  state.modulos=mods.data; state.permisos=perms.data; state.usuarioModulos=ums.data; state.plantillas=pls.data; state.clientes=clientes.data; state.llamadas=llamadas.data; state.productos=productos.data; state.ordenes=ordenes.data; state.cobranza=cobranza.data; state.usuarios=usuarios.data; state.deliverys=deliverys.data; state.empleados=empleados.data; state.pesos=pesos.data; state.entregas=entregas.data; state.pagos=pagos.data; state.historialEstados=historialEstados.data; state.entregaLotes=entregaLotes.data; state.entregaLoteDetalle=entregaLoteDetalle.data; state.entregaDocumentosHistorial=entregaDocumentosHistorial.data||[]; state.liquidacionesLotes=liquidacionesLotes.data; state.liquidacionLoteDetalle=liquidacionLoteDetalle.data; state.casosHistorial=casosHistorial.data||[]; state.liquidacionSchemaOk=!entregaLotes.error && !liquidacionesLotes.error; state.validacionR5SchemaOk=!entregaLotes.error && !entregaDocumentosHistorial.error;
+  state.modulos=mods.data; state.permisos=perms.data; state.usuarioModulos=ums.data; state.plantillas=pls.data; state.clientes=clientes.data; state.llamadas=llamadas.data; state.productos=productos.data; state.ordenes=ordenes.data; state.cobranza=cobranza.data; state.usuarios=usuarios.data; state.deliverys=deliverys.data; state.empleados=empleados.data; state.pesos=pesos.data; state.entregas=entregas.data; state.pagos=pagos.data; state.historialEstados=historialEstados.data; state.entregaLotes=entregaLotes.data; state.entregaLoteDetalle=entregaLoteDetalle.data; state.entregaDocumentosHistorial=entregaDocumentosHistorial.data||[]; state.liquidacionesLotes=liquidacionesLotes.data; state.liquidacionLoteDetalle=liquidacionLoteDetalle.data; state.casosHistorial=casosHistorial.data||[]; state.deliveryLotCorrections=deliveryLotCorrections.data||[]; state.liquidacionSchemaOk=!entregaLotes.error && !liquidacionesLotes.error; state.validacionR5SchemaOk=!entregaLotes.error && !entregaDocumentosHistorial.error; state.v936SchemaOk=!deliveryLotCorrections.error;
   state.catalogos={}; cats.data.forEach(c=>state.catalogos[c.id]=[]); items.data.forEach(i=>{ if(!state.catalogos[i.catalogo_id]) state.catalogos[i.catalogo_id]=[]; state.catalogos[i.catalogo_id].push(i); });
   if(sistemaCfg?.data?.length){
     const byKey=Object.fromEntries(sistemaCfg.data.map(r=>[r.clave,r.valor]));
@@ -556,7 +611,7 @@ function render(){
   }
   if(!puede(state.page)) state.page = visibleNav[0][0];
   const sidebarCollapsed=loadSidebarCollapsed();
-  root.innerHTML = `<div class="shell${sidebarCollapsed?' sidebar-collapsed':''}"><aside id="appSidebar" class="sidebar" aria-hidden="${sidebarCollapsed?'true':'false'}"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.3.3 PWA · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.3.3 PWA</b><br>Aplicación instalable · menú plegable · actualizaciones controladas.</div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" data-collapsed="${sidebarCollapsed?'1':'0'}" aria-controls="appSidebar" aria-expanded="${sidebarCollapsed?'false':'true'}" aria-label="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}" title="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}"><span aria-hidden="true">${sidebarCollapsed?'›':'‹'}</span></button><main class="main"><div class="top"><div class="mobile-brand-mini"><span>${esc(appCfg('empresa.logoTexto','PC'))}</span></div><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray" aria-label="Mi acceso">Mi acceso</button><button id="refreshBtn" aria-label="Actualizar">Actualizar</button><button id="logoutBtn" class="dark" aria-label="Salir">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
+  root.innerHTML = `<div class="shell${sidebarCollapsed?' sidebar-collapsed':''}"><aside id="appSidebar" class="sidebar" aria-hidden="${sidebarCollapsed?'true':'false'}"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.3.6 PWA · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.3.6 PWA</b><br>Aplicación instalable · facturación rápida · actualizaciones controladas.</div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" data-collapsed="${sidebarCollapsed?'1':'0'}" aria-controls="appSidebar" aria-expanded="${sidebarCollapsed?'false':'true'}" aria-label="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}" title="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}"><span aria-hidden="true">${sidebarCollapsed?'›':'‹'}</span></button><main class="main"><div class="top"><div class="mobile-brand-mini"><span>${esc(appCfg('empresa.logoTexto','PC'))}</span></div><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray" aria-label="Mi acceso">Mi acceso</button><button id="refreshBtn" aria-label="Actualizar">Actualizar</button><button id="logoutBtn" class="dark" aria-label="Salir">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
   setupKeyboardShortcuts();
   bindSidebarToggle();
   $$('[data-page]').forEach(b=>b.onclick=()=>{state.page=b.dataset.page; render();});
@@ -1473,6 +1528,7 @@ function bindDynamic(){
   $$('[data-print-prep]').forEach(b=>b.onclick=()=>printPreparationTicket(state.ordenes.find(x=>x.id==b.dataset.printPrep)));
   $$('[data-print-order]').forEach(b=>b.onclick=()=>printOrderTicket(state.ordenes.find(x=>x.id==b.dataset.printOrder)));
   $$('[data-invoice-order]').forEach(b=>b.onclick=()=>openFacturaModal(state.ordenes.find(x=>x.id==b.dataset.invoiceOrder)));
+  $$('[data-quick-invoice]').forEach(b=>b.onclick=()=>quickInvoiceOrder(state.ordenes.find(x=>String(x.id)===String(b.dataset.quickInvoice)),b));
   $$('[data-validate-order]').forEach(b=>b.onclick=()=>{ try{ const o=state.ordenes.find(x=>String(x.id)===String(b.dataset.validateOrder)); if(!o) return alert('No encontré esta orden. Actualiza la pantalla e intenta nuevamente.'); openValidacionModal(o); }catch(err){ console.error(err); alert('No pude abrir Validación: '+(err.message||err)); } });
   $$('[data-return-invoice]').forEach(b=>b.onclick=()=>openReturnToInvoiceModal(state.ordenes.find(x=>String(x.id)===String(b.dataset.returnInvoice))));
   $$('[data-special-case]').forEach(b=>b.onclick=()=>openSpecialCaseModal(state.ordenes.find(x=>String(x.id)===String(b.dataset.specialCase))));
@@ -2021,7 +2077,7 @@ function productivityRows(month=state.prodMonth, year=state.prodYear){
   const by={};
   const deliveredOk=['Cobrado','Entregado','Entregado a crédito'];
   if(cfg.delivery.cuentaDevueltoParcial) deliveredOk.push('Devuelto parcial');
-  const lotes=(state.entregaLotes||[]).filter(l=>productDateInMonth(l.fecha_entrega||l.creado_en,month,year));
+  const lotes=(state.entregaLotes||[]).filter(l=>String(l.estado||'').toLowerCase()!=='revertido' && productDateInMonth(l.fecha_entrega||l.creado_en,month,year));
   const lotesByCode=Object.fromEntries(lotes.map(l=>[String(l.codigo_lote||''),l]));
   const employeesIndex=Object.fromEntries(activeEmployees('').map(e=>[norm(e.nombre),e]));
   (state.entregaLoteDetalle||[]).forEach(d=>{
@@ -2090,7 +2146,7 @@ function productivityRulesHtml(){
 }
 function renderConfigIncentivos(c){
   const cfg=incentiveConfig();
-  c.innerHTML=`<div class="panel-head"><div><h3>Incentivos / Productividad</h3><p>Configura cómo se calcula el incentivo mensual. Delivery y despacho se miden por cliente; el lote queda como opción alternativa.</p></div><span class="badge info">V9.3.3 PWA</span></div>
+  c.innerHTML=`<div class="panel-head"><div><h3>Incentivos / Productividad</h3><p>Configura cómo se calcula el incentivo mensual. Delivery y despacho se miden por cliente; el lote queda como opción alternativa.</p></div><span class="badge info">V9.3.6 PWA</span></div>
   <div class="config-incentive-grid"><div class="card incentive-card"><h3>Delivery</h3><div class="grid2"><div class="field"><label>Activo</label><select id="incDeliveryActivo"><option value="true" ${cfg.delivery.activo!==false?'selected':''}>Sí</option><option value="false" ${cfg.delivery.activo===false?'selected':''}>No</option></select></div><div class="field"><label>Tipo</label><select id="incDeliveryTipo"><option value="monto_fijo" ${cfg.delivery.tipo!=='porcentaje'?'selected':''}>Monto fijo</option><option value="porcentaje" ${cfg.delivery.tipo==='porcentaje'?'selected':''}>Porcentaje</option></select></div></div><div class="field"><label>Base de cálculo</label><select id="incDeliveryBase"><option value="cliente_entregado" ${cfg.delivery.base==='cliente_entregado'?'selected':''}>Por cliente entregado</option><option value="lote_viaje" ${cfg.delivery.base==='lote_viaje'?'selected':''}>Por lote / viaje</option><option value="orden" ${cfg.delivery.base==='orden'?'selected':''}>Por orden</option></select></div><div class="field"><label>Valor</label><input id="incDeliveryValor" type="number" step="0.01" value="${Number(cfg.delivery.valor||0)}"></div><label class="checkrow"><input id="incDeliveryCredito" type="checkbox" ${cfg.delivery.cuentaCredito!==false?'checked':''}> <b>Contar entregados a crédito</b><span>Cuenta el cliente como entregado aunque quede saldo pendiente.</span></label></div>
   <div class="card incentive-card"><h3>Despachador</h3><div class="grid2"><div class="field"><label>Activo</label><select id="incDespActivo"><option value="true" ${cfg.despachador.activo!==false?'selected':''}>Sí</option><option value="false" ${cfg.despachador.activo===false?'selected':''}>No</option></select></div><div class="field"><label>Tipo</label><select id="incDespTipo"><option value="monto_fijo" ${cfg.despachador.tipo!=='porcentaje'?'selected':''}>Monto fijo</option><option value="porcentaje" ${cfg.despachador.tipo==='porcentaje'?'selected':''}>Porcentaje</option></select></div></div><div class="field"><label>Base de cálculo</label><select id="incDespBase"><option value="cliente_despachado" ${cfg.despachador.base==='cliente_despachado'?'selected':''}>Por cliente despachado</option><option value="orden" ${cfg.despachador.base==='orden'?'selected':''}>Por orden</option></select></div><div class="field"><label>Valor</label><input id="incDespValor" type="number" step="0.01" value="${Number(cfg.despachador.valor||0)}"></div><label class="checkrow"><input id="incDespValidadas" type="checkbox" ${cfg.despachador.cuentaSoloValidadas!==false?'checked':''}> <b>Solo órdenes validadas</b><span>Evita pagar por pedidos preparados que no salieron a entrega.</span></label></div>
   <div class="card incentive-card"><h3>Vendedor</h3><div class="grid2"><div class="field"><label>Activo</label><select id="incVendActivo"><option value="true" ${cfg.vendedor.activo!==false?'selected':''}>Sí</option><option value="false" ${cfg.vendedor.activo===false?'selected':''}>No</option></select></div><div class="field"><label>Tipo</label><select id="incVendTipo"><option value="porcentaje" ${cfg.vendedor.tipo==='porcentaje'?'selected':''}>Porcentaje</option><option value="monto_fijo" ${cfg.vendedor.tipo!=='porcentaje'?'selected':''}>Monto fijo</option></select></div></div><div class="field"><label>Base de cálculo</label><select id="incVendBase"><option value="ventas_cobradas" ${cfg.vendedor.base==='ventas_cobradas'?'selected':''}>Sobre ventas cobradas</option><option value="ventas_facturadas" ${cfg.vendedor.base==='ventas_facturadas'?'selected':''}>Sobre ventas facturadas</option></select></div><div class="field"><label>Valor</label><input id="incVendValor" type="number" step="0.01" value="${Number(cfg.vendedor.valor||0)}"></div><div class="hint">Recomendación: calcular vendedores sobre ventas cobradas para no pagar comisiones de dinero pendiente.</div></div></div>
@@ -2569,7 +2625,7 @@ function renderConfigApariencia(c){
 }
 function renderConfigPlantillas(c){
   const cfg=normalizeSystemConfig(state.systemConfig||{}).whatsapp || defaultSystemConfig().whatsapp;
-  c.innerHTML=`<div class="panel-head"><div><h3>WhatsApp</h3><p>Configura la confirmación de órdenes y las plantillas generales para clientes.</p></div><span class="badge info">V9.3.3 PWA</span></div>
+  c.innerHTML=`<div class="panel-head"><div><h3>WhatsApp</h3><p>Configura la confirmación de órdenes y las plantillas generales para clientes.</p></div><span class="badge info">V9.3.6 PWA</span></div>
   <div class="grid2">
     <div class="card">
       <h3>Confirmación de órdenes</h3>
@@ -2675,7 +2731,7 @@ function renderConfigUsuarios(c){
     return matchesSearch&&matchesRole&&(statusFilter==='Todos'||st===statusFilter)&&matchesLink;
   });
   const overrides=(state.usuarioModulos||[]).length;
-  c.innerHTML=`<div class="panel-head"><div><h3>Usuarios, empleados y permisos</h3><p>V9.3.3 PWA: cada acceso personal se vincula con el empleado real; las cuentas compartidas se identifican como estaciones.</p></div><div class="actions"><button class="btn gray" id="refreshUsers">Actualizar</button><button class="btn gray" id="authGuide">Guía crear login</button></div></div>
+  c.innerHTML=`<div class="panel-head"><div><h3>Usuarios, empleados y permisos</h3><p>V9.3.6 PWA: cada acceso personal se vincula con el empleado real; las cuentas compartidas se identifican como estaciones.</p></div><div class="actions"><button class="btn gray" id="refreshUsers">Actualizar</button><button class="btn gray" id="authGuide">Guía crear login</button></div></div>
   <div class="grid4 compact-kpis">
     <div class="card"><h3>${state.usuarios.length}</h3><p class="hint">perfiles registrados</p></div>
     <div class="card"><h3>${linkedCount}</h3><p class="hint">vinculados a empleados</p></div>
@@ -2867,7 +2923,7 @@ function renderConfigGeneral(c){
   const sc=normalizeSystemConfig(state.systemConfig||{}); const wc=normalizeWeightConfig(state.weightConfig||{});
   sc.empresa=sc.empresa||defaultSystemConfig().empresa; sc.alertas=sc.alertas||defaultSystemConfig().alertas; sc.impresion=sc.impresion||defaultSystemConfig().impresion; sc.recibos=sc.recibos||defaultSystemConfig().recibos; sc.respaldo=sc.respaldo||defaultSystemConfig().respaldo; sc.atajos=sc.atajos||defaultSystemConfig().atajos; sc.seguridad=sc.seguridad||defaultSystemConfig().seguridad;
   const enabled=navItems.filter(([id])=>moduleEnabled(id)).length;
-  c.innerHTML=`<div class="panel-head"><div><h3>Centro de configuración</h3><p>Todo lo que cambies aquí alimenta los módulos operativos del sistema.</p></div><span class="badge info">V9.3.3 PWA</span></div>
+  c.innerHTML=`<div class="panel-head"><div><h3>Centro de configuración</h3><p>Todo lo que cambies aquí alimenta los módulos operativos del sistema.</p></div><span class="badge info">V9.3.6 PWA</span></div>
   <div class="config-overview">
     ${configCardStatus('Empresa',!!sc.empresa.nombre,`Nombre: ${sc.empresa.nombre || 'sin configurar'}`)}
     ${configCardStatus('Menú',enabled>0,`${enabled} módulos activos de ${navItems.length}`)}
@@ -2884,7 +2940,7 @@ function renderConfigGeneral(c){
   $$('[data-config-go]').forEach(b=>b.onclick=()=>{state.configTab=b.dataset.configGo; renderConfig($('#content'));});
 }
 function renderConfigEmpresa(c){ const e=normalizeSystemConfig(state.systemConfig||{}).empresa || defaultSystemConfig().empresa;
-  c.innerHTML=`<div class="panel-head"><div><h3>Configuración general del negocio</h3><p>Datos maestros que salen en menú, reportes, hojas de ruta, recibos y facturas internas.</p></div><span class="badge info">V9.3.3 PWA</span></div><div class="grid2"><div class="card"><div class="field"><label>Nombre comercial</label><input id="empNombre" value="${esc(e.nombre)}"></div><div class="field"><label>Subtítulo del sistema</label><input id="empSub" value="${esc(e.subtitulo)}"></div><div class="grid2"><div class="field"><label>Texto del logo</label><input id="empLogo" maxlength="6" value="${esc(e.logoTexto)}"></div><div class="field"><label>Moneda</label><input id="empMoneda" value="${esc(e.moneda)}"></div></div><div class="field"><label>Logo URL opcional</label><input id="empLogoUrl" value="${esc(e.logoUrl||'')}" placeholder="https://.../logo.png"><div class="hint">Opcional. Si se deja vacío, se usa el texto del logo.</div></div></div><div class="card"><div class="grid2"><div class="field"><label>Teléfono</label><input id="empTel" value="${esc(e.telefono)}"></div><div class="field"><label>RNC</label><input id="empRnc" value="${esc(e.rnc||'')}"></div></div><div class="field"><label>Correo</label><input id="empCorreo" value="${esc(e.correo||'')}"></div><div class="field"><label>Dirección</label><textarea id="empDir">${esc(e.direccion)}</textarea></div><div class="success"><b>Conectado:</b> estos datos se usan en reportes, recibos, hoja de ruta, tickets y encabezado del sistema.</div><button class="btn" id="saveEmpresa">Guardar configuración general</button></div></div>`;
+  c.innerHTML=`<div class="panel-head"><div><h3>Configuración general del negocio</h3><p>Datos maestros que salen en menú, reportes, hojas de ruta, recibos y facturas internas.</p></div><span class="badge info">V9.3.6 PWA</span></div><div class="grid2"><div class="card"><div class="field"><label>Nombre comercial</label><input id="empNombre" value="${esc(e.nombre)}"></div><div class="field"><label>Subtítulo del sistema</label><input id="empSub" value="${esc(e.subtitulo)}"></div><div class="grid2"><div class="field"><label>Texto del logo</label><input id="empLogo" maxlength="6" value="${esc(e.logoTexto)}"></div><div class="field"><label>Moneda</label><input id="empMoneda" value="${esc(e.moneda)}"></div></div><div class="field"><label>Logo URL opcional</label><input id="empLogoUrl" value="${esc(e.logoUrl||'')}" placeholder="https://.../logo.png"><div class="hint">Opcional. Si se deja vacío, se usa el texto del logo.</div></div></div><div class="card"><div class="grid2"><div class="field"><label>Teléfono</label><input id="empTel" value="${esc(e.telefono)}"></div><div class="field"><label>RNC</label><input id="empRnc" value="${esc(e.rnc||'')}"></div></div><div class="field"><label>Correo</label><input id="empCorreo" value="${esc(e.correo||'')}"></div><div class="field"><label>Dirección</label><textarea id="empDir">${esc(e.direccion)}</textarea></div><div class="success"><b>Conectado:</b> estos datos se usan en reportes, recibos, hoja de ruta, tickets y encabezado del sistema.</div><button class="btn" id="saveEmpresa">Guardar configuración general</button></div></div>`;
   $('#saveEmpresa').onclick=async()=>{ const val={nombre:$('#empNombre').value.trim()||'Productos César',subtitulo:$('#empSub').value.trim()||'CRM · Despacho · CXC',logoTexto:$('#empLogo').value.trim()||'PC',logoUrl:$('#empLogoUrl').value.trim(),moneda:$('#empMoneda').value.trim()||'RD$',telefono:$('#empTel').value.trim(),rnc:$('#empRnc').value.trim(),correo:$('#empCorreo').value.trim(),direccion:$('#empDir').value.trim()}; await saveConfigKey('empresa',val); render(); state.configTab='empresa'; state.page='config'; setTimeout(()=>renderConfig($('#content')),50); };
 }
 function renderConfigFlujos(c){
@@ -2943,7 +2999,7 @@ function renderConfigAlertas(c){
   const a=normalizeSystemConfig(state.systemConfig||{}).alertas || defaultSystemConfig().alertas;
   const h=a.horarioLaboral||{}, ls=Array.isArray(h.lunesSabado)?h.lunesSabado:[], dom=Array.isArray(h.domingo)?h.domingo:[];
   const ls1=ls[0]||['07:00','12:00'], ls2=ls[1]||['14:00','17:00'], ds=dom[0]||['07:00','12:00'];
-  c.innerHTML=`<div class="panel-head"><div><h3>Alertas, horario y SLA</h3><p>Configura el tiempo laborable real, los límites por etapa y las reglas del análisis operativo V9.2.15.</p></div><span class="badge info">V9.3.3 PWA</span></div>
+  c.innerHTML=`<div class="panel-head"><div><h3>Alertas, horario y SLA</h3><p>Configura el tiempo laborable real, los límites por etapa y las reglas del análisis operativo V9.2.15.</p></div><span class="badge info">V9.3.6 PWA</span></div>
   <div class="grid2"><div class="card"><h3>Actualización y avisos</h3><div class="field"><label>Parpadeo de órdenes nuevas</label><select id="alParpadeo"><option value="true" ${a.parpadeoNuevas!==false?'selected':''}>Activo</option><option value="false" ${a.parpadeoNuevas===false?'selected':''}>Apagado</option></select></div><div class="field"><label>Sonido activo por defecto</label><select id="alSonido"><option value="false" ${!a.sonidoDefault?'selected':''}>No</option><option value="true" ${a.sonidoDefault?'selected':''}>Sí</option></select></div><div class="field"><label>Revisión automática cada segundos</label><input id="alRevision" type="number" min="10" max="300" value="${a.revisionSegundos||30}"></div></div>
   <div class="card"><h3>SLA máximo por etapa</h3><p class="hint">Al superar este tiempo, la etapa se considera fuera de SLA. El aviso amarillo aparece al 70%.</p><div class="grid2"><div class="field"><label>Carnicería min.</label><input id="alCarn" type="number" min="1" value="${a.carniceriaMaxMin}"></div><div class="field"><label>Facturación min.</label><input id="alFact" type="number" min="1" value="${a.facturacionMaxMin}"></div><div class="field"><label>Validación min.</label><input id="alVal" type="number" min="1" value="${a.validacionMaxMin}"></div><div class="field"><label>Delivery min.</label><input id="alDel" type="number" min="1" value="${a.deliveryMaxMin}"></div><div class="field"><label>Liquidación min.</label><input id="alLiq" type="number" min="1" value="${a.liquidacionMaxMin}"></div><div class="field"><label>Factor de caso extremo</label><input id="alExtreme" type="number" min="1" max="10" step="0.5" value="${Number(a.extremoFactor||3)}"><div class="hint">Ej.: 3 = duración mayor a 3 veces el SLA, además del análisis estadístico.</div></div></div></div></div>
   <div class="grid2"><div class="card"><h3>Horario para tiempo laborable</h3><label class="checkrow"><input id="alUseWork" type="checkbox" ${a.usarTiempoLaborable!==false?'checked':''}> <b>Usar tiempo laborable en cronómetros y reportes</b><span>Descuenta almuerzo, horas fuera del negocio y feriados registrados.</span></label><div class="section-title">Lunes a sábado</div><div class="grid2"><div class="field"><label>Inicio mañana</label><input id="alLs1Start" type="time" value="${esc(ls1[0])}"></div><div class="field"><label>Fin mañana</label><input id="alLs1End" type="time" value="${esc(ls1[1])}"></div><div class="field"><label>Inicio tarde</label><input id="alLs2Start" type="time" value="${esc(ls2[0])}"></div><div class="field"><label>Fin tarde</label><input id="alLs2End" type="time" value="${esc(ls2[1])}"></div></div><div class="section-title">Domingo</div><div class="grid2"><div class="field"><label>Inicio</label><input id="alSunStart" type="time" value="${esc(ds[0])}"></div><div class="field"><label>Fin</label><input id="alSunEnd" type="time" value="${esc(ds[1])}"></div></div></div>
@@ -3623,18 +3679,24 @@ function carniceriaCard(o){
   const ageBadge=age!==null?`<span class="badge ${age>45?'bad':'info'}">⏱ ${age} min en cola</span>`:'';
   return `<div class="client-card op-card ${cls} ${newOrderClass(o,'carniceria')}" style="grid-template-columns:1fr auto"><div><div class="client-title">${esc(o.codigo||('ORD-'+o.id))} · ${esc(orderClientName(o))}</div><div class="client-sub">Creada: ${shortDate(o.fecha)} · Despacho: ${shortDate(dispatchDateOf(o))} · ${esc(orderClientPhone(o))} · ${esc(orderClientSector(o))}</div><div class="order-status-line">${newOrderBadge(o,'carniceria')}${orderCustomerBadge(o)}${orderDeliveryModeBadge(o)}${orderTypeBadge(o)}<span class="badge info">${esc(o.estado||'')}</span>${scheduleBadge(o)}${createdClockBadge(o)}${stageClockBadge(o,'carniceria')}${lock}${ageBadge}<span class="badge">${money(o.total_factura||o.total_estimado)}</span>${preparedByDisplay(o)?`<span class="badge warn">Prep. ${esc(preparedByDisplay(o))}</span>`:''}</div><div class="mini-items">${orderItemsText(o,7)}</div></div><div class="card-actions">${buttons}</div></div>`;
 }
-function renderFacturacion(c){ const orders=state.ordenes.filter(o=>orderRequiresInvoice(o) && ['Lista para facturar','Impresa para facturar'].includes(o.estado)); renderOperPanel(c,'Órdenes listas para facturar','Imprime el volante 80 mm, factura en tu sistema externo y registra la factura aquí.',orders,'No hay órdenes listas para facturación.',o=>`<button class="btn small dark" data-print-order="${o.id}">Imprimir 80mm</button><button class="btn small" data-invoice-order="${o.id}">Marcar facturada</button><button class="btn small gray" data-oper-order="${o.id}">Ver</button>`,'facturacionSearch'); }
+function renderFacturacion(c){ const orders=state.ordenes.filter(o=>orderRequiresInvoice(o) && QUICK_INVOICE_ALLOWED_STATES.includes(o.estado)); renderOperPanel(c,'Órdenes listas para facturar','Imprime el volante si aplica y marca la orden como facturada con un solo clic.',orders,'No hay órdenes listas para facturación.',o=>`<button class="btn small dark" data-print-order="${o.id}">Imprimir 80mm</button><button class="btn small" data-quick-invoice="${o.id}">Marcar facturada</button><button class="btn small gray" data-oper-order="${o.id}">Ver</button>`,'facturacionSearch'); }
 
 function validationReadyOrders(){
   return state.ordenes.filter(o=>!isStorePickup(o) && (['Facturada','Validada para delivery'].includes(o.estado) || (!orderRequiresPrep(o) && orderRequiresDelivery(o) && ['Pedido recibido','Validada para delivery'].includes(effectiveOrderState(o)))));
 }
 
 function batchCodeFromOrder(o){
-  const detalle=(state.entregaLoteDetalle||[]).find(d=>String(d.orden_id)===String(o?.id));
+  const details=(state.entregaLoteDetalle||[])
+    .filter(d=>String(d.orden_id)===String(o?.id))
+    .sort((a,b)=>Number(b.id||0)-Number(a.id||0));
+  const detalle=details.find(d=>{
+    const lot=batchRecordByCode(d.codigo_lote);
+    return !lot || String(lot.estado||'').toLowerCase()!=='revertido';
+  });
   if(detalle?.codigo_lote) return String(detalle.codigo_lote).toUpperCase();
   const txt=[o?.notas_validacion,o?.notas_liquidacion,o?.notas_estado,o?.notas].filter(Boolean).join(' | ');
-  const m=String(txt||'').match(/Lote:\s*(LOT-[A-Z0-9-]+)/i);
-  return m ? m[1].toUpperCase() : '';
+  const matches=[...String(txt||'').matchAll(/Lote:\s*(LOT-[A-Z0-9-]+)/ig)].map(m=>m[1].toUpperCase()).reverse();
+  return matches.find(code=>String(batchRecordByCode(code)?.estado||'').toLowerCase()!=='revertido')||'';
 }
 function batchRecordByCode(code){ return (state.entregaLotes||[]).find(l=>String(l.codigo_lote).toUpperCase()===String(code||'').toUpperCase()) || null; }
 function orderBatchBadge(o){ const code=batchCodeFromOrder(o); return code?`<span class="badge info">${esc(code)}</span>`:''; }
@@ -3646,13 +3708,38 @@ function newBatchCode(){
 
 function dateInRange(dateStr, from, to){
   if(!dateStr) return true;
-  const d=String(dateStr).slice(0,10);
+  const d=businessDateKey(dateStr);
   return (!from || d>=from) && (!to || d<=to);
 }
 function validationDateInRange(dateStr, from, to){
   if(!dateStr) return true;
-  const dt=new Date(dateStr); const d=isNaN(dt.getTime())?String(dateStr).slice(0,10):localIsoDate(dt);
+  const d=businessDateKey(dateStr);
   return (!from || d>=from) && (!to || d<=to);
+}
+function isoAddDays(iso,days){
+  const d=new Date(String(iso||today()).slice(0,10)+'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate()+Number(days||0));
+  return d.toISOString().slice(0,10);
+}
+function historyPresetRange(preset){
+  const current=today();
+  if(preset==='ayer'){ const y=isoAddDays(current,-1); return {from:y,to:y}; }
+  if(preset==='7dias') return {from:isoAddDays(current,-6),to:current};
+  if(preset==='mes') return {from:current.slice(0,8)+'01',to:current};
+  return {from:current,to:current};
+}
+function historyScopeKeys(scope){
+  return scope==='delivery'
+    ? {from:'deliveryHistoryFrom',to:'deliveryHistoryTo',search:'deliveryHistorySearch',limit:'deliveryHistoryLimit'}
+    : {from:'liqHistFrom',to:'liqHistTo',search:'liqHistorySearch',limit:'liquidationHistoryLimit'};
+}
+function applyHistoryPreset(scope,preset){
+  const keys=historyScopeKeys(scope), range=historyPresetRange(preset);
+  state[keys.from]=range.from; state[keys.to]=range.to; state[keys.limit]=10;
+}
+function historyRangeLabel(from,to){
+  const label=v=>v?new Date(v+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'2-digit',year:'numeric'}):'sin límite';
+  return from===to?`Resultados del ${label(from)}`:`Resultados desde ${label(from)} hasta ${label(to)}`;
 }
 function orderPesoEsperado(o){ const r=validationWeightReference(o); return Number(r.value||0); }
 function orderMonto(o){ return Number(o?.total_factura||o?.total_estimado||0); }
@@ -3660,20 +3747,43 @@ function batchSummaryFromOrders(items){
   const moneySum=deliveryMoneySummary(items);
   return {...moneySum,pesoEsperado:items.reduce((s,o)=>s+orderPesoEsperado(o),0),pesoEntregado:items.reduce((s,o)=>s+Number(o.peso_validado||0),0)};
 }
-function lotesFromReceivedOrders(deliveryName='', from='', to=''){
-  const closedOrders=state.ordenes.filter(o=>o.recibido_en && (!deliveryName || o.delivery_nombre===deliveryName) && dateInRange(o.recibido_en,from,to));
-  return liquidacionBatchGroups(closedOrders).map(g=>({
-    source:'ordenes', codigo_lote:g.code, delivery_nombre:deliveryName||g.items[0]?.delivery_nombre||'', fecha_entrega:g.items[0]?.validado_en||g.items[0]?.asignado_delivery_en||'', fecha_liquidacion:g.items.reduce((mx,o)=>!mx||String(o.recibido_en)>String(mx)?o.recibido_en:mx,''), cantidad_ordenes:g.items.length,
-    total_facturado:g.summary.total, efectivo_reportado:g.summary.cobrado, efectivo_recibido:g.summary.cobrado, credito_pendiente:g.summary.credito+g.summary.devuelto, no_entregado:g.summary.noEntregado, diferencia:0, estado:'Cerrado', items:g.items
-  }));
+function fallbackLiquidationGroups(orders){
+  const map=new Map();
+  (orders||[]).forEach(o=>{
+    const raw=batchCodeFromOrder(o);
+    const key=raw || `SIN-LOTE-${o.id}`;
+    if(!map.has(key)) map.set(key,{key,code:raw||'SIN-LOTE',items:[]});
+    map.get(key).items.push(o);
+  });
+  return [...map.values()];
+}
+function lotesFromReceivedOrders(deliveryName='', from='', to='', excludeOrderIds=new Set()){
+  const closedOrders=state.ordenes.filter(o=>o.recibido_en && !excludeOrderIds.has(String(o.id)) && (!deliveryName || o.delivery_nombre===deliveryName) && dateInRange(o.recibido_en,from,to));
+  return fallbackLiquidationGroups(closedOrders).map(g=>{
+    const summary=deliveryMoneySummary(g.items);
+    return {
+      source:'ordenes', history_key:g.key, codigo_lote:g.code, delivery_nombre:deliveryName||g.items[0]?.delivery_nombre||'',
+      fecha_entrega:g.items[0]?.validado_en||g.items[0]?.asignado_delivery_en||'',
+      fecha_liquidacion:g.items.reduce((mx,o)=>!mx||String(o.recibido_en)>String(mx)?o.recibido_en:mx,''), cantidad_ordenes:g.items.length,
+      total_facturado:summary.total, efectivo_reportado:summary.cobrado, efectivo_recibido:summary.cobrado,
+      credito_pendiente:summary.credito+summary.devuelto, no_entregado:summary.noEntregado, diferencia:0, estado:'Cerrado', items:g.items
+    };
+  });
 }
 function liquidationHistoryRows(deliveryName='', from='', to=''){
-  const formal=(state.liquidacionesLotes||[]).filter(l=>(!deliveryName || l.delivery_nombre===deliveryName) && dateInRange(l.fecha_liquidacion||l.creado_en,from,to)).map(l=>({source:'formal',...l,items:ordersForBatch(l.codigo_lote)}));
-  const formalCodes=new Set(formal.map(l=>String(l.codigo_lote||'').toUpperCase()));
-  const fallback=lotesFromReceivedOrders(deliveryName,from,to).filter(l=>!formalCodes.has(String(l.codigo_lote||'').toUpperCase()));
+  const formal=(state.liquidacionesLotes||[])
+    .filter(l=>(!deliveryName || l.delivery_nombre===deliveryName) && dateInRange(l.fecha_liquidacion||l.creado_en,from,to))
+    .map(l=>({source:'formal',history_key:`LIQ-${l.id||l.codigo_lote||l.fecha_liquidacion}`,...l}));
+  const formalIds=new Set(formal.map(l=>String(l.id||'')));
+  const formalOrderIds=new Set((state.liquidacionLoteDetalle||[]).filter(d=>formalIds.has(String(d.liquidacion_id||''))).map(d=>String(d.orden_id||'')));
+  const formalCodes=new Set(formal.map(l=>String(l.codigo_lote||'').toUpperCase()).filter(code=>code && code!=='SIN-LOTE'));
+  const fallback=lotesFromReceivedOrders(deliveryName,from,to,formalOrderIds).filter(l=>l.codigo_lote==='SIN-LOTE' || !formalCodes.has(String(l.codigo_lote||'').toUpperCase()));
   return [...formal,...fallback].sort((a,b)=>String(b.fecha_liquidacion||b.creado_en||'').localeCompare(String(a.fecha_liquidacion||a.creado_en||'')));
 }
-function ordersForBatch(code){ return state.ordenes.filter(o=>(batchCodeFromOrder(o)||'SIN-LOTE')===code); }
+function ordersForBatch(code){
+  if(!code || String(code).toUpperCase()==='SIN-LOTE') return [];
+  return state.ordenes.filter(o=>String(batchCodeFromOrder(o)||'').toUpperCase()===String(code).toUpperCase());
+}
 function batchDetailRowsForCode(code){ return (state.entregaLoteDetalle||[]).filter(d=>String(d.codigo_lote).toUpperCase()===String(code||'').toUpperCase()); }
 
 function deliveryRouteSnapshotCompany(){
@@ -3685,7 +3795,7 @@ function buildDeliveryRouteSnapshot(lote,deliveryName,selected,originalDate=new 
     const o=x.o||{}; const cl=o.cliente||{};
     return {orden_id:o.id||null,cliente_id:o.cliente_id||cl.id||null,codigo_orden:o.codigo||'',cliente_nombre:cl.negocio||'Cliente',contacto:cl.contacto||'',telefono:cl.telefono||'',sector:cl.sector||'',direccion:cl.direccion||cl.referencia||'',factura_no:o.factura_no||'',monto_factura:Number((x.amount ?? orderMonto(o)) || 0),peso_esperado:Number((x.expected ?? orderPesoEsperado(o)) || 0),peso_entregado:Number((x.peso ?? o.peso_validado) || 0),estado_original:o.estado||'',productos:(o.items||[]).map(i=>({nombre:i.producto_nombre||'',cantidad:Number((i.cantidad_preparada ?? i.cantidad_pedida) || 0),unidad:i.unidad||''}))};
   });
-  return {version:'V9.3.3 PWA',codigo_lote:lote,delivery_nombre:deliveryName,fecha_entrega:originalDate,validado_por:validatedBy,empresa:deliveryRouteSnapshotCompany(),items,totales:{cantidad_ordenes:items.length,total_facturado:items.reduce((a,x)=>a+x.monto_factura,0),peso_esperado:items.reduce((a,x)=>a+x.peso_esperado,0),peso_entregado:items.reduce((a,x)=>a+x.peso_entregado,0)}};
+  return {version:'V9.3.6 PWA',codigo_lote:lote,delivery_nombre:deliveryName,fecha_entrega:originalDate,validado_por:validatedBy,empresa:deliveryRouteSnapshotCompany(),items,totales:{cantidad_ordenes:items.length,total_facturado:items.reduce((a,x)=>a+x.monto_factura,0),peso_esperado:items.reduce((a,x)=>a+x.peso_esperado,0),peso_entregado:items.reduce((a,x)=>a+x.peso_entregado,0)}};
 }
 function normalizeRouteSnapshot(raw){
   if(!raw) return null;
@@ -3765,39 +3875,86 @@ function renderValidationBatchRow(o){
   const draft=batchDraftRow(o.id);
   const checked=!!draft?.checked;
   const draftWeight=draft && Object.prototype.hasOwnProperty.call(draft,'weight') ? draft.weight : null;
+  const draftAmount=draft && Object.prototype.hasOwnProperty.call(draft,'amount') ? draft.amount : null;
   const peso=draftWeight!==null ? draftWeight : (o.peso_validado||'');
-  const amount=Number(o.total_factura||o.total_estimado||0);
+  const amount=normalizeValidationInvoiceAmount(draftAmount!==null ? draftAmount : (o.total_factura||o.total_estimado||0));
   const disabledAttr=(req && checked)?'':'disabled';
-  return `<div class="batch-row ${orderTypeClass(o)}" data-batch-row="${o.id}" data-amount="${amount}" data-expected="${Number(ref.value||0)}" data-reqpeso="${req?'1':'0'}">
-    <div class="batch-check"><input type="checkbox" data-batch-check="${o.id}" ${checked?'checked':''} aria-label="Seleccionar ${esc(o.cliente?.negocio||'cliente')}"></div>
-    <div class="batch-main"><b>${esc(orderClientName(o))}</b><small>${esc(o.codigo||'')} · Factura ${esc(o.factura_no||'—')} · ${esc(orderClientSector(o))} · ${money(amount)}</small><small>${orderTypeBadge(o)}${orderBatchBadge(o)}${stageClockBadge(o,'validacion')}</small></div>
+  return `<div class="batch-row ${orderTypeClass(o)}" data-batch-row="${o.id}" data-amount="${amount}" data-original-amount="${amount}" data-expected="${Number(ref.value||0)}" data-reqpeso="${req?'1':'0'}">
+    <div class="batch-check"><input type="checkbox" data-batch-check="${o.id}" ${checked?'checked':''} aria-label="Seleccionar ${esc(orderClientName(o)||'cliente')}"></div>
+    <div class="batch-main"><b>${esc(orderClientName(o))}</b><small>${esc(o.codigo||'')} · Factura ${esc(o.factura_no||'—')} · ${esc(orderClientSector(o))}</small><small>${orderTypeBadge(o)}${orderBatchBadge(o)}${stageClockBadge(o,'validacion')}</small></div>
     <div class="batch-num"><span>Esperado</span><b>${ref.value?Number(ref.value).toFixed(2)+' lb':(req?'—':'No pesa')}</b></div>
-    <div class="batch-weight"><input type="number" step="0.01" data-batch-weight="${o.id}" value="${esc(peso)}" ${disabledAttr} placeholder="${req?'Peso entregado':'No pesa'}"></div>
+    <div class="batch-amount"><span>Factura final</span><input class="validation-amount-input" type="number" step="0.01" min="0.01" inputmode="decimal" data-batch-amount="${o.id}" value="${amount||''}" placeholder="Monto"></div>
+    <div class="batch-weight"><input type="number" step="0.01" min="0" inputmode="decimal" data-batch-weight="${o.id}" value="${esc(peso)}" ${disabledAttr} placeholder="${req?'Peso entregado':'No pesa'}"></div>
     <div class="batch-status" data-batch-status="${o.id}">${validationRowStatusHtml(o,Number(peso||0))}</div>
     <div class="card-actions mini"><button class="btn small gray" data-oper-order="${o.id}">Ver</button>${(orderRequiresInvoice(o)&&['Facturada','Validada para delivery'].includes(o.estado))?`<button class="btn small warn" data-return-invoice="${o.id}">Reabrir</button>`:''}</div>
   </div>`;
 }
 function validationHistorySummary(rows){
-  return rows.reduce((a,l)=>{ const items=validationBatchRouteItems(l); a.lotes++; a.ordenes+=Number(l.cantidad_ordenes||items.length); a.total+=Number(l.total_facturado||items.reduce((s,x)=>s+Number(x.amount||0),0)); a.esperado+=Number(l.peso_esperado||items.reduce((s,x)=>s+Number(x.expected||0),0)); a.entregado+=Number(l.peso_entregado||items.reduce((s,x)=>s+Number(x.peso||0),0)); if(!validationBatchLiquidation(l)) a.pendientes++; return a; },{lotes:0,ordenes:0,total:0,esperado:0,entregado:0,pendientes:0});
+  return rows.reduce((a,l)=>{ const items=validationBatchRouteItems(l); if(String(l?.estado||'').toLowerCase()==='revertido'){a.revertidos++;return a;} a.lotes++; a.ordenes+=Number(l.cantidad_ordenes||items.length); a.total+=Number(l.total_facturado||items.reduce((s,x)=>s+Number(x.amount||0),0)); a.esperado+=Number(l.peso_esperado||items.reduce((s,x)=>s+Number(x.expected||0),0)); a.entregado+=Number(l.peso_entregado||items.reduce((s,x)=>s+Number(x.peso||0),0)); if(!validationBatchLiquidation(l)) a.pendientes++; return a; },{lotes:0,ordenes:0,total:0,esperado:0,entregado:0,pendientes:0,revertidos:0});
 }
-function validationHistoryCard(l){
+
+function validationLotCorrectionInfo(lot){
+  const items=validationBatchRouteItems(lot).map(x=>x.o).filter(Boolean);
+  return evaluateLotCorrection({
+    lot,
+    orders:items,
+    hasLiquidation:Boolean(validationBatchLiquidation(lot)),
+    canEdit:Boolean(isAdminRole()||puede('validacion',true))
+  });
+}
+function lastLotCorrection(lot){
+  return (state.deliveryLotCorrections||[]).find(x=>String(x.lote_id||'')===String(lot?.id||'') || String(x.codigo_lote||'').toUpperCase()===String(lot?.codigo_lote||'').toUpperCase())||null;
+}
+async function runLotCorrectionV936(lot,action,newDelivery,reason,modal){
+  const info=validationLotCorrectionInfo(lot);
+  if(!info.allowed) return alert(info.reason||'Este lote ya no puede corregirse.');
+  reason=String(reason||'').trim();
+  if(reason.length<5) return alert('Escribe un motivo de al menos 5 caracteres.');
+  if(action==='cambiar_delivery' && !String(newDelivery||'').trim()) return alert('Selecciona el nuevo delivery.');
+  const button=action==='cambiar_delivery'?$('#saveLotDeliveryCorrection',modal):$('#revertDeliveryLot',modal);
+  if(button){button.disabled=true;button.textContent=action==='cambiar_delivery'?'Corrigiendo...':'Revirtiendo...';}
+  const {data,error}=await sb.rpc('corregir_lote_entrega_v936',{p_lote_id:Number(lot.id),p_accion:action,p_nuevo_delivery:action==='cambiar_delivery'?String(newDelivery).trim():null,p_motivo:reason,p_usuario_nombre:currentWorkerName()});
+  if(error){ if(button){button.disabled=false;button.textContent=action==='cambiar_delivery'?'Cambiar delivery':'Revertir lote completo';} return alert('No se pudo corregir el lote: '+error.message); }
+  modal?.remove();
+  await loadAll();
+  renderValidacion($('#content'));
+  toast(action==='cambiar_delivery'?`Lote ${lot.codigo_lote} asignado correctamente.`:`Lote ${lot.codigo_lote} revertido a Validación.`);
+  return data;
+}
+function openLotCorrectionModal(lot){
+  const info=validationLotCorrectionInfo(lot);
+  if(!info.allowed) return alert(info.reason||'Este lote ya no puede corregirse.');
+  if(!state.v936SchemaOk) return alert('Primero ejecuta el SQL 28 de la V9.3.6 en Supabase.');
+  const names=activeDeliveryNames();
+  const body=`<div class="form lot-correction-form"><div class="lock-alert info"><b>${esc(lot.codigo_lote||'Lote')}</b> · Delivery actual: ${esc(lot.delivery_nombre||'—')} · ${info.orders.length} orden(es)</div><div class="field"><label>Nuevo delivery</label><select id="correctLotDelivery"><option value="">Selecciona</option>${names.map(n=>`<option ${norm(n)===norm(lot.delivery_nombre)?'disabled':''}>${esc(n)}</option>`).join('')}</select></div><div class="field"><label>Motivo obligatorio</label><textarea id="correctLotReason" maxlength="300" placeholder="Ej.: Se seleccionó el delivery equivocado al crear el lote"></textarea></div><div class="lot-correction-actions"><button class="btn" id="saveLotDeliveryCorrection">Cambiar delivery</button><button class="btn danger" id="revertDeliveryLot">Revertir lote completo</button></div><div class="hint">Cambiar delivery conserva el lote, pesos y montos. Revertir devuelve las órdenes a Facturación/Validación, conserva los datos registrados y marca el lote como Revertido.</div></div>`;
+  const m=openModal('Corregir asignación del lote',body,'Disponible solo antes de iniciar ruta, registrar resultados o liquidar.');
+  $('#saveLotDeliveryCorrection',m).onclick=()=>runLotCorrectionV936(lot,'cambiar_delivery',$('#correctLotDelivery',m).value,$('#correctLotReason',m).value,m);
+  $('#revertDeliveryLot',m).onclick=()=>{ if(confirm(`¿Revertir completamente ${lot.codigo_lote}? Las órdenes volverán a Validación.`)) runLotCorrectionV936(lot,'revertir_lote','',$('#correctLotReason',m).value,m); };
+}
+function validationHistoryCard(l,index=0,forceOpen=false){
   const items=validationBatchRouteItems(l); const st=validationBatchCurrentState(l); const original=l.fecha_entrega||l.creado_en||''; const audits=validationBatchPrintAudit(l.codigo_lote); const reprints=Number(l.cantidad_reimpresiones||audits.filter(x=>x.tipo_evento==='Reimpresión').length||0);
-  const rows=items.slice(0,4).map(x=>`<div class="liq-order-row"><div><b>${esc(x.o?.cliente?.negocio||'Cliente')}</b><small>${esc(x.o?.codigo||'')} · Factura ${esc(x.o?.factura_no||'—')} · ${money(x.amount||0)} · ${Number(x.peso||0).toFixed(2)} lb</small></div><span class="badge info">${esc(x.o?.estado||'Registrada')}</span></div>`).join('');
-  return `<article class="liq-batch-card validation-history-card"><div class="liq-batch-head"><div><div class="client-title">${esc(l.codigo_lote||'SIN-LOTE')}</div><div class="client-sub">${original?new Date(original).toLocaleString('es-DO'):'—'} · Delivery: ${esc(l.delivery_nombre||'—')} · Validado por: ${esc(l.validado_por||normalizeRouteSnapshot(l.hoja_ruta_snapshot)?.validado_por||'—')}</div><div class="badges"><span class="badge info">${items.length||Number(l.cantidad_ordenes||0)} órdenes</span><span class="badge ok">${money(l.total_facturado||items.reduce((s,x)=>s+Number(x.amount||0),0))}</span><span class="badge">${Number(l.peso_entregado||items.reduce((s,x)=>s+Number(x.peso||0),0)).toFixed(2)} lb</span><span class="badge ${st==='Liquidado'?'ok':'warn'}">${esc(st)}</span>${reprints?`<span class="badge warn">${reprints} reimp.</span>`:''}${l.hoja_ruta_snapshot?'<span class="badge ok">Datos congelados</span>':'<span class="badge warn">Reconstruido</span>'}</div></div><div class="card-actions"><button class="btn small gray" data-validation-lot-detail="${esc(l.codigo_lote)}">Ver detalle</button><button class="btn small dark" data-validation-reprint="${esc(l.codigo_lote)}">Reimprimir hoja</button><button class="btn small gray" data-validation-constancia="${esc(l.codigo_lote)}">Imprimir constancia</button></div></div><div class="liq-batch-body">${rows}${items.length>4?`<div class="hint validation-more">+ ${items.length-4} orden(es) adicionales</div>`:''}</div></article>`;
+  const key=lotUiKey('validation',l.codigo_lote,l.id||original); const open=operationalLotOpen('validationLots',key,index,forceOpen); const info=validationLotCorrectionInfo(l); const correction=lastLotCorrection(l);
+  const rows=items.map(x=>`<div class="liq-order-row"><div><b>${esc(orderClientName(x.o)||'Cliente')}</b><small>${esc(x.o?.codigo||'')} · Factura ${esc(x.o?.factura_no||'—')} · ${money(x.amount||0)} · ${Number(x.peso||0).toFixed(2)} lb</small></div><span class="badge info">${esc(x.o?.estado||'Registrada')}</span></div>`).join('');
+  return `<article class="liq-batch-card validation-history-card operational-lot-card ${open?'is-open':'is-collapsed'}" data-validation-lot-key="${esc(key)}"><div class="liq-batch-head operational-lot-head"><button class="history-toggle-btn" type="button" data-validation-lot-toggle="${esc(key)}" aria-expanded="${open?'true':'false'}" title="${open?'Ocultar lote':'Mostrar lote'}"><span>${open?'⌄':'›'}</span></button><div class="history-batch-summary"><div class="client-title">${esc(l.codigo_lote||'SIN-LOTE')}</div><div class="client-sub">${original?businessDateTime(original):'—'} · Delivery: ${esc(l.delivery_nombre||'—')} · Validado por: ${esc(l.validado_por||normalizeRouteSnapshot(l.hoja_ruta_snapshot)?.validado_por||'—')}</div><div class="badges"><span class="badge info">${items.length||Number(l.cantidad_ordenes||0)} órdenes</span><span class="badge ok">${money(l.total_facturado||items.reduce((s,x)=>s+Number(x.amount||0),0))}</span><span class="badge">${Number(l.peso_entregado||items.reduce((s,x)=>s+Number(x.peso||0),0)).toFixed(2)} lb</span><span class="badge ${st==='Liquidado'?'ok':(st==='Revertido'?'bad':'warn')}">${esc(st)}</span>${correction?`<span class="badge warn">${correction.accion==='cambiar_delivery'?'Asignación corregida':'Lote revertido'}</span>`:''}${reprints?`<span class="badge warn">${reprints} reimp.</span>`:''}${l.hoja_ruta_snapshot?'<span class="badge ok">Datos congelados</span>':'<span class="badge warn">Reconstruido</span>'}</div></div><div class="card-actions history-card-actions"><button class="btn small gray" data-validation-lot-detail="${esc(l.codigo_lote)}">Ver detalle</button><button class="btn small dark" data-validation-reprint="${esc(l.codigo_lote)}">Reimprimir hoja</button><button class="btn small gray" data-validation-constancia="${esc(l.codigo_lote)}">Imprimir constancia</button>${info.allowed?`<button class="btn small warn" data-correct-validation-lot="${esc(l.id)}">Corregir asignación</button>`:''}</div></div>${open?`<div class="liq-batch-body operational-lot-body">${rows||'<div class="empty">No hay detalle disponible.</div>'}</div>`:''}</article>`;
 }
 function renderValidationHistory(c){
-  const rows=validationHistoryFilteredRows(); const k=validationHistorySummary(rows); const names=activeDeliveryNames(); const from=state.validationHistoryFrom||today(), to=state.validationHistoryTo||today();
-  c.innerHTML=`<div class="panel validation-history-panel"><div class="panel-head"><div><h3>Historial de entregas a delivery</h3><p>Consulta, reimprime y documenta lo entregado por Validación. El rango inicia en el día actual.</p></div><span class="badge info">V9.3.0 R5</span></div><div class="validation-history-toolbar"><div class="field"><label>Desde</label><input type="date" id="validationHistFrom" value="${esc(from)}"></div><div class="field"><label>Hasta</label><input type="date" id="validationHistTo" value="${esc(to)}"></div><div class="field"><label>Delivery</label><select id="validationHistDelivery"><option value="">Todos</option>${names.map(n=>`<option ${state.validationHistoryDelivery===n?'selected':''}>${esc(n)}</option>`).join('')}</select></div><div class="field"><label>Buscar</label><input id="validationHistSearch" value="${esc(state.validationHistorySearch||'')}" placeholder="Lote, orden, factura o cliente..."></div><div class="batch-actions"><button class="btn gray" data-validation-preset="hoy">Hoy</button><button class="btn gray" data-validation-preset="ayer">Ayer</button><button class="btn gray" data-validation-preset="semana">Esta semana</button><button class="btn dark" id="printValidationDaily">Imprimir reporte</button></div></div><div class="validation-history-kpis"><div class="card kpi"><div class="label">Lotes</div><div class="value">${k.lotes}</div></div><div class="card kpi"><div class="label">Órdenes</div><div class="value">${k.ordenes}</div></div><div class="card kpi"><div class="label">Facturado</div><div class="value">${money(k.total)}</div></div><div class="card kpi"><div class="label">Peso entregado</div><div class="value">${Number(k.entregado.toFixed(2))} lb</div></div><div class="card kpi"><div class="label">Sin liquidar</div><div class="value">${k.pendientes}</div></div></div><div class="${state.validacionR5SchemaOk?'lock-alert ok':'lock-alert warn'}"><b>Historial documental:</b> ${state.validacionR5SchemaOk?'snapshot y auditoría de reimpresiones disponibles.':'ejecuta el SQL 25 para congelar datos y registrar reimpresiones. Los lotes existentes siguen visibles mediante reconstrucción.'}</div><div class="liq-batch-list">${rows.map(validationHistoryCard).join('')||'<div class="empty">No hay entregas registradas para ese rango.</div>'}</div></div>`;
+  const rows=validationHistoryFilteredRows(); const k=validationHistorySummary(rows); const names=activeDeliveryNames(); const from=state.validationHistoryFrom||today(), to=state.validationHistoryTo||today(); const forceOpen=Boolean(String(state.validationHistorySearch||'').trim());
+  const keys=rows.map(l=>lotUiKey('validation',l.codigo_lote,l.id||l.fecha_entrega||l.creado_en));
+  c.innerHTML=`<div class="panel validation-history-panel"><div class="panel-head"><div><h3>Historial de entregas a delivery</h3><p>Consulta, reimprime, corrige asignaciones y documenta lo entregado por Validación.</p></div><span class="badge info">V9.3.6</span></div><div class="validation-history-toolbar"><div class="field"><label>Desde</label><input type="date" id="validationHistFrom" value="${esc(from)}"></div><div class="field"><label>Hasta</label><input type="date" id="validationHistTo" value="${esc(to)}"></div><div class="field"><label>Delivery</label><select id="validationHistDelivery"><option value="">Todos</option>${names.map(n=>`<option ${state.validationHistoryDelivery===n?'selected':''}>${esc(n)}</option>`).join('')}</select></div><div class="field"><label>Buscar</label><input id="validationHistSearch" value="${esc(state.validationHistorySearch||'')}" placeholder="Lote, orden, factura o cliente..."></div><div class="batch-actions"><button class="btn gray" data-validation-preset="hoy">Hoy</button><button class="btn gray" data-validation-preset="ayer">Ayer</button><button class="btn gray" data-validation-preset="semana">Esta semana</button><button class="btn dark" id="printValidationDaily">Imprimir reporte</button></div></div><div class="validation-history-kpis"><div class="card kpi"><div class="label">Lotes</div><div class="value">${k.lotes}</div></div><div class="card kpi"><div class="label">Órdenes</div><div class="value">${k.ordenes}</div></div><div class="card kpi"><div class="label">Facturado</div><div class="value">${money(k.total)}</div></div><div class="card kpi"><div class="label">Peso entregado</div><div class="value">${Number(k.entregado.toFixed(2))} lb</div></div><div class="card kpi"><div class="label">Sin liquidar</div><div class="value">${k.pendientes}</div></div></div><div class="${state.v936SchemaOk?'lock-alert ok':'lock-alert warn'}"><b>Correcciones seguras:</b> ${state.v936SchemaOk?'auditoría V9.3.6 disponible para lotes abiertos.':'ejecuta el SQL 28 para habilitar Corregir asignación y Revertir lote.'}</div><div class="history-list-actions"><button class="btn small gray" data-validation-expand-all>Expandir todos</button><button class="btn small gray" data-validation-collapse-all>Ocultar todos</button></div><div class="liq-batch-list">${rows.map((l,i)=>validationHistoryCard(l,i,forceOpen)).join('')||'<div class="empty">No hay entregas registradas para ese rango.</div>'}</div></div>`;
   $('#validationHistFrom').onchange=e=>{state.validationHistoryFrom=e.target.value||today();renderValidacion($('#content'));}; $('#validationHistTo').onchange=e=>{state.validationHistoryTo=e.target.value||today();renderValidacion($('#content'));}; $('#validationHistDelivery').onchange=e=>{state.validationHistoryDelivery=e.target.value;renderValidacion($('#content'));}; $('#validationHistSearch').oninput=e=>{state.validationHistorySearch=e.target.value;renderValidacion($('#content'));focusAfterRender('validationHistSearch',e.target.selectionStart||e.target.value.length);};
   $$('[data-validation-preset]',c).forEach(b=>b.onclick=()=>{ const d=new Date(); if(b.dataset.validationPreset==='ayer') d.setDate(d.getDate()-1); if(b.dataset.validationPreset==='semana'){ const day=(d.getDay()+6)%7; d.setDate(d.getDate()-day); state.validationHistoryFrom=localIsoDate(d); state.validationHistoryTo=today(); } else { const v=localIsoDate(d); state.validationHistoryFrom=v;state.validationHistoryTo=v; } renderValidacion($('#content')); });
   $('#printValidationDaily').onclick=()=>printValidationDailyReport(rows,from,to,state.validationHistoryDelivery||'');
+  $$('[data-validation-lot-toggle]',c).forEach(b=>b.onclick=()=>{const key=b.dataset.validationLotToggle;setHistoryOpen('validationLots',key,!historyIsOpen('validationLots',key));renderValidationHistory(c);});
+  $('[data-validation-expand-all]',c).onclick=()=>{setOperationalKeysOpen('validationLots',keys,true);renderValidationHistory(c);};
+  $('[data-validation-collapse-all]',c).onclick=()=>{setOperationalKeysOpen('validationLots',keys,false);renderValidationHistory(c);};
   $$('[data-validation-reprint]',c).forEach(b=>b.onclick=()=>{ const l=rows.find(x=>String(x.codigo_lote)===String(b.dataset.validationReprint)); if(l) printValidationRouteFromLot(l,true); });
   $$('[data-validation-constancia]',c).forEach(b=>b.onclick=()=>{ const l=rows.find(x=>String(x.codigo_lote)===String(b.dataset.validationConstancia)); if(l) printValidationDeliveryReceipt(l,true); });
   $$('[data-validation-lot-detail]',c).forEach(b=>b.onclick=()=>{ const l=rows.find(x=>String(x.codigo_lote)===String(b.dataset.validationLotDetail)); if(l) openValidationBatchDetail(l); });
+  $$('[data-correct-validation-lot]',c).forEach(b=>b.onclick=()=>{const l=rows.find(x=>String(x.id)===String(b.dataset.correctValidationLot));if(l)openLotCorrectionModal(l);});
 }
 function renderValidationPending(c){
   const base=validationReadyOrders(); const q=state.validacionSearch||''; const orders=base.filter(o=>matchOrder(o,q)); const names=activeDeliveryNames(); const draft=ensureValidationBatchDraft(); const defaultDel=draft.deliveryValue||state.deliveryFiltro||''; const totalFact=orders.reduce((s,o)=>s+Number(o.total_factura||o.total_estimado||0),0); const totalPeso=orders.reduce((s,o)=>s+Number(validationWeightReference(o).value||0),0);
-  c.innerHTML=`<div class="panel validation-batch-panel"><div class="panel-head"><div><h3>Validación por lote y entrega a delivery</h3><p>Selecciona un delivery, coteja los clientes que se lleva y registra el peso final por cada orden.</p></div><span class="badge info">${orders.length} orden(es)</span></div><div class="grid4 compact-kpis"><div class="card kpi"><div class="label">Órdenes listas</div><div class="value">${orders.length}</div></div><div class="card kpi"><div class="label">Monto facturado</div><div class="value">${money(totalFact)}</div></div><div class="card kpi"><div class="label">Peso esperado</div><div class="value">${Number(totalPeso.toFixed(2))} lb</div></div><div class="card kpi"><div class="label">Seleccionadas</div><div class="value" id="batchCount">0</div></div></div><div class="batch-toolbar"><div class="field"><label>Delivery que se llevará el lote</label><select id="batchDelivery"><option value="">Selecciona delivery</option>${names.map(n=>`<option ${n===defaultDel?'selected':''}>${esc(n)}</option>`).join('')}<option value="__manual__" ${defaultDel==='__manual__'?'selected':''}>Otro / manual</option></select><input id="batchDeliveryManual" value="${esc(draft.manual||'')}" placeholder="Nombre del delivery" style="display:${defaultDel==='__manual__'?'block':'none'};margin-top:8px"></div><div class="field"><label>Buscar cliente</label><input id="validacionSearch" value="${esc(q)}" placeholder="Buscar nombre del cliente..."></div><div class="batch-actions"><button class="btn gray" id="selectAllBatch">Seleccionar visibles</button><button class="btn gray" id="clearBatch">Limpiar</button><button class="btn dark" id="previewBatchRoute">Vista hoja de ruta</button><button class="btn" id="createDeliveryBatch">Crear lote y asignar</button></div></div><div id="batchSummary" class="lock-alert ok">Selecciona las órdenes que se llevará el delivery. El peso se valida individualmente por cliente.</div><div class="batch-table"><div class="batch-head"><span></span><span>Cliente / orden</span><span>Peso esperado</span><span>Peso entregado</span><span>Estado</span><span>Acciones</span></div>${orders.map(renderValidationBatchRow).join('')||'<div class="empty">No hay órdenes facturadas pendientes de entregar al delivery.</div>'}</div><div class="section-title">Validación individual</div><div class="hint">También puedes validar una orden individual si no será enviada dentro de un lote.</div><div class="list compact-list">${orders.map(o=>`<div class="client-card op-card ${newOrderClass(o,'validacion')}" style="grid-template-columns:1fr auto"><div><div class="client-title">${esc(o.codigo||'')} · ${esc(orderClientName(o))}</div><div class="client-sub">Factura ${esc(o.factura_no||'—')} · ${money(o.total_factura||o.total_estimado)} · Ref. peso: ${validationWeightReference(o).value||'—'} lb</div><div class="order-status-line">${newOrderBadge(o,'validacion')}${orderCustomerBadge(o)}${orderDeliveryModeBadge(o)}${orderTypeBadge(o)}${specialCaseBadge(o)}${orderStatusBadgeHtml(o)}${stageClockBadge(o,'validacion')}${orderBatchBadge(o)}</div></div><div class="card-actions">${(orderRequiresInvoice(o)&&['Facturada','Validada para delivery'].includes(o.estado))?`<button class="btn small warn" data-return-invoice="${o.id}">Reabrir facturación</button>`:''}<button class="btn small" data-validate-order="${o.id}">Validar individual</button><button class="btn small gray" data-oper-order="${o.id}">Ver</button></div></div>`).join('')||''}</div></div>`;
+  c.innerHTML=`<div class="panel validation-batch-panel"><div class="panel-head"><div><h3>Validación por lote y entrega a delivery</h3><p>Selecciona un delivery, confirma el monto final de cada factura y registra el peso entregado por cliente.</p></div><span class="badge info">${orders.length} orden(es)</span></div><div class="grid4 compact-kpis"><div class="card kpi"><div class="label">Órdenes listas</div><div class="value">${orders.length}</div></div><div class="card kpi"><div class="label">Monto a validar</div><div class="value" id="validationAmountTotal">${money(totalFact)}</div></div><div class="card kpi"><div class="label">Peso esperado</div><div class="value">${Number(totalPeso.toFixed(2))} lb</div></div><div class="card kpi"><div class="label">Seleccionadas</div><div class="value" id="batchCount">0</div></div></div><div class="batch-toolbar"><div class="field"><label>Delivery que se llevará el lote</label><select id="batchDelivery"><option value="">Selecciona delivery</option>${names.map(n=>`<option ${n===defaultDel?'selected':''}>${esc(n)}</option>`).join('')}<option value="__manual__" ${defaultDel==='__manual__'?'selected':''}>Otro / manual</option></select><input id="batchDeliveryManual" value="${esc(draft.manual||'')}" placeholder="Nombre del delivery" style="display:${defaultDel==='__manual__'?'block':'none'};margin-top:8px"></div><div class="field"><label>Buscar cliente</label><input id="validacionSearch" value="${esc(q)}" placeholder="Buscar nombre del cliente..."></div><div class="batch-actions"><button class="btn gray" id="selectAllBatch">Seleccionar visibles</button><button class="btn gray" id="clearBatch">Limpiar</button><button class="btn dark" id="previewBatchRoute">Vista hoja de ruta</button><button class="btn" id="createDeliveryBatch">Crear lote y asignar</button></div></div><div id="batchSummary" class="lock-alert ok">Selecciona las órdenes que se llevará el delivery. El peso se valida individualmente por cliente.</div><div class="batch-table"><div class="batch-head"><span></span><span>Cliente / orden</span><span>Peso esperado</span><span>Monto factura</span><span>Peso entregado</span><span>Estado</span><span>Acciones</span></div>${orders.map(renderValidationBatchRow).join('')||'<div class="empty">No hay órdenes facturadas pendientes de entregar al delivery.</div>'}</div><div class="section-title">Validación individual</div><div class="hint">También puedes validar una orden individual si no será enviada dentro de un lote.</div><div class="list compact-list">${orders.map(o=>`<div class="client-card op-card ${newOrderClass(o,'validacion')}" style="grid-template-columns:1fr auto"><div><div class="client-title">${esc(o.codigo||'')} · ${esc(orderClientName(o))}</div><div class="client-sub">Factura ${esc(o.factura_no||'—')} · ${money(o.total_factura||o.total_estimado)} · Ref. peso: ${validationWeightReference(o).value||'—'} lb</div><div class="order-status-line">${newOrderBadge(o,'validacion')}${orderCustomerBadge(o)}${orderDeliveryModeBadge(o)}${orderTypeBadge(o)}${specialCaseBadge(o)}${orderStatusBadgeHtml(o)}${stageClockBadge(o,'validacion')}${orderBatchBadge(o)}</div></div><div class="card-actions">${(orderRequiresInvoice(o)&&['Facturada','Validada para delivery'].includes(o.estado))?`<button class="btn small warn" data-return-invoice="${o.id}">Reabrir facturación</button>`:''}<button class="btn small" data-validate-order="${o.id}">Validar individual</button><button class="btn small gray" data-oper-order="${o.id}">Ver</button></div></div>`).join('')||''}</div></div>`;
   bindValidationBatch(c,orders); bindDynamic();
 }
 function renderPickupValidation(c){
@@ -3843,7 +4000,8 @@ function selectedBatchRows(container,orders){
     const id=row.dataset.batchRow;
     const o=orders.find(x=>String(x.id)===String(id));
     const peso=Number($('[data-batch-weight]',row)?.value||0);
-    return {row,id,o,peso,req:row.dataset.reqpeso==='1',expected:Number(row.dataset.expected||0),amount:Number(row.dataset.amount||0)};
+    const amount=normalizeValidationInvoiceAmount($('[data-batch-amount]',row)?.value||0);
+    return {row,id,o,peso,req:row.dataset.reqpeso==='1',expected:Number(row.dataset.expected||0),amount};
   }).filter(x=>x.o);
 }
 function updateBatchSummary(container,orders){
@@ -3852,20 +4010,23 @@ function updateBatchSummary(container,orders){
   const expected=sel.reduce((s,x)=>s+Number(x.expected||0),0);
   const total=sel.reduce((s,x)=>s+Number(x.amount||0),0);
   const count=$('#batchCount',container); if(count) count.textContent=sel.length;
-  const box=$('#batchSummary',container); if(box){ box.className='lock-alert '+(sel.length?'ok':''); box.innerHTML=sel.length?`<b>Lote en preparación:</b> ${sel.length} orden(es) · Peso esperado ${Number(expected.toFixed(2))} lb · Peso entregado ${Number(peso.toFixed(2))} lb · Total facturado ${money(total)}.`:'Selecciona las órdenes que se llevará el delivery. El peso se valida individualmente por cliente.'; }
+  const visibleTotal=$$('[data-batch-amount]',container).reduce((sum,input)=>sum+normalizeValidationInvoiceAmount(input.value),0);
+  const totalKpi=$('#validationAmountTotal',container); if(totalKpi) totalKpi.textContent=money(visibleTotal);
+  const box=$('#batchSummary',container); if(box){ box.className='lock-alert '+(sel.length?'ok':''); box.innerHTML=sel.length?`<b>Lote en preparación:</b> ${sel.length} orden(es) · Peso esperado ${Number(expected.toFixed(2))} lb · Peso entregado ${Number(peso.toFixed(2))} lb · Monto final ${money(total)}.`:'Selecciona las órdenes que se llevará el delivery. Confirma el monto final y el peso de cada cliente.'; }
 }
 function validateSelectedBatch(container,orders){
   const selected=selectedBatchRows(container,orders);
-  const missing=[], blocked=[], warnings=[];
+  const missing=[], missingAmounts=[], blocked=[], warnings=[];
   selected.forEach(x=>{
-    if(x.req && x.peso<=0) missing.push(x.o.codigo+' · '+(x.orderClientName(o)));
+    if(!(x.amount>0)) missingAmounts.push(x.o.codigo+' · '+orderClientName(x.o));
+    if(x.req && x.peso<=0) missing.push(x.o.codigo+' · '+orderClientName(x.o));
     if(x.peso>0){
       const ch=validationWeightCheck(x.o,x.peso);
-      if(ch.calc && ch.level==='block') blocked.push(`${x.o.codigo} · ${x.orderClientName(o)} (${(ch.diff>0?'+':'')+ch.diff} lb)`);
-      if(ch.calc && ch.level==='warn') warnings.push(`${x.o.codigo} · ${x.orderClientName(o)} (${(ch.diff>0?'+':'')+ch.diff} lb)`);
+      if(ch.calc && ch.level==='block') blocked.push(`${x.o.codigo} · ${orderClientName(x.o)} (${(ch.diff>0?'+':'')+ch.diff} lb)`);
+      if(ch.calc && ch.level==='warn') warnings.push(`${x.o.codigo} · ${orderClientName(x.o)} (${(ch.diff>0?'+':'')+ch.diff} lb)`);
     }
   });
-  return {selected,missing,blocked,warnings};
+  return {selected,missing,missingAmounts,blocked,warnings};
 }
 function bindValidationBatch(container,orders){
   const delivery=$('#batchDelivery',container), manual=$('#batchDeliveryManual',container);
@@ -3874,11 +4035,16 @@ function bindValidationBatch(container,orders){
   $('#validacionSearch',container).oninput=e=>{ const pos=e.target.selectionStart||e.target.value.length; state.validacionSearch=e.target.value; renderValidacion($('#content')); focusAfterRender('validacionSearch',pos); };
   $$('[data-batch-check]',container).forEach(ch=>{
     ch.onchange=()=>{
-      const row=ch.closest('[data-batch-row]'), inp=$('[data-batch-weight]',row);
-      if(inp){ inp.disabled=!(ch.checked && row.dataset.reqpeso==='1'); if(ch.checked && row.dataset.reqpeso==='1') setTimeout(()=>{inp.focus();inp.select();},0); }
+      const row=ch.closest('[data-batch-row]'), inp=$('[data-batch-weight]',row), amountInp=$('[data-batch-amount]',row);
+      if(inp) inp.disabled=!(ch.checked && row.dataset.reqpeso==='1');
+      if(ch.checked && amountInp) setTimeout(()=>{amountInp.focus();amountInp.select();},0);
       saveBatchRowDraft(row);
       updateBatchSummary(container,orders);
     };
+  });
+  $$('[data-batch-amount]',container).forEach(inp=>{
+    inp.oninput=()=>{ const row=inp.closest('[data-batch-row]'); row.dataset.amount=String(normalizeValidationInvoiceAmount(inp.value)); saveBatchRowDraft(row); updateBatchSummary(container,orders); };
+    inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); const row=inp.closest('[data-batch-row]'); const check=$('[data-batch-check]',row); if(check && !check.checked){ check.checked=true; check.dispatchEvent(new Event('change')); } const weight=$('[data-batch-weight]',row); if(weight && row.dataset.reqpeso==='1'){ weight.disabled=false; setTimeout(()=>{weight.focus();weight.select();},0); } else { const rows=$$('[data-batch-row]',container); const idx=rows.indexOf(row); const next=rows[idx+1]; const nextAmount=next?$('[data-batch-amount]',next):null; if(nextAmount){nextAmount.focus();nextAmount.select();} else $('#createDeliveryBatch',container)?.focus(); } } });
   });
   $$('[data-batch-weight]',container).forEach(inp=>{
     inp.oninput=()=>{ const row=inp.closest('[data-batch-row]'); const o=orders.find(x=>String(x.id)===String(row.dataset.batchRow)); const status=$('[data-batch-status]',row); if(status) status.innerHTML=validationRowStatusHtml(o,Number(inp.value||0)); saveBatchRowDraft(row); updateBatchSummary(container,orders); };
@@ -3886,12 +4052,13 @@ function bindValidationBatch(container,orders){
   });
   $('#selectAllBatch',container).onclick=()=>{ $$('[data-batch-check]',container).forEach(ch=>{ ch.checked=true; const row=ch.closest('[data-batch-row]'), inp=$('[data-batch-weight]',row); if(inp) inp.disabled=row.dataset.reqpeso!=='1'; saveBatchRowDraft(row); }); updateBatchSummary(container,orders); };
   $('#clearBatch',container).onclick=()=>{ $$('[data-batch-check]',container).forEach(ch=>{ ch.checked=false; const row=ch.closest('[data-batch-row]'), inp=$('[data-batch-weight]',row); if(inp){ inp.disabled=true; inp.value=''; } saveBatchRowDraft(row); const status=$('[data-batch-status]',row); const o=orders.find(x=>String(x.id)===String(row.dataset.batchRow)); if(status) status.innerHTML=validationRowStatusHtml(o,0); }); updateBatchSummary(container,orders); };
-  $('#previewBatchRoute',container).onclick=()=>{ const val=validateSelectedBatch(container,orders); const del=getBatchDelivery(container)||'—'; if(!val.selected.length) return alert('Selecciona al menos una orden.'); printDeliveryBatchSheet(del,newBatchCode(),val.selected,false); };
+  $('#previewBatchRoute',container).onclick=()=>{ const val=validateSelectedBatch(container,orders); const del=getBatchDelivery(container)||'—'; if(!val.selected.length) return alert('Selecciona al menos una orden.'); if(val.missingAmounts.length) return alert('Falta el monto final de factura en estas órdenes:\n- '+val.missingAmounts.join('\n- ')); printDeliveryBatchSheet(del,newBatchCode(),val.selected,false); };
   $('#createDeliveryBatch',container).onclick=async()=>{
     const del=getBatchDelivery(container);
     if(!del) return alert('Selecciona el delivery que se llevará el lote.');
     const val=validateSelectedBatch(container,orders);
     if(!val.selected.length) return alert('Selecciona al menos una orden para el lote.');
+    if(val.missingAmounts.length) return alert('Falta el monto final de factura en estas órdenes:\n- '+val.missingAmounts.join('\n- '));
     if(val.missing.length) return alert('Faltan pesos finales en estas órdenes:\n- '+val.missing.join('\n- '));
     if(val.blocked.length) return alert('No se puede crear el lote. Hay diferencias de peso demasiado altas:\n- '+val.blocked.join('\n- '));
     if(val.warnings.length && !confirm('Hay diferencias de peso fuera de la tolerancia de aviso:\n- '+val.warnings.join('\n- ')+'\n\n¿Deseas continuar bajo responsabilidad?')) return;
@@ -3909,9 +4076,10 @@ function bindValidationBatch(container,orders){
       }
       const notaBase=['Lote: '+lote, alerta].filter(Boolean).join(' | ');
       const old=o.estado;
-      const {error}=await sb.from('ordenes').update({estado:'Asignada a delivery',validado_por:currentWorkerName(),peso_validado:x.peso||null,validado_en:new Date().toISOString(),delivery_nombre:del,asignado_delivery_en:new Date().toISOString(),notas_validacion:notaBase}).eq('id',o.id);
+      const finalAmount=requireValidationInvoiceAmount(x.amount);
+      const {error}=await sb.from('ordenes').update({estado:'Asignada a delivery',total_factura:finalAmount,validado_por:currentWorkerName(),peso_validado:x.peso||null,validado_en:new Date().toISOString(),delivery_nombre:del,asignado_delivery_en:new Date().toISOString(),notas_validacion:notaBase}).eq('id',o.id);
       if(error) return alert(error.message);
-      await logOrderState(o,old,'Asignada a delivery',`Lote ${lote} asignado a ${del}. Peso final: ${x.peso||'No aplica'} lb`);
+      await logOrderState(o,old,'Asignada a delivery',`Lote ${lote} asignado a ${del}. Monto final: ${money(finalAmount)}. Peso final: ${x.peso||'No aplica'} lb`);
     }
     printDeliveryBatchSheet(del,lote,val.selected,true,{originalDate:fechaOriginal,validatedBy:validadoPor,reprint:false});
     await recordDeliveryDocumentEvent(lote,'Hoja de ruta','Original',{fecha_original:fechaOriginal,cantidad_ordenes:val.selected.length});
@@ -3922,7 +4090,7 @@ function bindValidationBatch(container,orders){
 }
 function printDeliveryBatchSheet(deliveryName,lote,items,auto=true,opts={}){
   const originalDate=opts.originalDate||new Date().toISOString(), printDate=new Date().toISOString(), isReprint=opts.reprint===true;
-  const rows=items.map(x=>`<tr><td>${esc(x.o.codigo||'')}</td><td>${esc(x.orderClientName(o))}</td><td>${esc(x.orderClientPhone(o))}</td><td>${esc(x.o.cliente?.sector||x.o.cliente?.direccion||'')}</td><td>${esc(x.o.factura_no||'—')}</td><td>${money(x.amount)}</td><td>${x.expected?Number(x.expected).toFixed(2)+' lb':'No pesa'}</td><td>${x.peso?Number(x.peso).toFixed(2)+' lb':'—'}</td><td></td></tr>`).join('');
+  const rows=items.map(x=>`<tr><td>${esc(x.o.codigo||'')}</td><td>${esc(orderClientName(x.o))}</td><td>${esc(orderClientPhone(x.o))}</td><td>${esc(orderClientSector(x.o)||x.o.cliente?.direccion||'')}</td><td>${esc(x.o.factura_no||'—')}</td><td>${money(x.amount)}</td><td>${x.expected?Number(x.expected).toFixed(2)+' lb':'No pesa'}</td><td>${x.peso?Number(x.peso).toFixed(2)+' lb':'—'}</td><td></td></tr>`).join('');
   const total=items.reduce((sum,x)=>sum+Number(x.amount||0),0), exp=items.reduce((sum,x)=>sum+Number(x.expected||0),0), pes=items.reduce((sum,x)=>sum+Number(x.peso||0),0);
   const copy=isReprint?'<div class="copy">COPIA / REIMPRESIÓN</div>':'';
   const html=`<!doctype html><html><head><meta charset="utf-8"><title>Hoja de ruta ${esc(lote)}</title><style>body{font-family:Arial,sans-serif;color:#111;padding:20px;font-size:12px}h1{font-size:22px;margin:0 0 6px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #d1d5db;padding:6px;text-align:left}th{background:#f3f4f6}.tot{font-weight:bold;background:#f8fafc}.sign{display:inline-block;width:240px;border-top:1px solid #000;margin-top:36px;margin-right:40px;padding-top:4px}.copy{border:2px solid #991b1b;color:#991b1b;font-weight:bold;text-align:center;padding:7px;margin:8px 0;font-size:15px}@media print{button{display:none}}</style></head><body>${printCompanyHeader(appCfg('recibos.tituloRuta','Hoja de ruta / lote de entrega'),'Lote de entrega al delivery')}${copy}<p><b>Lote:</b> ${esc(lote)}<br><b>Delivery:</b> ${esc(deliveryName||'—')}<br><b>Fecha original de entrega:</b> ${new Date(originalDate).toLocaleString('es-DO')}<br><b>Validado por:</b> ${esc(opts.validatedBy||'—')}${isReprint?`<br><b>Reimpreso:</b> ${new Date(printDate).toLocaleString('es-DO')} · ${esc(currentWorkerName())}`:''}</p><p><b>Órdenes:</b> ${items.length} · <b>Total facturado:</b> ${money(total)} · <b>Peso esperado:</b> ${Number(exp.toFixed(2))} lb · <b>Peso entregado:</b> ${Number(pes.toFixed(2))} lb</p><table><thead><tr><th>Orden</th><th>Cliente</th><th>Teléfono</th><th>Sector / dirección</th><th>Factura</th><th>Monto</th><th>Peso esperado</th><th>Peso entregado</th><th>Firma/nota cliente</th></tr></thead><tbody>${rows}<tr class="tot"><td colspan="5">Totales</td><td>${money(total)}</td><td>${Number(exp.toFixed(2))} lb</td><td>${Number(pes.toFixed(2))} lb</td><td></td></tr></tbody></table>${signatureHtml(appCfg('recibos.firmaValidacion','Entregado por validación'))}${signatureHtml(appCfg('recibos.firmaDelivery','Recibido por delivery'))}${printFooterHtml()}<button onclick="window.print()">Imprimir</button>${auto?'<script>setTimeout(()=>window.print(),500)<\/script>':''}</body></html>`;
@@ -4030,28 +4198,37 @@ function deliveryActionButtons(o){
   if(o.estado==='En ruta') return `<button class="btn small green" data-delivery-result="${o.id}" data-result="Cobrado">Cobrado</button><button class="btn small gray" data-delivery-result="${o.id}" data-result="Entregado a crédito">Crédito</button><button class="btn small warn" data-delivery-result="${o.id}" data-result="Devuelto parcial">Dev. parcial</button><button class="btn small danger" data-delivery-result="${o.id}" data-result="No entregado">No entregado</button><button class="btn small gray" data-oper-order="${o.id}">Ver</button>`;
   return `<button class="btn small gray" data-delivery-result="${o.id}" data-result="${esc(o.resultado_entrega||o.estado||'Cobrado')}">Editar resultado</button><button class="btn small gray" data-oper-order="${o.id}">Ver</button>`;
 }
+function deliveryActiveGroupCard(g,index=0,forceOpen=false){
+  const key=lotUiKey('delivery-active',g.displayCode,g.key); const open=operationalLotOpen('deliveryActive',key,index,forceOpen);
+  const title=g.displayCode==='SIN-LOTE'?`Sin lote · ${esc(g.items[0]?.codigo||'Orden')}`:esc(g.displayCode);
+  const rows=g.items.map(o=>`<div class="client-card op-card ruta ${newOrderClass(o,'delivery')} operational-order-row"><div><div class="client-title">${esc(orderClientName(o))}</div><div class="client-sub">${esc(orderClientPhone(o))} · ${esc(orderClientSector(o))} · ${money(o.total_factura||o.total_estimado)}</div><div class="badges">${newOrderBadge(o,'delivery')}<span class="badge info">${esc(o.estado)}</span>${deliveryStatusBadge(o)}${orderBatchBadge(o)}${stageClockBadge(o,'delivery')}<span class="badge">${esc(o.codigo)}</span>${o.monto_cobrado?`<span class="badge ok">Efectivo CXC ${money(o.monto_cobrado)}</span>`:''}</div><div class="mini-items">${orderItemsText(o,8)}</div></div><div class="card-actions">${deliveryActionButtons(o)}</div></div>`).join('');
+  return `<article class="liq-batch-card operational-lot-card ${open?'is-open':'is-collapsed'}"><div class="liq-batch-head operational-lot-head"><button class="history-toggle-btn" type="button" data-delivery-active-toggle="${esc(key)}" aria-expanded="${open?'true':'false'}"><span>${open?'⌄':'›'}</span></button><div class="history-batch-summary"><div class="client-title">${title}</div><div class="client-sub">${g.items.length} orden(es) · ${g.reported} reportada(s) · ${g.pending} pendiente(s)</div><div class="badges"><span class="badge info">Total ${money(g.total)}</span><span class="badge ${g.pending?'warn':'ok'}">${g.pending?'Pendiente':'Completado'}</span></div></div></div>${open?`<div class="operational-lot-body delivery-lot-body">${rows}</div>`:''}</article>`;
+}
 function renderDelivery(c){
   const names=activeDeliveryNames();
   const filter=selectedDeliveryFilter();
   if(!state.deliveryFiltro&&filter) state.deliveryFiltro=filter;
   const canSelect=deliveryCanSelect();
+  const historyAllowed=isAdminRole()||puede('liquidacion');
+  if(historyAllowed && state.deliveryTab==='historial'){
+    const section=buildHistorySection('delivery',filter);
+    c.innerHTML=`<div class="panel"><div class="panel-head"><div><h3>Historial administrativo del delivery</h3><p>Viajes liquidados con fechas dominicanas, lotes plegables y búsqueda completa.</p></div>${canSelect?`<select id="deliveryFiltro" style="max-width:280px"><option value="">Selecciona delivery</option>${names.map(n=>`<option ${n===filter?'selected':''}>${esc(n)}</option>`).join('')}</select>`:`<div class="badge info">${esc(filter||'Tu usuario')}</div>`}</div><div class="tabs delivery-tabs-v934"><button class="tab" data-delivery-tab="activos">Pedidos activos</button><button class="tab active" data-delivery-tab="historial">Historial</button></div>${section.html}</div>`;
+    const sel=$('#deliveryFiltro',c); if(sel) sel.onchange=e=>{state.deliveryFiltro=e.target.value;state.deliveryHistoryLimit=10;renderDelivery($('#content'));};
+    $$('[data-delivery-tab]',c).forEach(b=>b.onclick=()=>{state.deliveryTab=b.dataset.deliveryTab;renderDelivery($('#content'));});
+    bindHistorySection(c,'delivery',filter,section.rows,()=>renderDelivery($('#content')));
+    return;
+  }
   const base=state.ordenes.filter(o=>!isStorePickup(o) && o.delivery_nombre===filter && ['Asignada a delivery','En ruta','Validada para delivery','Cobrado','Entregado a crédito','No entregado','Devuelto parcial'].includes(o.estado) && !o.recibido_en);
   const q=state.deliverySearch||''; const orders=base.filter(o=>matchOrder(o,q));
-  const summary=deliveryMoneySummary(base);
-  const historyHtml=(isAdminRole()||puede('liquidacion'))?deliveryAdminHistoryHtml(filter):'';
-  c.innerHTML=`<div class="panel"><div class="panel-head"><div><h3>Pedidos asignados por delivery</h3><p>${orders.length} de ${base.length} pedidos activos. Cuando se liquida, pasa al historial administrativo.</p></div>${canSelect?`<select id="deliveryFiltro" style="max-width:280px"><option value="">Selecciona delivery</option>${names.map(n=>`<option ${n===filter?'selected':''}>${esc(n)}</option>`).join('')}</select>`:`<div class="badge info">${esc(filter||'Tu usuario')}</div>`}</div><div class="grid4 compact-kpis"><div class="card kpi"><div class="label">Pedidos activos</div><div class="value">${base.length}</div></div><div class="card kpi"><div class="label">Total facturas</div><div class="value">${money(summary.total)}</div></div><div class="card kpi"><div class="label">Reportados</div><div class="value">${base.filter(isFinalDeliveryResult).length}</div></div><div class="card kpi"><div class="label">Pendientes</div><div class="value">${summary.pendientes}</div></div></div><div class="searchbar"><input id="deliverySearch" value="${esc(q)}" placeholder="Buscar nombre del cliente..."></div><div class="list">${orders.map(o=>`<div class="client-card op-card ruta ${newOrderClass(o,'delivery')}" style="grid-template-columns:1fr auto"><div><div class="client-title">${esc(orderClientName(o))}</div><div class="client-sub">${esc(orderClientPhone(o))} · ${esc(orderClientSector(o))} · ${money(o.total_factura||o.total_estimado)}</div><div class="badges">${newOrderBadge(o,'delivery')}<span class="badge info">${esc(o.estado)}</span>${deliveryStatusBadge(o)}${orderBatchBadge(o)}${stageClockBadge(o,'delivery')}<span class="badge">${esc(o.codigo)}</span>${o.monto_cobrado?`<span class="badge ok">Efectivo CXC ${money(o.monto_cobrado)}</span>`:''}</div><div class="mini-items">${orderItemsText(o,8)}</div></div><div class="card-actions">${deliveryActionButtons(o)}</div></div>`).join('')||'<div class="empty">No hay pedidos activos asignados a este delivery con esa búsqueda.</div>'}</div>${historyHtml}</div>`;
-  const sel=$('#deliveryFiltro'); if(sel) sel.onchange=e=>{state.deliveryFiltro=e.target.value; renderDelivery($('#content'));};
-  $('#deliverySearch').oninput=e=>{ const pos=e.target.selectionStart||e.target.value.length; state.deliverySearch=e.target.value; renderDelivery($('#content')); focusAfterRender('deliverySearch',pos); };
-  const f1=$('#deliveryHistoryFrom'); if(f1) f1.onchange=e=>{state.deliveryHistoryFrom=e.target.value||today(); renderDelivery($('#content'));};
-  const f2=$('#deliveryHistoryTo'); if(f2) f2.onchange=e=>{state.deliveryHistoryTo=e.target.value||today(); renderDelivery($('#content'));};
-  $$('[data-delivery-history-print]').forEach(b=>b.onclick=()=>{ const rows=liquidationHistoryRows(filter,state.deliveryHistoryFrom,state.deliveryHistoryTo); printHistorySummary(filter,rows); });
+  const summary=deliveryMoneySummary(base); const groups=buildOperationalLotGroups(orders,batchCodeFromOrder,orderMonto,isFinalDeliveryResult); const forceOpen=Boolean(String(q).trim()); const keys=groups.map(g=>lotUiKey('delivery-active',g.displayCode,g.key));
+  c.innerHTML=`<div class="panel"><div class="panel-head"><div><h3>Pedidos asignados por delivery</h3><p>${orders.length} de ${base.length} pedidos activos, organizados por lote/viaje.</p></div>${canSelect?`<select id="deliveryFiltro" style="max-width:280px"><option value="">Selecciona delivery</option>${names.map(n=>`<option ${n===filter?'selected':''}>${esc(n)}</option>`).join('')}</select>`:`<div class="badge info">${esc(filter||'Tu usuario')}</div>`}</div>${historyAllowed?`<div class="tabs delivery-tabs-v934"><button class="tab active" data-delivery-tab="activos">Pedidos activos</button><button class="tab" data-delivery-tab="historial">Historial</button></div>`:''}<div class="grid4 compact-kpis"><div class="card kpi"><div class="label">Pedidos activos</div><div class="value">${base.length}</div></div><div class="card kpi"><div class="label">Total facturas</div><div class="value">${money(summary.total)}</div></div><div class="card kpi"><div class="label">Reportados</div><div class="value">${base.filter(isFinalDeliveryResult).length}</div></div><div class="card kpi"><div class="label">Pendientes</div><div class="value">${summary.pendientes}</div></div></div><div class="searchbar"><input id="deliverySearch" value="${esc(q)}" placeholder="Buscar nombre del cliente..."></div><div class="history-list-actions"><button class="btn small gray" data-delivery-expand-all>Expandir todos</button><button class="btn small gray" data-delivery-collapse-all>Ocultar todos</button></div><div class="liq-batch-list operational-lot-list">${groups.map((g,i)=>deliveryActiveGroupCard(g,i,forceOpen)).join('')||'<div class="empty">No hay pedidos activos asignados a este delivery con esa búsqueda.</div>'}</div></div>`;
+  const sel=$('#deliveryFiltro',c); if(sel) sel.onchange=e=>{state.deliveryFiltro=e.target.value; renderDelivery($('#content'));};
+  const search=$('#deliverySearch',c); if(search) search.oninput=e=>{ const pos=e.target.selectionStart||e.target.value.length; state.deliverySearch=e.target.value; renderDelivery($('#content')); focusAfterRender('deliverySearch',pos); };
+  $$('[data-delivery-tab]',c).forEach(b=>b.onclick=()=>{state.deliveryTab=b.dataset.deliveryTab;renderDelivery($('#content'));});
+  $$('[data-delivery-active-toggle]',c).forEach(b=>b.onclick=()=>{const key=b.dataset.deliveryActiveToggle;setHistoryOpen('deliveryActive',key,!historyIsOpen('deliveryActive',key));renderDelivery(c);});
+  $('[data-delivery-expand-all]',c)?.addEventListener('click',()=>{setOperationalKeysOpen('deliveryActive',keys,true);renderDelivery(c);});
+  $('[data-delivery-collapse-all]',c)?.addEventListener('click',()=>{setOperationalKeysOpen('deliveryActive',keys,false);renderDelivery(c);});
   bindDynamic();
-}
-function deliveryAdminHistoryHtml(filter){
-  const from=state.deliveryHistoryFrom||today(), to=state.deliveryHistoryTo||today();
-  const rows=liquidationHistoryRows(filter,from,to);
-  const summary=rows.reduce((a,l)=>({viajes:a.viajes+1,pedidos:a.pedidos+Number(l.cantidad_ordenes||historyLotItems(l).length),fact:a.fact+Number(l.total_facturado||0),cash:a.cash+Number(l.efectivo_recibido||l.efectivo_reportado||0),cred:a.cred+Number(l.credito_pendiente||0)}),{viajes:0,pedidos:0,fact:0,cash:0,cred:0});
-  return `<div class="section-title">Historial administrativo del delivery</div><div class="lock-alert ok"><b>Solo administrativo:</b> aquí no se pierden los viajes liquidados. Puedes revisar por fecha qué clientes y facturas llevó este delivery.</div><div class="batch-toolbar"><div class="field"><label>Desde</label><input type="date" id="deliveryHistoryFrom" value="${esc(from)}"></div><div class="field"><label>Hasta</label><input type="date" id="deliveryHistoryTo" value="${esc(to)}"></div><div class="batch-actions"><button class="btn gray" data-delivery-history-print="1">Imprimir historial</button></div></div><div class="grid4 compact-kpis"><div class="card kpi"><div class="label">Viajes</div><div class="value">${summary.viajes}</div></div><div class="card kpi"><div class="label">Pedidos</div><div class="value">${summary.pedidos}</div></div><div class="card kpi"><div class="label">Facturado</div><div class="value">${money(summary.fact)}</div></div><div class="card kpi"><div class="label">Efectivo</div><div class="value">${money(summary.cash)}</div></div></div><div class="liq-batch-list">${rows.slice(0,20).map(liquidacionHistoryCard).join('')||'<div class="empty">No hay viajes liquidados para ese rango.</div>'}</div>`;
 }
 
 function batchDateFromCode(code){
@@ -4075,42 +4252,90 @@ function liquidacionBatchGroups(orders){
   });
 }
 
-function liquidacionBatchCard(g){
+function liquidacionBatchCard(g,index=0,forceOpen=false){
   const faltan=g.items.filter(o=>!isFinalDeliveryResult(o));
   const title=g.code==='SIN-LOTE'?'Órdenes sin lote registrado':g.code;
   const lote=batchRecordByCode(g.code);
   const estadoLote=lote?.estado || (faltan.length?'Abierto':'Listo para cierre');
+  const key=lotUiKey('liquidacion-pending',g.code,g.code); const open=operationalLotOpen('liquidacionPending',key,index,forceOpen);
   const rows=g.items.map(o=>`<div class="liq-order-row ${newOrderClass(o,'liquidacion')}"><div><b>${esc(orderClientName(o))}</b><small>${esc(o.codigo)} · ${money(o.total_factura||o.total_estimado)} · ${esc(orderClientPhone(o))}</small><div class="badges">${newOrderBadge(o,'liquidacion')}${stageClockBadge(o,'liquidacion')}<span class="badge info">${esc(o.estado)}</span>${deliveryStatusBadge(o)}${o.monto_cobrado?`<span class="badge ok">A recibir ${money(o.monto_cobrado)}</span>`:''}${o.monto_pendiente?`<span class="badge warn">Crédito ${money(o.monto_pendiente)}</span>`:''}</div><div class="mini-items">${orderItemsText(o,5)}</div></div><div class="card-actions"><button class="btn small" data-liquidate-order="${o.id}">${isFinalDeliveryResult(o)?'Confirmar / recibir':'Recibir / cerrar'}</button><button class="btn small gray" data-oper-order="${o.id}">Ver</button></div></div>`).join('');
-  return `<div class="liq-batch-card"><div class="liq-batch-head"><div><div class="client-title">${esc(title)}</div><div class="client-sub">${esc(g.date||'')} · ${g.items.length} orden(es) · Estado: ${esc(estadoLote)} · ${faltan.length?faltan.length+' pendiente(s)':'listo para recibir'}</div><div class="badges"><span class="badge info">Total ${money(g.summary.total)}</span><span class="badge ok">Efectivo ${money(g.summary.cobrado)}</span><span class="badge warn">Crédito ${money(g.summary.credito+g.summary.devuelto)}</span>${g.summary.noEntregado?`<span class="badge bad">No entregado ${money(g.summary.noEntregado)}</span>`:''}${faltan.length?`<span class="badge bad">Faltan ${faltan.length}</span>`:'<span class="badge ok">Ruta cuadrada</span>'}</div></div><div class="card-actions"><button class="btn small gray" data-print-liq-batch="${esc(g.code)}">Imprimir lote</button><button class="btn small gray" data-verify-liq-batch="${esc(g.code)}">Verificar</button><button class="btn small" data-close-liq-batch="${esc(g.code)}">Recibir lote / recibo</button></div></div><div class="liq-batch-body">${rows}</div></div>`;
+  return `<div class="liq-batch-card operational-lot-card ${open?'is-open':'is-collapsed'}"><div class="liq-batch-head operational-lot-head"><button class="history-toggle-btn" type="button" data-liq-pending-toggle="${esc(key)}" aria-expanded="${open?'true':'false'}"><span>${open?'⌄':'›'}</span></button><div class="history-batch-summary"><div class="client-title">${esc(title)}</div><div class="client-sub">${esc(g.date||'')} · ${g.items.length} orden(es) · Estado: ${esc(estadoLote)} · ${faltan.length?faltan.length+' pendiente(s)':'listo para recibir'}</div><div class="badges"><span class="badge info">Total ${money(g.summary.total)}</span><span class="badge ok">Efectivo ${money(g.summary.cobrado)}</span><span class="badge warn">Crédito ${money(g.summary.credito+g.summary.devuelto)}</span>${g.summary.noEntregado?`<span class="badge bad">No entregado ${money(g.summary.noEntregado)}</span>`:''}${faltan.length?`<span class="badge bad">Faltan ${faltan.length}</span>`:'<span class="badge ok">Ruta cuadrada</span>'}</div></div><div class="card-actions history-card-actions"><button class="btn small gray" data-print-liq-batch="${esc(g.code)}">Imprimir lote</button><button class="btn small gray" data-verify-liq-batch="${esc(g.code)}">Verificar</button><button class="btn small" data-close-liq-batch="${esc(g.code)}">Recibir lote / recibo</button></div></div>${open?`<div class="liq-batch-body operational-lot-body">${rows}</div>`:''}</div>`;
 }
+
 function historyLotItems(l){
-  if(l.items) return l.items;
-  const detalle=(state.liquidacionLoteDetalle||[]).filter(d=>Number(d.liquidacion_id)===Number(l.id));
-  if(detalle.length) return detalle.map(d=>({codigo:d.codigo_orden||d.orden_id, cliente:{negocio:d.cliente_nombre||''}, resultado_entrega:d.resultado_entrega, total_factura:d.total_factura, monto_cobrado:d.monto_cobrado, monto_pendiente:d.monto_credito, id:d.orden_id}));
-  return ordersForBatch(l.codigo_lote);
+  if(Array.isArray(l?.items) && l.items.length) return l.items;
+  const detalle=(state.liquidacionLoteDetalle||[]).filter(d=>String(d.liquidacion_id)===String(l?.id));
+  if(detalle.length) return detalle.map(d=>{
+    const current=(state.ordenes||[]).find(o=>String(o.id)===String(d.orden_id));
+    return {...(current||{}),codigo:current?.codigo||d.codigo_orden||d.orden_id,cliente:current?.cliente||{negocio:d.cliente_nombre||''},resultado_entrega:d.resultado_entrega||current?.resultado_entrega,total_factura:Number(d.total_factura||current?.total_factura||0),monto_cobrado:Number(d.monto_cobrado||current?.monto_cobrado||0),monto_pendiente:Number(d.monto_credito||current?.monto_pendiente||0),id:d.orden_id};
+  });
+  return ordersForBatch(l?.codigo_lote);
 }
-function liquidacionHistoryCard(l){
-  const items=historyLotItems(l);
-  const code=l.codigo_lote||'SIN-LOTE';
-  const rows=items.map(o=>`<div class="liq-order-row"><div><b>${esc(o.cliente?.negocio||o.cliente_nombre||'Cliente')}</b><small>${esc(o.codigo||o.codigo_orden||('ORD-'+(o.orden_id||o.id||'')))} · ${esc(o.resultado_entrega||o.estado||'')} · Total ${money(o.total_factura||o.total_estimado||0)}</small><div class="badges"><span class="badge ok">Cobrado ${money(o.monto_cobrado||0)}</span>${Number(o.monto_pendiente||o.monto_credito||0)?`<span class="badge warn">Crédito ${money(o.monto_pendiente||o.monto_credito||0)}</span>`:''}</div></div><div class="card-actions">${o.id?`<button class="btn small gray" data-oper-order="${o.id}">Ver</button>`:''}</div></div>`).join('');
-  return `<div class="liq-batch-card closed"><div class="liq-batch-head"><div><div class="client-title">${esc(code)} · ${esc(l.delivery_nombre||'')}</div><div class="client-sub">Entregado: ${l.fecha_entrega?new Date(l.fecha_entrega).toLocaleString('es-DO'):'—'} · Liquidado: ${l.fecha_liquidacion?new Date(l.fecha_liquidacion).toLocaleString('es-DO'):'—'} · ${Number(l.cantidad_ordenes||items.length)} orden(es)</div><div class="badges"><span class="badge info">Facturas ${money(l.total_facturado||0)}</span><span class="badge ok">Efectivo ${money(l.efectivo_recibido||l.efectivo_reportado||0)}</span><span class="badge warn">Crédito ${money(l.credito_pendiente||0)}</span>${Number(l.no_entregado||0)?`<span class="badge bad">No entregado ${money(l.no_entregado)}</span>`:''}<span class="badge ${Math.abs(Number(l.diferencia||0))>0.01?'bad':'ok'}">Diferencia ${money(l.diferencia||0)}</span></div></div><div class="card-actions"><button class="btn small gray" data-print-history-lot="${esc(code)}">Reimprimir recibo</button></div></div><div class="liq-batch-body">${rows}</div></div>`;
+function orderDeliveryEvidenceDate(o){
+  if(!o) return '';
+  const direct=o.validado_en||o.asignado_delivery_en||o.entregado_delivery_en||'';
+  if(direct) return direct;
+  const hist=(state.historialEstados||[]).filter(h=>String(h.orden_id)===String(o.id) && ['Validada para delivery','Asignada a delivery','En ruta'].includes(h.estado_nuevo)).sort((a,b)=>String(a.creado_en||'').localeCompare(String(b.creado_en||'')));
+  return hist[0]?.creado_en||'';
+}
+function historyDeliveryDate(l,items=[]){
+  if(l?.fecha_entrega) return l.fecha_entrega;
+  const code=String(l?.codigo_lote||'');
+  const lot=(state.entregaLotes||[]).find(x=>code && code!=='SIN-LOTE' && String(x.codigo_lote||'').toUpperCase()===code.toUpperCase());
+  const snap=normalizeRouteSnapshot(lot?.hoja_ruta_snapshot);
+  if(snap?.fecha_entrega) return snap.fecha_entrega;
+  if(lot?.fecha_entrega||lot?.creado_en) return lot.fecha_entrega||lot.creado_en;
+  const dates=(items||[]).map(orderDeliveryEvidenceDate).filter(Boolean).sort();
+  return dates[0]||'';
+}
+function historyFilteredRows(scope,filter){
+  const keys=historyScopeKeys(scope), from=state[keys.from]||today(), to=state[keys.to]||today(), q=state[keys.search]||'';
+  return liquidationHistoryRows(filter,from,to).filter(l=>{
+    if(!q) return true;
+    const items=historyLotItems(l);
+    return norm(l.codigo_lote).includes(norm(q)) || norm(l.delivery_nombre).includes(norm(q)) || items.some(o=>matchOrder(o,q));
+  });
+}
+function historyTotals(rows){
+  return (rows||[]).reduce((a,l)=>({lotes:a.lotes+1,pedidos:a.pedidos+Number(l.cantidad_ordenes||historyLotItems(l).length),fact:a.fact+Number(l.total_facturado||0),cash:a.cash+Number(l.efectivo_recibido||l.efectivo_reportado||0),cred:a.cred+Number(l.credito_pendiente||0),diff:a.diff+Number(l.diferencia||0)}),{lotes:0,pedidos:0,fact:0,cash:0,cred:0,diff:0});
+}
+function historyVisualCode(l){ return String(l?.codigo_lote||'').toUpperCase()==='SIN-LOTE'||!l?.codigo_lote?'SIN-LOTE':l.codigo_lote; }
+function liquidacionHistoryCard(l,scope='liquidacion'){
+  const items=historyLotItems(l), key=historyRowKey(l), open=historyIsOpen(scope,key), code=historyVisualCode(l);
+  const delivered=historyDeliveryDate(l,items), liquidated=l.fecha_liquidacion||l.creado_en||'';
+  const rows=open?items.map(o=>`<div class="liq-order-row history-compact-order"><div><b>${esc(orderClientName(o)||o.cliente_nombre||'Cliente')}</b><small>${esc(o.codigo||o.codigo_orden||('ORD-'+(o.orden_id||o.id||'')))} · ${esc(o.resultado_entrega||o.estado||'')} · Total ${money(o.total_factura||o.total_estimado||0)}</small><div class="badges"><span class="badge ok">Cobrado ${money(o.monto_cobrado||0)}</span>${Number(o.monto_pendiente||o.monto_credito||0)?`<span class="badge warn">Crédito ${money(o.monto_pendiente||o.monto_credito||0)}</span>`:''}</div></div><div class="card-actions">${o.id?`<button class="btn small gray" data-oper-order="${o.id}">Ver</button>`:''}</div></div>`).join(''):'';
+  return `<article class="liq-batch-card closed history-batch-card ${open?'is-open':'is-collapsed'}" data-history-card="${esc(key)}"><div class="liq-batch-head history-batch-head"><button class="history-toggle-btn" type="button" data-history-toggle="${esc(key)}" aria-expanded="${open?'true':'false'}" title="${open?'Ocultar lote':'Mostrar lote'}"><span>${open?'⌄':'›'}</span></button><div class="history-batch-summary"><div class="client-title">${esc(code)} · ${esc(l.delivery_nombre||'')}</div><div class="client-sub">Entregado: ${delivered?businessDateTime(delivered):'—'} · Liquidado: ${liquidated?businessDateTime(liquidated):'—'} · ${Number(l.cantidad_ordenes||items.length)} orden(es)</div><div class="badges"><span class="badge info">Facturas ${money(l.total_facturado||items.reduce((s,o)=>s+orderMonto(o),0))}</span><span class="badge ok">Efectivo ${money(l.efectivo_recibido||l.efectivo_reportado||0)}</span><span class="badge warn">Crédito ${money(l.credito_pendiente||0)}</span>${Number(l.no_entregado||0)?`<span class="badge bad">No entregado ${money(l.no_entregado)}</span>`:''}<span class="badge ${Math.abs(Number(l.diferencia||0))>0.01?'bad':'ok'}">Diferencia ${money(l.diferencia||0)}</span></div></div><div class="card-actions history-card-actions"><button class="btn small gray" data-print-history-key="${esc(key)}">Reimprimir recibo</button></div></div>${open?`<div class="liq-batch-body history-batch-body">${rows||'<div class="empty history-empty">No hay detalle formal disponible para este lote.</div>'}</div>`:''}</article>`;
+}
+function buildHistorySection(scope,filter){
+  const keys=historyScopeKeys(scope), from=state[keys.from]||today(), to=state[keys.to]||today(), search=state[keys.search]||'';
+  const rows=historyFilteredRows(scope,filter), totals=historyTotals(rows), limit=Math.max(10,Number(state[keys.limit]||10)), visible=rows.slice(0,limit);
+  const prefix=scope==='delivery'?'delivery':'liq';
+  const kpis=scope==='delivery'
+    ? `<div class="grid4 compact-kpis history-kpis-v934"><div class="card kpi"><div class="label">Viajes</div><div class="value">${totals.lotes}</div></div><div class="card kpi"><div class="label">Pedidos</div><div class="value">${totals.pedidos}</div></div><div class="card kpi"><div class="label">Facturado</div><div class="value">${money(totals.fact)}</div></div><div class="card kpi"><div class="label">Efectivo</div><div class="value">${money(totals.cash)}</div></div></div>`
+    : `<div class="grid4 compact-kpis history-kpis-v934"><div class="card kpi"><div class="label">Lotes cerrados</div><div class="value">${totals.lotes}</div></div><div class="card kpi"><div class="label">Total facturado</div><div class="value">${money(totals.fact)}</div></div><div class="card kpi"><div class="label">Efectivo recibido</div><div class="value">${money(totals.cash)}</div></div><div class="card kpi"><div class="label">Crédito</div><div class="value">${money(totals.cred)}</div></div></div>`;
+  const html=`<div class="history-quick-v934"><button class="btn small gray" data-history-preset="hoy">Hoy</button><button class="btn small gray" data-history-preset="ayer">Ayer</button><button class="btn small gray" data-history-preset="7dias">7 días</button><button class="btn small gray" data-history-preset="mes">Este mes</button></div><div class="history-toolbar-v934"><div class="field"><label>Desde</label><input type="date" id="${prefix}HistFrom" value="${esc(from)}"></div><div class="field"><label>Hasta</label><input type="date" id="${prefix}HistTo" value="${esc(to)}"></div><div class="field history-search-field"><label>Buscar</label><input id="${prefix}HistorySearch" value="${esc(search)}" placeholder="Cliente, lote, factura u orden..."></div><div class="batch-actions"><button class="btn gray" data-history-print="1">Imprimir historial</button></div></div><div class="history-range-summary">${esc(historyRangeLabel(from,to))} · Mostrando ${Math.min(visible.length,rows.length)} de ${rows.length} lote(s)</div>${kpis}<div class="history-list-actions"><button class="btn small gray" data-history-expand-all="1">Expandir todos</button><button class="btn small gray" data-history-collapse-all="1">Ocultar todos</button></div><div class="liq-batch-list history-list-v934">${visible.map(l=>liquidacionHistoryCard(l,scope)).join('')||'<div class="empty">No hay liquidaciones cerradas en ese rango.</div>'}</div>${rows.length>visible.length?`<div class="history-more-wrap"><button class="btn gray" data-history-more="1">Mostrar 10 más (${visible.length} de ${rows.length})</button></div>`:''}`;
+  return {html,rows,from,to};
+}
+function bindHistorySection(c,scope,filter,rows,rerender){
+  const keys=historyScopeKeys(scope), prefix=scope==='delivery'?'delivery':'liq';
+  const from=$(`#${prefix}HistFrom`,c), to=$(`#${prefix}HistTo`,c), search=$(`#${prefix}HistorySearch`,c);
+  if(from) from.onchange=e=>{state[keys.from]=e.target.value||today();state[keys.limit]=10;rerender();};
+  if(to) to.onchange=e=>{state[keys.to]=e.target.value||today();state[keys.limit]=10;rerender();};
+  if(search) search.oninput=e=>{const pos=e.target.selectionStart||e.target.value.length;state[keys.search]=e.target.value;state[keys.limit]=10;rerender();focusAfterRender(`${prefix}HistorySearch`,pos);};
+  $$('[data-history-preset]',c).forEach(b=>b.onclick=()=>{applyHistoryPreset(scope,b.dataset.historyPreset);rerender();});
+  $$('[data-history-toggle]',c).forEach(b=>b.onclick=()=>{const key=b.dataset.historyToggle;setHistoryOpen(scope,key,!historyIsOpen(scope,key));rerender();});
+  const expand=$('[data-history-expand-all]',c); if(expand) expand.onclick=()=>{setHistoryRowsOpen(scope,rows,true);rerender();};
+  const collapse=$('[data-history-collapse-all]',c); if(collapse) collapse.onclick=()=>{setHistoryRowsOpen(scope,rows,false);rerender();};
+  const more=$('[data-history-more]',c); if(more) more.onclick=()=>{state[keys.limit]=Number(state[keys.limit]||10)+10;rerender();};
+  const print=$('[data-history-print]',c); if(print) print.onclick=()=>printHistorySummary(filter,rows,state[keys.from],state[keys.to]);
+  $$('[data-print-history-key]',c).forEach(b=>b.onclick=()=>{const l=rows.find(x=>historyRowKey(x)===b.dataset.printHistoryKey);if(l) printLiquidationReceipt(l.delivery_nombre,historyVisualCode(l),historyLotItems(l),{efectivo_recibido:l.efectivo_recibido||l.efectivo_reportado,recibido_por:l.recibido_por||'',observacion:l.observacion||''},false);});
+  try{bindDynamic();}catch(err){console.error('bindHistorySection',err);}
 }
 function renderLiquidacionHistorial(c, filter){
-  const names=activeDeliveryNames();
-  const from=state.liqHistFrom||today(), to=state.liqHistTo||today();
-  const rows=liquidationHistoryRows(filter,from,to).filter(l=>!state.liquidacionSearch || norm(l.codigo_lote).includes(norm(state.liquidacionSearch)) || norm(l.delivery_nombre).includes(norm(state.liquidacionSearch)) || (l.items||[]).some(o=>matchOrder(o,state.liquidacionSearch)));
-  const total=rows.reduce((a,l)=>({fact:a.fact+Number(l.total_facturado||0),cash:a.cash+Number(l.efectivo_recibido||l.efectivo_reportado||0),cred:a.cred+Number(l.credito_pendiente||0),diff:a.diff+Number(l.diferencia||0)}),{fact:0,cash:0,cred:0,diff:0});
-  c.innerHTML=`<div class="panel"><div class="panel-head"><div><h3>Historial de liquidaciones</h3><p>${rows.length} lote(s) cerrado(s). Consulta por delivery, fecha, lote, cliente o factura.</p></div>${deliveryCanSelect()?`<select id="liquidDelivery" style="max-width:280px"><option value="">Todos los deliverys</option>${names.map(n=>`<option ${n===filter?'selected':''}>${esc(n)}</option>`).join('')}</select>`:`<div class="badge info">${esc(filter||'Tu usuario')}</div>`}</div>
-  <div class="tabs"><button class="tab" data-liqtab="pendientes">Pendientes</button><button class="tab active" data-liqtab="historial">Historial</button></div>
-  <div class="grid4 compact-kpis"><div class="card kpi"><div class="label">Lotes cerrados</div><div class="value">${rows.length}</div></div><div class="card kpi"><div class="label">Total facturado</div><div class="value">${money(total.fact)}</div></div><div class="card kpi"><div class="label">Efectivo recibido</div><div class="value">${money(total.cash)}</div></div><div class="card kpi"><div class="label">Crédito</div><div class="value">${money(total.cred)}</div></div></div>
-  <div class="batch-toolbar"><div class="field"><label>Desde</label><input type="date" id="liqHistFrom" value="${esc(from)}"></div><div class="field"><label>Hasta</label><input type="date" id="liqHistTo" value="${esc(to)}"></div><div class="field"><label>Buscar</label><input id="liquidacionSearch" value="${esc(state.liquidacionSearch||'')}" placeholder="Cliente, lote o factura..."></div><div class="batch-actions"><button class="btn gray" id="printHistorySummary">Imprimir historial</button></div></div>
-  <div class="${state.liquidacionSchemaOk?'lock-alert ok':'lock-alert warn'}"><b>Historial permanente:</b> ${state.liquidacionSchemaOk?'guardado en tablas formales de lotes y liquidaciones.':'ejecuta el SQL V9.0.9 para guardar historial estructurado. Mientras tanto se muestra historial reconstruido desde órdenes recibidas.'}</div>
-  <div class="liq-batch-list">${rows.map(liquidacionHistoryCard).join('')||'<div class="empty">No hay liquidaciones cerradas en ese rango.</div>'}</div></div>`;
-  wireLiquidacionCommon(c, rows);
-  $('#liqHistFrom').onchange=e=>{state.liqHistFrom=e.target.value||today(); renderLiquidacion($('#content'));};
-  $('#liqHistTo').onchange=e=>{state.liqHistTo=e.target.value||today(); renderLiquidacion($('#content'));};
-  $('#printHistorySummary').onclick=()=>printHistorySummary(filter,rows);
-  $$('[data-print-history-lot]',c).forEach(b=>{ b.onclick=()=>{ const code=b.dataset.printHistoryLot; const l=rows.find(x=>String(x.codigo_lote)===String(code)); if(l) printLiquidationReceipt(l.delivery_nombre,code,historyLotItems(l),{efectivo_recibido:l.efectivo_recibido||l.efectivo_reportado,recibido_por:l.recibido_por||'',observacion:l.observacion||''},false); }; });
+  const names=activeDeliveryNames(), section=buildHistorySection('liquidacion',filter);
+  c.innerHTML=`<div class="panel"><div class="panel-head"><div><h3>Historial de liquidaciones</h3><p>${section.rows.length} lote(s) cerrado(s). Fechas convertidas a República Dominicana y detalle plegable.</p></div>${deliveryCanSelect()?`<select id="liquidDelivery" style="max-width:280px"><option value="">Todos los deliverys</option>${names.map(n=>`<option ${n===filter?'selected':''}>${esc(n)}</option>`).join('')}</select>`:`<div class="badge info">${esc(filter||'Tu usuario')}</div>`}</div><div class="tabs"><button class="tab" data-liqtab="pendientes">Pendientes</button><button class="tab active" data-liqtab="historial">Historial</button></div>${section.html}<div class="${state.liquidacionSchemaOk?'lock-alert ok':'lock-alert warn'}"><b>Historial permanente:</b> ${state.liquidacionSchemaOk?'guardado en tablas formales de lotes y liquidaciones.':'ejecuta el SQL V9.0.9 para guardar historial estructurado.'}</div></div>`;
+  wireLiquidacionCommon(c,section.rows);
+  bindHistorySection(c,'liquidacion',filter,section.rows,()=>renderLiquidacion($('#content')));
 }
 function wireLiquidacionCommon(c, rows){
   const sel=$('#liquidDelivery',c); if(sel) sel.onchange=e=>{state.deliveryFiltro=e.target.value; renderLiquidacion($('#content'));};
@@ -4173,7 +4398,11 @@ function renderLiquidacion(c){
   <div class="grid4 compact-kpis"><div class="card kpi"><div class="label">Lotes / viajes</div><div class="value">${groups.length}</div></div><div class="card kpi"><div class="label">Total facturas</div><div class="value">${money(summary.total)}</div></div><div class="card kpi"><div class="label">Efectivo a recibir</div><div class="value">${money(summary.cobrado)}</div></div><div class="card kpi"><div class="label">Crédito / pendiente</div><div class="value">${money(summary.credito+summary.devuelto)}</div></div></div>
   <div class="lock-alert ok"><b>Control por entrega:</b> cada lote representa un viaje físico al delivery. Puedes cerrar el lote completo cuando todos sus pedidos tengan resultado final.</div>
   <div class="actions" style="justify-content:flex-end;margin:10px 0"><button class="btn gray" id="printLiqSummary">Imprimir resumen general</button><button class="btn" id="closeRouteBtn">Verificar ruta completa</button></div>
-  <div class="liq-batch-list">${groups.map(liquidacionBatchCard).join('')||'<div class="empty">No hay pedidos pendientes de liquidar con esa búsqueda.</div>'}</div></div>`;
+  <div class="history-list-actions"><button class="btn small gray" data-liq-pending-expand-all>Expandir todos</button><button class="btn small gray" data-liq-pending-collapse-all>Ocultar todos</button></div><div class="liq-batch-list operational-lot-list">${groups.map((g,i)=>liquidacionBatchCard(g,i,Boolean(String(q).trim()))).join('')||'<div class="empty">No hay pedidos pendientes de liquidar con esa búsqueda.</div>'}</div></div>`;
+  const liqKeys=groups.map(g=>lotUiKey('liquidacion-pending',g.code,g.code));
+  $$('[data-liq-pending-toggle]',c).forEach(b=>b.onclick=()=>{const key=b.dataset.liqPendingToggle;setHistoryOpen('liquidacionPending',key,!historyIsOpen('liquidacionPending',key));renderLiquidacion(c);});
+  $('[data-liq-pending-expand-all]',c)?.addEventListener('click',()=>{setOperationalKeysOpen('liquidacionPending',liqKeys,true);renderLiquidacion(c);});
+  $('[data-liq-pending-collapse-all]',c)?.addEventListener('click',()=>{setOperationalKeysOpen('liquidacionPending',liqKeys,false);renderLiquidacion(c);});
   // Primero se enlazan las acciones críticas de caja/lote. Así no quedan sin evento si otra rutina genérica falla.
   bindLiquidacionActionButtons(c, filter, orders, groups);
   try{ wireLiquidacionCommon(c, groups); }catch(err){ console.error('wireLiquidacionCommon',err); }
@@ -4616,26 +4845,67 @@ function openPreparacionModal(o){
   $('#savePrep',m).onclick=()=>updateDetailsAndOrder(true);
 }
 function invoiceExpectedAmount(o){
-  const items=o?.items||[];
-  if(!items.length) return Number(o?.total_factura||o?.total_estimado||0);
-  const hasPrepared=items.some(i=>i.cantidad_preparada!==null && i.cantidad_preparada!==undefined);
-  if(!hasPrepared) return Number(o?.total_estimado||o?.total_factura||0);
-  let total=0;
-  items.forEach(i=>{
-    const st=String(i.estado_preparacion||'');
-    if(st==='Sin existencia') return;
-    if(st==='Sustituido' && i.nota_preparacion){
-      const name=(String(i.nota_preparacion).match(/Sustituido por:\s*([^·]+)/i)||[])[1]?.trim();
-      const qty=substituteQtyFromNote(i.nota_preparacion);
-      const p=productByName(name||'');
-      total += (Number(qty)||0) * (Number(p?.precio_defecto)||Number(i.precio)||0);
-      return;
-    }
-    const qty=(i.cantidad_preparada!==null && i.cantidad_preparada!==undefined) ? Number(i.cantidad_preparada||0) : Number(i.cantidad_pedida||0);
-    total += qty * Number(i.precio||0);
+  return calculatePreparedInvoiceAmount(o,{
+    substitutePriceByName:(name,item)=>Number(productByName(name||'')?.precio_defecto)||Number(item?.precio)||0
   });
-  return Number(total.toFixed(2));
 }
+
+async function quickInvoiceOrder(o,button){
+  if(!o) return alert('No encontré la orden. Actualiza la pantalla e intenta nuevamente.');
+  if(button?.dataset.processing==='1') return;
+  const fresh=state.ordenes.find(x=>String(x.id)===String(o.id))||o;
+  let transition;
+  try{
+    const amount=invoiceExpectedAmount(fresh);
+    const preparedWeight=Number(fresh.peso_preparado || orderLastPeso(fresh,'Preparado')?.libras || 0);
+    transition=buildQuickInvoiceTransition(fresh,{
+      workerName:currentWorkerName(),
+      nowIso:new Date().toISOString(),
+      amount,
+      preparedWeight,
+      storePickup:isStorePickup(fresh),
+      internalSale:isInternalSale(fresh)
+    });
+  }catch(err){
+    return alert(err.message||String(err));
+  }
+
+  const originalText=button?.textContent||'Marcar facturada';
+  if(button){
+    button.dataset.processing='1';
+    button.disabled=true;
+    button.textContent='Procesando...';
+  }
+
+  try{
+    const {data,error}=await sb.from('ordenes')
+      .update(transition.payload)
+      .eq('id',fresh.id)
+      .in('estado',transition.allowedStates)
+      .select('id,estado');
+
+    if(error) throw error;
+    if(!Array.isArray(data) || data.length!==1){
+      throw new Error('La orden cambió de estado en otro equipo. Actualiza la pantalla antes de continuar.');
+    }
+
+    await logOrderState(fresh,transition.oldState,transition.nextState,transition.comment);
+    await loadAll();
+    render();
+    toast(transition.nextState==='Lista para retiro'
+      ? 'Orden facturada y enviada a Retiros.'
+      : 'Orden facturada y enviada a Validación.');
+  }catch(err){
+    console.error('quickInvoiceOrder',err);
+    alert('No se pudo marcar la orden como facturada. '+(err.message||err));
+    if(button?.isConnected){
+      button.dataset.processing='0';
+      button.disabled=false;
+      button.textContent=originalText;
+    }
+  }
+}
+
 function invoiceExpectedAmountFromModal(m,o){
   let total=0;
   $$('[data-detail-id]',m).forEach(row=>{
@@ -4866,21 +5136,23 @@ function openValidacionModal(o){
   if(!o) return;
   const canChooseBy=isAdminRole() || puede('configuracion');
   const defaultBy=o.validado_por || currentWorkerName();
+  const defaultMonto=normalizeValidationInvoiceAmount(o.total_factura||o.total_estimado||0);
   const defaultPeso=o.peso_validado||'';
   const reqPeso=orderRequiresFinalWeight(o);
   const ref=validationWeightReference(o);
   const byField=canChooseBy
     ? `<select id="valBy">${employeeOptionsWithDefault('Validación',defaultBy)}</select>${manualInput('valByManual')}`
     : `<input id="valBy" readonly value="${esc(defaultBy)}"><div class="hint">Se usa tu usuario de acceso. No puedes validar a nombre de otro empleado.</div>`;
-  const body=`<div class="form validation-form"><div class="client-card" style="grid-template-columns:1fr"><div><div class="client-title">${esc(o.codigo)} · ${esc(orderClientName(o))}</div><div class="client-sub">Factura ${esc(o.factura_no||'—')} · ${money(o.total_factura||o.total_estimado)}${ref.value?` · Ref. peso: ${ref.value} lb`:''}</div></div></div><div class="grid3"><div class="field"><label>Validado / entregado por</label>${byField}</div><div class="field"><label>Peso final entregado</label><input id="valPeso" type="number" step="0.01" value="${defaultPeso}" placeholder="Escribe peso final${reqPeso?' obligatorio':''}"><div class="hint">${reqPeso?'Obligatorio porque la orden incluye productos que suman peso.':'No obligatorio si todos los productos no pesan.'}</div></div><div class="field"><label>Delivery</label><select id="valDelivery">${deliverySelect(o.delivery_nombre||'')}</select>${manualInput('valDeliveryManual','Nombre del delivery')}</div></div><div id="valPesoAlert">${validationWeightAlertHtml(o,defaultPeso)}</div><div class="field"><label>Observación</label><textarea id="valNotas" placeholder="Opcional"></textarea></div><button class="btn" id="saveVal">Validar y asignar a delivery</button></div>`;
-  const m=openModal('Validar y entregar al delivery',body,'Flujo rápido: peso final → delivery → observación → confirmar.');
+  const body=`<div class="form validation-form"><div class="client-card" style="grid-template-columns:1fr"><div><div class="client-title">${esc(o.codigo)} · ${esc(orderClientName(o))}</div><div class="client-sub">Factura ${esc(o.factura_no||'—')} · Monto actual ${money(defaultMonto)}${ref.value?` · Ref. peso: ${ref.value} lb`:''}</div></div></div><div class="grid4 validation-individual-grid"><div class="field"><label>Validado / entregado por</label>${byField}</div><div class="field validation-final-amount"><label>Monto final de factura *</label><input id="valMonto" type="number" step="0.01" min="0.01" inputmode="decimal" value="${defaultMonto||''}" placeholder="Monto correcto"><div class="hint">Este será el monto definitivo para Delivery y Liquidación.</div></div><div class="field"><label>Peso final entregado</label><input id="valPeso" type="number" step="0.01" min="0" inputmode="decimal" value="${defaultPeso}" placeholder="Escribe peso final${reqPeso?' obligatorio':''}"><div class="hint">${reqPeso?'Obligatorio porque la orden incluye productos que suman peso.':'No obligatorio si todos los productos no pesan.'}</div></div><div class="field"><label>Delivery</label><select id="valDelivery">${deliverySelect(o.delivery_nombre||'')}</select>${manualInput('valDeliveryManual','Nombre del delivery')}</div></div><div class="lock-alert ok"><b>Control financiero:</b> el monto que confirmes aquí reemplaza el monto previo de la orden y será usado en el lote, Delivery, Liquidación, reportes y recibos.</div><div id="valPesoAlert">${validationWeightAlertHtml(o,defaultPeso)}</div><div class="field"><label>Observación</label><textarea id="valNotas" placeholder="Opcional"></textarea></div><button class="btn" id="saveVal">Validar monto, peso y asignar a delivery</button></div>`;
+  const m=openModal('Validar y entregar al delivery',body,'Flujo rápido: monto final → peso final → delivery → observación → confirmar.');
   if(canChooseBy) wireManual(m,'valBy','valByManual');
   wireManual(m,'valDelivery','valDeliveryManual');
-  const valBy=$('#valBy',m), valPeso=$('#valPeso',m), valDelivery=$('#valDelivery',m), valNotas=$('#valNotas',m), save=$('#saveVal',m);
+  const valBy=$('#valBy',m), valMonto=$('#valMonto',m), valPeso=$('#valPeso',m), valDelivery=$('#valDelivery',m), valNotas=$('#valNotas',m), save=$('#saveVal',m);
   const updateAlert=()=>{$('#valPesoAlert',m).innerHTML=validationWeightAlertHtml(o,+valPeso.value||0);};
   valPeso.oninput=updateAlert;
   const focusEl=el=>{ if(!el) return; setTimeout(()=>{el.focus(); if(el.select) el.select();},0); };
-  if(valBy) valBy.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); focusEl(valPeso); } });
+  if(valBy) valBy.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); focusEl(valMonto); } });
+  if(valMonto) valMonto.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); focusEl(reqPeso?valPeso:valDelivery); } });
   if(valPeso) valPeso.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); focusEl(valDelivery); } });
   if(valDelivery) valDelivery.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); focusEl(valNotas); } });
   if(valNotas) valNotas.addEventListener('keydown',e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); focusEl(save); } });
@@ -4888,6 +5160,8 @@ function openValidacionModal(o){
   save.onclick=async()=>{
     const by=canChooseBy?getSelectManual(m,'valBy','valByManual'):String(valBy.value||'').trim();
     const del=getSelectManual(m,'valDelivery','valDeliveryManual');
+    let monto=0;
+    try{ monto=requireValidationInvoiceAmount(valMonto.value); }catch(err){ return alert(err.message||err); }
     const peso=+valPeso.value||0;
     if(!by) return alert('Selecciona quién validó o entregó al delivery.');
     if(!del) return alert('Selecciona el delivery que llevará esta orden.');
@@ -4912,11 +5186,10 @@ function openValidacionModal(o){
       if(ins.error) return alert(ins.error.message);
     }
     m.remove();
-    await setOrderState(o,'Asignada a delivery',{validado_por:by,peso_validado:peso||null,validado_en:new Date().toISOString(),delivery_nombre:del,asignado_delivery_en:new Date().toISOString(),notas_validacion:notaPeso||null,notas_estado:alerta?('Validada y asignada a delivery bajo revisión de peso · '+alerta):'Validada y asignada a delivery'});
+    await setOrderState(o,'Asignada a delivery',{total_factura:monto,validado_por:by,peso_validado:peso||null,validado_en:new Date().toISOString(),delivery_nombre:del,asignado_delivery_en:new Date().toISOString(),notas_validacion:notaPeso||null,notas_estado:(alerta?('Validada y asignada a delivery bajo revisión de peso · '+alerta):'Validada y asignada a delivery')+` · Monto final confirmado ${money(monto)}`});
   };
-  focusEl(reqPeso?valPeso:valDelivery);
+  focusEl(valMonto);
 }
-
 function montoCobradoDefault(res,total,o={}){
   if(res==='Cobrado') return Number(o.monto_cobrado||total||0);
   if(res==='Entregado a crédito' || res==='No entregado') return 0;
@@ -5264,9 +5537,10 @@ function printLiquidationReceipt(deliveryName,code,orders,recibo={},auto=true){
   const html=`<!doctype html><html><head><meta charset="utf-8"><title>Recibo ${esc(code)}</title><style>body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:20px}h1{font-size:20px;margin:0 0 8px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #ddd;padding:6px;text-align:left}th{background:#f3f4f6}.tot{font-weight:bold;background:#f8fafc}.sign{border-top:1px solid #000;margin-top:38px;padding-top:4px;width:240px;display:inline-block;margin-right:40px}.box{border:1px solid #ddd;border-radius:10px;padding:10px;margin:10px 0}@media print{button{display:none}}</style></head><body>${printCompanyHeader(appCfg('recibos.tituloLiquidacion','Recibo de liquidación'),'Cierre formal de lote/viaje')}<div class="box"><b>Lote/Viaje:</b> ${esc(code)}<br><b>Delivery:</b> ${esc(deliveryName||'—')}<br><b>Fecha:</b> ${new Date().toLocaleString('es-DO')}<br><b>Recibido por:</b> ${esc(recibo.recibido_por||'—')}</div><p><b>Órdenes:</b> ${orders.length} · <b>Total facturado:</b> ${money(summary.total)} · <b>Efectivo recibido:</b> ${money(recibo.efectivo_recibido||0)} · <b>Crédito:</b> ${money(summary.credito+summary.devuelto)} · <b>No entregado:</b> ${money(summary.noEntregado)} · <b>Diferencia:</b> ${money(diff)}</p><table><thead><tr><th>Orden</th><th>Cliente</th><th>Factura</th><th>Resultado</th><th>Total</th><th>Cobrado</th><th>Crédito</th></tr></thead><tbody>${rows}<tr class="tot"><td colspan="4">Totales</td><td>${money(summary.total)}</td><td>${money(summary.cobrado)}</td><td>${money(summary.credito+summary.devuelto)}</td></tr></tbody></table>${recibo.observacion?`<p><b>Observación:</b> ${esc(recibo.observacion)}</p>`:''}${signatureHtml(appCfg('recibos.firmaDelivery','Firma delivery'))}${signatureHtml(appCfg('recibos.firmaRecibido','Firma recibido por CXC'))}${printFooterHtml()}<button onclick="window.print()">Imprimir</button>${auto?'<script>setTimeout(()=>window.print(),400)<\/script>':''}</body></html>`;
   const w=window.open('','_blank','width=950,height=750'); if(!w) return alert('El navegador bloqueó la ventana de impresión.'); w.document.open(); w.document.write(html); w.document.close();
 }
-function printHistorySummary(deliveryName,rows){
-  const htmlRows=rows.map(l=>`<tr><td>${esc(l.codigo_lote||'')}</td><td>${esc(l.delivery_nombre||deliveryName||'')}</td><td>${l.fecha_liquidacion?new Date(l.fecha_liquidacion).toLocaleString('es-DO'):'—'}</td><td>${Number(l.cantidad_ordenes||historyLotItems(l).length)}</td><td>${money(l.total_facturado||0)}</td><td>${money(l.efectivo_recibido||l.efectivo_reportado||0)}</td><td>${money(l.credito_pendiente||0)}</td><td>${money(l.diferencia||0)}</td></tr>`).join('');
-  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Historial liquidaciones</title><style>body{font-family:Arial,sans-serif;font-size:12px;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;text-align:left}th{background:#f3f4f6}@media print{button{display:none}}</style></head><body>${printCompanyHeader(appCfg('recibos.tituloHistorial','Historial de liquidaciones'),'Liquidaciones cerradas')}<p><b>Delivery:</b> ${esc(deliveryName||'Todos')} · <b>Fecha:</b> ${new Date().toLocaleString('es-DO')}</p><table><thead><tr><th>Lote</th><th>Delivery</th><th>Liquidado</th><th>Órdenes</th><th>Total</th><th>Efectivo</th><th>Crédito</th><th>Diferencia</th></tr></thead><tbody>${htmlRows}</tbody></table>${printFooterHtml()}<button onclick="window.print()">Imprimir</button><script>setTimeout(()=>window.print(),400)<\/script></body></html>`;
+function printHistorySummary(deliveryName,rows,from='',to=''){
+  const htmlRows=rows.map(l=>`<tr><td>${esc(historyVisualCode(l))}</td><td>${esc(l.delivery_nombre||deliveryName||'')}</td><td>${l.fecha_liquidacion?businessDateTime(l.fecha_liquidacion):'—'}</td><td>${Number(l.cantidad_ordenes||historyLotItems(l).length)}</td><td>${money(l.total_facturado||0)}</td><td>${money(l.efectivo_recibido||l.efectivo_reportado||0)}</td><td>${money(l.credito_pendiente||0)}</td><td>${money(l.diferencia||0)}</td></tr>`).join('');
+  const range=(from||to)?`<br><b>Rango:</b> ${esc(historyRangeLabel(from,to))}`:'';
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Historial liquidaciones</title><style>body{font-family:Arial,sans-serif;font-size:12px;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;text-align:left}th{background:#f3f4f6}@media print{button{display:none}}</style></head><body>${printCompanyHeader(appCfg('recibos.tituloHistorial','Historial de liquidaciones'),'Liquidaciones cerradas')}<p><b>Delivery:</b> ${esc(deliveryName||'Todos')} · <b>Impreso:</b> ${businessDateTime(new Date())}${range}</p><table><thead><tr><th>Lote</th><th>Delivery</th><th>Liquidado</th><th>Órdenes</th><th>Total</th><th>Efectivo</th><th>Crédito</th><th>Diferencia</th></tr></thead><tbody>${htmlRows}</tbody></table>${printFooterHtml()}<button onclick="window.print()">Imprimir</button><script>setTimeout(()=>window.print(),400)<\/script></body></html>`;
   const w=window.open('','_blank','width=950,height=750'); if(!w) return alert('El navegador bloqueó la ventana de impresión.'); w.document.open(); w.document.write(html); w.document.close();
 }
 function verifyRouteClose(deliveryName,orders){

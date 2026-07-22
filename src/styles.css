@@ -204,10 +204,10 @@ body.theme-blue{--red:#2563eb;--red2:#1d4ed8}body.theme-green{--red:#059669;--re
 .validation-batch-panel .batch-toolbar{display:grid;grid-template-columns:minmax(220px,280px) 1fr auto;gap:12px;align-items:end;margin:12px 0 14px}
 .batch-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .batch-table{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#fff;margin-top:12px}
-.batch-head,.batch-row{display:grid;grid-template-columns:44px minmax(260px,1.5fr) 130px 150px 160px auto;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
+.batch-head,.batch-row{display:grid;grid-template-columns:44px minmax(240px,1.45fr) 112px 138px 150px 126px auto;gap:9px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
 .batch-head{background:#f8fafc;color:#64748b;font-size:12px;font-weight:950;text-transform:uppercase;letter-spacing:.04em}
-.batch-row:last-child{border-bottom:0}.batch-row:hover{background:#fff7f7}.batch-check{display:flex;justify-content:center}.batch-main b{display:block;font-size:14px;color:#111827}.batch-main small{display:block;color:#64748b;font-weight:700;margin-top:2px}.batch-num span{display:block;font-size:11px;color:#64748b;font-weight:800}.batch-num b{font-size:13px}.batch-weight input{min-width:110px}.card-actions.mini{justify-content:flex-end}.compact-list .client-card{margin-top:8px}
-@media(max-width:980px){.validation-batch-panel .batch-toolbar{grid-template-columns:1fr}.batch-head{display:none}.batch-row{grid-template-columns:32px 1fr;align-items:start}.batch-num,.batch-weight,.batch-status,.card-actions.mini{grid-column:2}.card-actions.mini{justify-content:flex-start}}
+.batch-row:last-child{border-bottom:0}.batch-row:hover{background:#fff7f7}.batch-check{display:flex;justify-content:center}.batch-main b{display:block;font-size:14px;color:#111827}.batch-main small{display:block;color:#64748b;font-weight:700;margin-top:2px}.batch-num span,.batch-amount span{display:block;font-size:11px;color:#64748b;font-weight:800}.batch-num b,.batch-amount b{font-size:13px}.batch-amount b{color:#0f172a;white-space:nowrap}.batch-weight input{min-width:110px}.card-actions.mini{justify-content:flex-end}.compact-list .client-card{margin-top:8px}
+@media(max-width:980px){.validation-batch-panel .batch-toolbar{grid-template-columns:1fr}.batch-head{display:none}.batch-row{grid-template-columns:32px 1fr;align-items:start}.batch-num,.batch-amount,.batch-weight,.batch-status,.card-actions.mini{grid-column:2}.batch-num,.batch-amount{display:grid;grid-template-columns:110px minmax(0,1fr);align-items:center;gap:8px}.batch-num span,.batch-amount span{margin:0}.card-actions.mini{justify-content:flex-start}}
 
 
 /* V9.0.8.3 - Liquidación agrupada por lote/viaje */
@@ -926,3 +926,78 @@ body.theme-blue{--red:#2563eb;--red2:#1d4ed8}body.theme-green{--red:#059669;--re
 .pickup-panel .compact-list .client-card{padding:12px 14px}
 .kanban-col[data-kanban-col="retiros"] header{background:#fffbeb}.kanban-col[data-kanban-col="retiros"] header em{background:#f59e0b;color:#fff}
 @media(max-width:760px){.order-customer-mode-grid{grid-template-columns:1fr}.pickup-panel .card-actions{justify-content:flex-start}}
+
+
+/* =========================================================
+   V9.3.4 — HISTORIALES COMPACTOS, FECHAS LOCALES Y LOTES PLEGABLES
+   ========================================================= */
+.delivery-tabs-v934{margin-bottom:12px}
+.history-quick-v934{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0 10px}
+.history-toolbar-v934{display:grid;grid-template-columns:170px 170px minmax(260px,1fr) auto;gap:10px;align-items:end;margin:8px 0}
+.history-toolbar-v934 .batch-actions{align-self:end}
+.history-range-summary{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:13px;padding:9px 12px;margin:10px 0;font-size:12px;font-weight:850}
+.history-kpis-v934{margin:10px 0}
+.history-list-actions{display:flex;justify-content:flex-end;gap:7px;flex-wrap:wrap;margin:8px 0}
+.history-list-v934{gap:9px;margin-top:8px}
+.history-batch-card{border-radius:17px}
+.history-batch-head{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;padding:11px 13px;gap:10px;border-bottom:0}
+.history-batch-card.is-open .history-batch-head{border-bottom:1px solid var(--line)}
+.history-toggle-btn{width:32px;height:32px;border-radius:10px;background:#eef2f7;color:#0f172a;font-size:22px;font-weight:950;display:grid;place-items:center;padding:0;line-height:1}
+.history-toggle-btn:hover{background:#dbeafe;color:#1d4ed8}
+.history-batch-summary{min-width:0}
+.history-batch-summary .client-title{font-size:15px}
+.history-batch-summary .client-sub{font-size:11px;margin-top:2px}
+.history-batch-summary .badges{margin-top:6px}
+.history-card-actions{white-space:nowrap}
+.history-batch-body{background:#fff}
+.history-compact-order{padding:10px 13px;gap:10px}
+.history-compact-order b{font-size:13px}
+.history-compact-order small{font-size:11px}
+.history-empty{border:0;border-radius:0;padding:14px}
+.history-more-wrap{display:flex;justify-content:center;margin:12px 0 2px}
+.theme-dark .history-range-summary{background:#172554;border-color:#1e40af;color:#bfdbfe}
+.theme-dark .history-toggle-btn{background:#1f2937;color:#e5e7eb}
+@media(max-width:980px){.history-toolbar-v934{grid-template-columns:1fr 1fr}.history-toolbar-v934 .history-search-field{grid-column:1/-1}.history-toolbar-v934 .batch-actions{grid-column:1/-1;justify-content:flex-start}.history-batch-head{grid-template-columns:32px 1fr}.history-card-actions{grid-column:2;justify-content:flex-start}}
+@media(max-width:620px){.history-toolbar-v934{grid-template-columns:1fr}.history-toolbar-v934 .history-search-field,.history-toolbar-v934 .batch-actions{grid-column:auto}.history-batch-head{padding:9px;gap:7px}.history-batch-summary .badges{display:grid;grid-template-columns:1fr 1fr}.history-batch-summary .badge{justify-content:center}.history-list-actions{justify-content:flex-start}.history-list-actions .btn{flex:1}.history-card-actions .btn{width:100%}.history-compact-order{grid-template-columns:1fr}.history-compact-order .card-actions{justify-content:flex-start}}
+
+
+/* =========================================================
+   V9.3.5 — FACTURACIÓN RÁPIDA Y VALIDACIÓN OPERATIVA
+   ========================================================= */
+[data-quick-invoice][disabled]{opacity:.68;cursor:wait}
+.batch-amount{min-width:0}
+.batch-amount b{overflow:hidden;text-overflow:ellipsis}
+@media(max-width:1180px) and (min-width:981px){
+  .batch-head,.batch-row{grid-template-columns:40px minmax(210px,1.25fr) 100px 124px 138px 116px auto;gap:7px}
+  .batch-main b{font-size:13px}
+  .batch-main small{font-size:10px}
+  .batch-amount b,.batch-num b{font-size:12px}
+}
+
+
+/* =========================================================
+   V9.3.5.1 — MONTO FINAL EDITABLE EN VALIDACIÓN
+   ========================================================= */
+.batch-amount .validation-amount-input{width:100%;min-width:104px;height:38px;padding:7px 9px;border-radius:10px;font-size:13px;font-weight:900;color:#0f172a;background:#fff;border:1px solid #cbd5e1}
+.batch-amount .validation-amount-input:focus{border-color:#b91c1c;box-shadow:0 0 0 3px rgba(185,28,28,.12)}
+.validation-final-amount input{font-weight:950;color:#991b1b}
+.validation-individual-grid{align-items:start}
+@media(max-width:1180px){.validation-individual-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:720px){.validation-individual-grid{grid-template-columns:1fr}.batch-amount .validation-amount-input{max-width:220px}}
+
+
+/* =========================================================
+   V9.3.6 — LOTES OPERATIVOS PLEGABLES Y CORRECCIÓN SEGURA
+   ========================================================= */
+.operational-lot-list{display:grid;gap:10px}
+.operational-lot-card{overflow:hidden;transition:border-color .18s ease,box-shadow .18s ease}
+.operational-lot-card.is-collapsed{box-shadow:0 4px 12px rgba(15,23,42,.04)}
+.operational-lot-head{display:grid!important;grid-template-columns:34px minmax(0,1fr) auto!important;align-items:center!important;gap:10px!important;padding:11px 13px!important}
+.operational-lot-card.is-open .operational-lot-head{border-bottom:1px solid var(--line)}
+.operational-lot-body{display:grid;background:#fff}
+.delivery-lot-body .client-card{border:0;border-radius:0;border-bottom:1px solid var(--line);box-shadow:none;margin:0;padding:11px 14px;grid-template-columns:minmax(0,1fr) auto}
+.delivery-lot-body .client-card:last-child{border-bottom:0}
+.operational-order-row .client-title{font-size:14px}
+.lot-correction-form{gap:12px}.lot-correction-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.lot-correction-actions .danger{background:#991b1b;color:#fff}
+@media(max-width:980px){.operational-lot-head{grid-template-columns:32px minmax(0,1fr)!important}.operational-lot-head .history-card-actions{grid-column:2;justify-content:flex-start;flex-wrap:wrap}.delivery-lot-body .client-card{grid-template-columns:1fr}.delivery-lot-body .card-actions{justify-content:flex-start}.lot-correction-actions{grid-template-columns:1fr}}
+@media(max-width:620px){.operational-lot-head{padding:9px!important;gap:7px!important}.operational-lot-head .history-batch-summary .badges{display:flex;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px}.operational-lot-head .history-card-actions .btn{width:auto;flex:1}.delivery-lot-body .client-card{padding:10px}.lot-correction-form textarea{min-height:90px}}
