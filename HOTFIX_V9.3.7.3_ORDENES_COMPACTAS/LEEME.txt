@@ -1,0 +1,9 @@
+HOTFIX V9.3.7.3 AUDITADO
+
+1. No requiere ejecutar un SQL nuevo.
+2. Sincroniza el código, pruebas, configuraciones y copias locales de SQL.
+3. No copia, modifica ni elimina el archivo .env.
+4. Crea un respaldo de cada archivo reemplazado.
+5. Ejecuta sintaxis, todas las auditorías y compilación.
+6. Publica solamente si termina con el mensaje de éxito.
+

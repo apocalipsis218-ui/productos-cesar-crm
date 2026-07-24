@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.vite/
+.env
+.env.*
+!.env.example
+*.log
+*.zip
+.DS_Store
+Thumbs.db
+.env.local
+backups/
+respaldos/
+respaldo_*/
+HOTFIX_*/
+*.respaldo-*
