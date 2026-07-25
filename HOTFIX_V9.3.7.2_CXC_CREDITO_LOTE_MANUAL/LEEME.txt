@@ -1,0 +1,8 @@
+ORDEN DE APLICACION
+
+1. Ejecuta primero SQL_32_V9.3.7.2_CREDITO_CERO_LOTE_MANUAL.sql en Supabase.
+2. Ejecuta APLICAR_V9372.ps1 desde la carpeta del proyecto.
+3. Prueba en localhost:
+   - Seleccionar Crédito / abono: efectivo debe iniciar en 0.
+   - Crear lote con responsable manual: no debe aparecer column c.direccion does not exist.
+4. Publica solamente después de las pruebas.

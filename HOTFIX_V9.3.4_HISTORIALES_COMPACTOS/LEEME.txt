@@ -1,0 +1,9 @@
+V9.3.4 - Historiales compactos, fechas dominicanas y lotes plegables
+
+1. Coloca esta carpeta dentro de C:\proyectos\productos-cesar-crm.
+2. Ejecuta:
+   powershell -ExecutionPolicy Bypass -File ".\HOTFIX_V9.3.4_HISTORIALES_COMPACTOS\APLICAR_V934_HISTORIALES_COMPACTOS.ps1"
+3. Publica con:
+   npx.cmd wrangler deploy
+
+No requiere SQL nuevo.

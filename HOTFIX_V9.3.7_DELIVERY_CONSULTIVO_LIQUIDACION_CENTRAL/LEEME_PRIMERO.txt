@@ -1,0 +1,13 @@
+PRODUCTOS CESAR CRM - V9.3.7
+
+1. Ejecuta primero SQL_30_V9.3.7_DELIVERY_CONSULTIVO_LIQUIDACION_CENTRAL.sql en Supabase.
+2. Confirma que los cinco resultados finales sean true.
+3. Extrae este HOTFIX dentro de C:\proyectos\productos-cesar-crm.
+4. Ejecuta:
+
+powershell -ExecutionPolicy Bypass -File ".\HOTFIX_V9.3.7_DELIVERY_CONSULTIVO_LIQUIDACION_CENTRAL\APLICAR_V937.ps1"
+
+5. Prueba en localhost.
+6. Publica solamente después de aprobar la prueba:
+
+npx.cmd wrangler deploy

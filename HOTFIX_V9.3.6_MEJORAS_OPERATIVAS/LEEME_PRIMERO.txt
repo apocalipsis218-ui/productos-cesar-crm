@@ -1,0 +1,6 @@
+V9.3.6 - MEJORAS OPERATIVAS CONSOLIDADAS
+
+1. Ejecuta primero SQL_28_V9.3.6_CORRECCION_LOTES.sql en Supabase.
+2. Aplica el instalador PowerShell.
+3. Prueba solo en localhost.
+4. No ejecutes wrangler deploy hasta aprobar el conjunto completo.
