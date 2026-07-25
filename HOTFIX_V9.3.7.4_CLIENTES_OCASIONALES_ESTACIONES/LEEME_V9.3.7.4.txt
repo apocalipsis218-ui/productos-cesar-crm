@@ -1,0 +1,20 @@
+PRODUCTOS CESAR CRM - V9.3.7.4
+
+Incluye:
+- Cliente ocasional/sin registrar con Delivery o Retiro.
+- Telefono, sector, direccion y referencia guardados en la orden.
+- WhatsApp conectado a Configuracion -> WhatsApp.
+- Impresion especial para clientes ocasionales.
+- Empleado real seleccionable desde cuentas compartidas de estacion.
+- Cola de Carniceria calculada por empleado.
+- Ordenes nuevas/recientes visibles primero.
+- Vistas Requieren accion y Finalizadas.
+- Direccion y referencia editables en clientes actuales.
+- Sector con busqueda aproximada y alta controlada.
+- Compatibilidad con clientes y ordenes anteriores.
+
+SQL OBLIGATORIO:
+supabase\sql\33_actualizacion_v9374_clientes_ocasionales_estaciones.sql
+
+El SQL es aditivo. No elimina clientes, ordenes ni historiales.
+El instalador no reemplaza .env y crea un respaldo antes de copiar.
