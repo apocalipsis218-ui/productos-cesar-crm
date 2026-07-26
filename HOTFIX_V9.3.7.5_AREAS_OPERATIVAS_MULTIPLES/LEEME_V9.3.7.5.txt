@@ -1,0 +1,27 @@
+PRODUCTOS CESAR CRM - V9.3.7.5
+
+Incluye:
+- Área principal independiente para cada empleado.
+- Varias áreas operativas adicionales por empleado.
+- Deliverys habilitables también para Carnicería.
+- Selector de estación basado en capacidades operativas.
+- Cola calculada con el ID real del empleado seleccionado.
+- Rol y permisos del CRM preservados.
+- Cliente ocasional/sin registrar con Delivery o Retiro.
+- Telefono, sector, direccion y referencia guardados en la orden.
+- WhatsApp conectado a Configuracion -> WhatsApp.
+- Impresion especial para clientes ocasionales.
+- Empleado real seleccionable desde cuentas compartidas de estacion.
+- Cola de Carniceria calculada por empleado.
+- Ordenes nuevas/recientes visibles primero.
+- Vistas Requieren accion y Finalizadas.
+- Direccion y referencia editables en clientes actuales.
+- Sector con busqueda aproximada y alta controlada.
+- Compatibilidad con clientes y ordenes anteriores.
+
+SQL OBLIGATORIO:
+supabase\sql\34_actualizacion_v9375_areas_operativas_multiples.sql
+
+Este SQL se ejecuta después del SQL 33 de la V9.3.7.4.
+Es aditivo: no elimina empleados, usuarios, clientes, órdenes ni historiales.
+El instalador no reemplaza .env y crea un respaldo antes de copiar.

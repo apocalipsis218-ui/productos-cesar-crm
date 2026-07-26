@@ -1,0 +1,58 @@
+PRODUCTOS CESAR CRM - V9.3.7.9
+
+AUDITORÍA PRIVADA DE EXCEPCIONES
+- Módulo Auditoría reservado exclusivamente para Gerente/Administrador.
+- Registra quién acepta continuar bajo responsabilidad.
+- Exige un motivo escrito de al menos 5 caracteres.
+- Identifica empleado, usuario, cuenta compartida o estación.
+- Conserva fecha y hora del servidor.
+- Relaciona orden, cliente, lote y módulo.
+- Guarda valor esperado, registrado, diferencia y tolerancias.
+- Clasifica la excepción por gravedad.
+- Permite marcar Pendiente, Revisado o Requiere seguimiento.
+- Permite agregar nota administrativa sin alterar el registro original.
+- Indicadores de excepciones de hoy, pendientes, críticas y seguimiento.
+- Filtros por fecha, estado, gravedad, empleado, orden y cliente.
+- Exportación completa a Excel.
+
+ALERTAS CONECTADAS
+- Diferencia de peso en Carnicería.
+- Diferencia de monto en Facturación.
+- Diferencia de peso en Facturación.
+- Diferencia de peso en Validación individual.
+- Creación de lote con diferencias de peso.
+- Modificación de productos de una orden ya procesada.
+
+REVERSIÓN SEGURA DE LOTES
+- Corrige el error de monto_pendiente NULL al revertir una entrega.
+- Devuelve las órdenes a Facturada para que reaparezcan en Validación.
+- Restablece monto cobrado y monto pendiente a 0 sin borrar el monto de factura.
+- Conserva pesos, detalle de productos, historial y datos originales del lote.
+- Marca el lote como Revertido en lugar de eliminarlo.
+- Registra la reversión como evento crítico en la Auditoría privada.
+
+EDICIÓN SEGURA DE LOTES
+- El botón Corregir asignación ahora se presenta como Editar lote.
+- Permite agregar órdenes facturadas disponibles al mismo viaje.
+- Permite retirar una orden y devolverla a Validación.
+- Exige conservar al menos una orden; para vaciarlo se utiliza Revertir lote.
+- Recalcula cantidad, monto facturado, peso esperado y peso entregado.
+- Actualiza el detalle formal y la hoja de ruta utilizada al reimprimir.
+- Bloquea lotes recibidos, con resultados o liquidaciones.
+- Exige motivo y registra totales anteriores/nuevos en Auditoría privada.
+
+SEGURIDAD
+- Los empleados pueden generar evidencia mediante una función segura.
+- Los empleados no pueden consultar la tabla de auditoría.
+- Los empleados no pueden modificar ni eliminar registros.
+- Solo Gerente/Administrador puede ver y revisar.
+- Si no se puede registrar la auditoría, la operación se detiene.
+
+SQL OBLIGATORIO
+Después de instalar, ejecuta en Supabase SQL Editor, en este orden:
+1. supabase/sql/36_actualizacion_v9378_auditoria_excepciones.sql
+2. supabase/sql/37_actualizacion_v9378_reversion_lotes_segura.sql
+3. supabase/sql/38_actualizacion_v9379_edicion_segura_lotes.sql
+
+Los SQL 36, 37 y 38 no eliminan tablas, órdenes, usuarios, empleados ni historiales.
+El instalador conserva .env y crea un respaldo antes de copiar.
