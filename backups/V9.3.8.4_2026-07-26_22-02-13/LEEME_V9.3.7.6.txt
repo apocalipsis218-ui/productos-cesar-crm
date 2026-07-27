@@ -1,0 +1,31 @@
+PRODUCTOS CESAR CRM - V9.3.7.6
+
+Incluye:
+- Corrige el peso esperado cuando se elimina un producto después de preparar.
+- Invalida el peso de facturación y validación perteneciente a la versión anterior.
+- Conserva los datos de preparación de los productos que permanecen.
+- Registra el nuevo peso preparado recalculado sin borrar el historial anterior.
+- Si se agrega un producto o cambia una cantidad, devuelve la orden a Carnicería.
+- Registra la corrección y el motivo técnico en el historial de estados.
+- Área principal independiente para cada empleado.
+- Varias áreas operativas adicionales por empleado.
+- Deliverys habilitables también para Carnicería.
+- Selector de estación basado en capacidades operativas.
+- Cola calculada con el ID real del empleado seleccionado.
+- Rol y permisos del CRM preservados.
+- Cliente ocasional/sin registrar con Delivery o Retiro.
+- Telefono, sector, direccion y referencia guardados en la orden.
+- WhatsApp conectado a Configuracion -> WhatsApp.
+- Impresion especial para clientes ocasionales.
+- Empleado real seleccionable desde cuentas compartidas de estacion.
+- Cola de Carniceria calculada por empleado.
+- Ordenes nuevas/recientes visibles primero.
+- Vistas Requieren accion y Finalizadas.
+- Direccion y referencia editables en clientes actuales.
+- Sector con busqueda aproximada y alta controlada.
+- Compatibilidad con clientes y ordenes anteriores.
+
+NO REQUIERE SQL NUEVO.
+Conserva el SQL 34 aplicado en la V9.3.7.5.
+No elimina pesajes, empleados, usuarios, clientes, órdenes ni historiales.
+El instalador no reemplaza .env y crea un respaldo antes de copiar.
