@@ -1,0 +1,27 @@
+PRODUCTOS CESAR CRM - V9.3.8.4
+
+RENDIMIENTO PARA TABLETAS
+- Realtime ya no descarga las 28 tablas del CRM en cada evento.
+- Los módulos operativos actualizan solo órdenes y datos relacionados.
+- Validación, Delivery y Liquidación cargan lotes cuando los necesitan.
+- Órdenes, Alertas y Kanban cargan el seguimiento de casos cuando corresponde.
+- Clientes, Reportes, Auditoría y Configuración conservan la carga completa.
+
+ORDENES ANTIGUAS
+- Mantiene la fusión entre las 500 órdenes recientes y todas las pendientes.
+- Los créditos antiguos, órdenes en ruta y pendientes no desaparecen por antigüedad.
+- Las órdenes archivadas permanecen fuera de los módulos operativos.
+
+REALTIME Y POLLING
+- Realtime continúa como vía principal.
+- El polling solo funciona como respaldo cuando Realtime no está disponible.
+- Los eventos cercanos se agrupan durante 2.2 segundos para evitar descargas repetidas.
+
+BASE DE DATOS
+- SQL 42 agrega índices para órdenes, detalle, pesajes, pagos, historial y lotes.
+- No modifica ni elimina datos actuales.
+
+IMPORTANTE
+- Ejecuta UNA VEZ en Supabase:
+  supabase\sql\42_actualizacion_v9384_indices_rendimiento.sql
+- Debe ejecutarse después del SQL 41.
