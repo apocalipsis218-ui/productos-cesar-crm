@@ -1,0 +1,34 @@
+PRODUCTOS CESAR CRM - V9.3.7.7
+
+CORRECCIÓN PRINCIPAL
+- Corrige la eliminación de artículos desde Facturación.
+- Supabase ya no limita esa eliminación únicamente a administradores.
+- El sistema comprueba que las líneas anteriores fueron eliminadas realmente.
+- Si Supabase no autoriza el borrado, muestra el error y no continúa silenciosamente.
+- Cualquier cambio de productos o cantidades devuelve la orden a Carnicería.
+- La orden queda en estado Pedido recibido y vuelve a aparecer como Libre.
+- Las líneas restantes quedan Pendientes para confirmar su preparación.
+- Se limpian el peso preparado, facturado y validado de la composición anterior.
+- Carnicería registra un peso nuevo; Validación utiliza ese nuevo peso esperado.
+- El historial conserva la explicación del cambio.
+
+SQL OBLIGATORIO
+Después de instalar, ejecuta en Supabase SQL Editor:
+supabase/sql/35_actualizacion_v9377_edicion_detalle_facturacion.sql
+
+El SQL 35:
+- No elimina tablas ni órdenes.
+- No elimina clientes, empleados, usuarios o historiales.
+- Sustituye solamente la política DELETE de orden_detalle.
+- Exige permiso Editar en Órdenes, Control, Carnicería o Facturación.
+
+FLUJO CORRECTO DESPUÉS DE LA ACTUALIZACIÓN
+1. Reabrir la orden desde Validación hacia Facturación.
+2. Editar la orden y quitar o modificar un producto.
+3. Guardar la orden.
+4. La orden desaparece de Facturación y vuelve a Carnicería como Pedido recibido.
+5. Carnicería toma la orden, confirma los artículos restantes y registra el nuevo peso.
+6. Se envía nuevamente a Facturación.
+7. Se factura y pasa a Validación con el peso esperado actualizado.
+
+El instalador conserva .env y crea un respaldo antes de copiar.
