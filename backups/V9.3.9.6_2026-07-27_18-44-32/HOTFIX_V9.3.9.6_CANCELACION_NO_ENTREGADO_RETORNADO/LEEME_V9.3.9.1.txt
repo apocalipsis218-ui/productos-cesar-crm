@@ -1,0 +1,12 @@
+PRODUCTOS CESAR CRM - V9.3.9.1
+FALTANTES Y LIQUIDACION OCASIONAL AUDITADA
+
+1. Ejecuta APLICAR_V9391.ps1 desde PowerShell.
+2. Ejecuta en Supabase el SQL 44 después del SQL 43:
+   supabase\sql\44_actualizacion_v9391_faltantes_liquidacion_ocasional.sql
+3. Prueba cerrar un lote que contenga un cliente ocasional.
+4. En Carnicería marca un artículo Sin existencia y crea la orden pendiente.
+5. Confirma que el pendiente no entre a Carnicería hasta pulsar Liberar a Carnicería.
+6. Compila y publica con Wrangler.
+
+El instalador conserva el archivo .env y crea un respaldo.

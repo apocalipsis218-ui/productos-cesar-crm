@@ -1,0 +1,27 @@
+PRODUCTOS CESAR CRM - V9.3.8.2
+
+ESTADOS PROTEGIDOS
+- Supabase contiene el catálogo formal de transiciones autorizadas.
+- Un salto de etapa no autorizado queda bloqueado aunque se intente desde el navegador.
+- Cada transición exige que la orden continúe en el estado visto en pantalla.
+- Estado e historial se registran dentro de la misma transacción.
+
+CAMPOS CRÍTICOS
+- Protege la identidad original de la orden.
+- Preparación solo puede modificar sus campos desde Carnicería u Órdenes.
+- Facturación, Validación y Liquidación tienen controles por módulo.
+- La tabla de transiciones es de solo lectura para usuarios normales.
+
+FLUJOS ACTUALIZADOS
+- Toma concurrente de órdenes.
+- Liberación completa de la orden y sus líneas.
+- Facturación rápida y facturación manual.
+- Devolución desde Validación a Facturación.
+- Confirmación de retiro, resultados de Delivery y anulación.
+- Impresión y reimpresión auditadas.
+
+IMPORTANTE
+- Ejecuta UNA VEZ en Supabase:
+  supabase\sql\40_actualizacion_v9382_estados_protegidos.sql
+- Debe ejecutarse después del SQL 39.
+- No elimina órdenes, clientes, lotes, pesajes ni historial.

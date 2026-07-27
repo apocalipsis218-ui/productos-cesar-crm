@@ -1,0 +1,29 @@
+PRODUCTOS CESAR CRM - V9.3.8.3
+
+CANCELACIÓN SEGURA DE ÓRDENES
+- Las órdenes ya no se eliminan físicamente desde el sistema.
+- Una orden reciente sin avance se archiva y desaparece de la operación.
+- Una orden que avanzó se anula, pero conserva su información completa.
+- El motivo es obligatorio y queda registrado.
+
+PROTECCIONES
+- Solo Gerente/Administrador puede cancelar o archivar.
+- Bloquea órdenes que pertenezcan a un lote activo.
+- Bloquea órdenes con entregas o pagos registrados.
+- Protege contra DELETE las órdenes y el historial de estados.
+- La gestión vinculada puede revertirse sin destruir la orden.
+
+AUDITORÍA
+- Guarda un snapshot de cabecera, productos, pesajes, entregas y pagos.
+- Registra el cambio de estado y la excepción crítica en la misma transacción.
+- Los snapshots solo son consultables por administración.
+
+COMPATIBILIDAD
+- No modifica ni elimina órdenes o clientes actuales.
+- Las órdenes vigentes continúan editables según las reglas operativas.
+- Requiere que los SQL 39 y 40 ya estén aplicados.
+
+IMPORTANTE
+- Ejecuta UNA VEZ en Supabase:
+  supabase\sql\41_actualizacion_v9383_cancelacion_segura_ordenes.sql
+- Debe ejecutarse después del SQL 40.

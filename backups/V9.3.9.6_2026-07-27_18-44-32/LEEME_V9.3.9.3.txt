@@ -1,0 +1,10 @@
+PRODUCTOS CESAR CRM - V9.3.9.3
+
+1. Extraer el ZIP dentro de C:\Proyectos\productos-cesar-crm
+2. Ejecutar APLICAR_V9393.ps1
+3. Después de tener aplicados los SQL 45 y 46, ejecutar:
+   supabase\sql\47_actualizacion_v9393_no_entregados_a_validacion.sql
+4. Probar No entregado en recepción individual y en recepción por lote.
+
+La liquidación conserva el intento fallido. La orden vuelve a Validación
+pendiente de reasignación, conservando factura, pesaje y trazabilidad.

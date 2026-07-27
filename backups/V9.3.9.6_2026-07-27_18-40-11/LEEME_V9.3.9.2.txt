@@ -1,0 +1,13 @@
+PRODUCTOS CESAR CRM - V9.3.9.2
+DEVOLUCION PARCIAL POR ARTICULOS
+
+1. Ejecuta APLICAR_V9392.ps1 desde PowerShell.
+2. Ejecuta en Supabase el SQL 45 después del SQL 44:
+   supabase\sql\45_actualizacion_v9392_devolucion_parcial_articulos.sql
+3. Abre Liquidación y recibe individualmente al cliente que devolvió mercancía.
+4. Selecciona Devuelto parcial e indica artículo, cantidad, peso, destino y motivo.
+5. Confirma factura original, valor devuelto, total neto y peso neto.
+6. Cierra los demás clientes del lote y verifica el recibo.
+7. Compila y publica con Wrangler.
+
+El instalador conserva el archivo .env, crea un respaldo y reemplaza archivos por su ruta exacta.
