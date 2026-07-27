@@ -1,0 +1,35 @@
+PRODUCTOS CESAR CRM - V9.3.8.0
+
+ESTABILIDAD Y CONCURRENCIA
+- Impide que dos tabletas tomen la misma orden simultáneamente.
+- La asignación solo se confirma si la orden continúa libre y en el mismo estado.
+- Si otra estación gana la toma, el segundo usuario recibe un aviso claro.
+
+ÓRDENES PENDIENTES HISTÓRICAS
+- Conserva las 500 órdenes más recientes para las vistas generales.
+- Carga adicionalmente todas las órdenes que todavía no han terminado.
+- La consulta de pendientes se pagina para no depender del límite de Supabase.
+- Fusiona y elimina duplicados por ID antes de mostrar la información.
+
+HISTORIAL RESILIENTE
+- Comprueba el error real devuelto por Supabase.
+- Realiza un reintento corto cuando falla el registro.
+- Si continúa fallando, conserva el evento localmente para reintento automático.
+- Muestra un aviso; el fallo ya no queda oculto solamente en la consola.
+
+ACTUALIZACIÓN EN VIVO
+- Realtime continúa funcionando como antes.
+- El polling automático se pausa cuando Realtime está conectado.
+- Si Realtime falla, el polling vuelve a actuar como respaldo.
+
+RECUPERABILIDAD
+- Los SQL 19 al 32 fueron restaurados en supabase\sql.
+- Todas las copias históricas disponibles fueron comparadas por SHA-256.
+- Se documentó el orden canónico de reconstrucción.
+- Se aclaró cuál SQL 01 y cuál SQL 18 utilizar.
+
+IMPORTANTE
+- Esta versión NO requiere ejecutar un SQL nuevo en Supabase.
+- NO vuelvas a ejecutar los SQL 19 al 32 en producción.
+- Su inclusión corrige la cadena documental para restauraciones futuras.
+- El instalador conserva .env y crea un respaldo antes de copiar.
