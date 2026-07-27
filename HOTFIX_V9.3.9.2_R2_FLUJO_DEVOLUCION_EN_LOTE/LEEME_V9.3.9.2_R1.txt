@@ -1,0 +1,10 @@
+PRODUCTOS CESAR CRM - V9.3.9.2 R1
+
+Corrección de integración en Liquidación:
+- Muestra Devuelto parcial dentro de Recibir lote por cotejo.
+- Exige abrir Detallar artículos antes de aceptar la devolución.
+- Registra producto, cantidad, peso, destino y motivo mediante el flujo V9.3.9.2.
+- Impide cerrar el lote usando solamente una diferencia de efectivo.
+- Después de recibir el cliente con devolución, permite continuar con los demás clientes del lote.
+
+No requiere SQL adicional. El SQL 45 debe estar aplicado.
