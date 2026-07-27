@@ -1,0 +1,11 @@
+PRODUCTOS CESAR CRM - V9.3.9.0
+CONSOLIDACION TECNICA AUDITADA
+
+1. Ejecuta APLICAR_V9390.ps1 desde PowerShell.
+2. Ejecuta en Supabase el SQL 43 después del SQL 42:
+   supabase\sql\43_actualizacion_v9390_configuracion_concurrencia.sql
+3. Prueba guardar una configuración y verifica que otra tableta la reciba.
+4. Prueba órdenes, Carnicería, Facturación, Validación, Delivery y Liquidación.
+5. Compila y publica con Wrangler.
+
+El instalador conserva el archivo .env y crea un respaldo.

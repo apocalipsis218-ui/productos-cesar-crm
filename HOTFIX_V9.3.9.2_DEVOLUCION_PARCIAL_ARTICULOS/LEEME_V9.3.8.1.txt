@@ -1,0 +1,18 @@
+PRODUCTOS CESAR CRM - V9.3.8.1
+
+GUARDADO TRANSACCIONAL
+- Crear o editar una orden guarda encabezado, artículos, historial y gestión vinculada en una sola transacción.
+- Si falla cualquier parte, la base revierte toda la operación.
+- Ya no puede quedar una orden sin artículos por un fallo intermedio.
+
+CARNICERÍA / PREPARACIÓN
+- Los artículos, encabezado, pesaje, estado e historial se guardan juntos.
+- La orden se bloquea durante la operación para evitar dos guardados simultáneos.
+- Se comprueba que el detalle no cambió mientras se preparaba.
+- Si la orden avanzó desde otra estación, el guardado se detiene y solicita actualizar.
+
+IMPORTANTE
+- Después de aplicar el paquete, ejecuta UNA VEZ en Supabase:
+  supabase\sql\39_actualizacion_v9381_guardado_transaccional.sql
+- El SQL 39 es aditivo: no elimina órdenes, clientes, detalles ni historial.
+- El instalador conserva .env y crea un respaldo antes de copiar.
