@@ -8,3 +8,6 @@ dist/
 *.zip
 .DS_Store
 Thumbs.db
+
+# Archivos temporales de Cloudflare Wrangler
+.wrangler/
