@@ -1,0 +1,48 @@
+PRODUCTOS CÉSAR CRM · V9.3.9.7
+
+ACTUALIZACIÓN DE SEGURIDAD OPERATIVA
+
+Esta versión:
+
+1. Elimina la política heredada ordenes_all y otras políticas *_all
+   del flujo de órdenes.
+2. Impide crear órdenes nuevas en estados avanzados o finales.
+3. Valida en Supabase quién toma, prepara y libera cada orden.
+4. Mantiene compatibles las tabletas V9.3.9.6 durante la actualización.
+5. Crea los casos especiales junto con sus historiales en una sola
+   transacción.
+6. Retira el acceso directo a RPC antiguas de Liquidación, sin borrar
+   las funciones que todavía usan internamente las RPC vigentes.
+7. Verifica la cadena transaccional y de seguridad de los SQL 39–49,
+   incluida la excepción controlada de pendientes del SQL 44.
+
+ORDEN DE INSTALACIÓN
+
+1. Ejecutar APLICAR_V9397.ps1.
+2. Confirmar que npm test y npm run build terminen correctamente.
+3. Ejecutar en Supabase:
+
+   supabase\sql\50_actualizacion_v9397_endurecimiento_seguridad.sql
+
+4. Verificar que el resultado muestre:
+
+   politica_permisiva_eliminada = true
+   toma_segura = true
+   casos_transaccionales = true
+   rpc_antigua_retirada = true
+   version = 9.3.9.7
+
+5. Publicar con:
+
+   npx.cmd wrangler deploy
+
+6. Actualizar cada computadora y tableta. La aplicación debe mostrar
+   V9.3.9.7 PWA.
+
+No ejecutar otra vez los SQL 01–49.
+
+PENDIENTE PARA UNA ACTUALIZACIÓN POSTERIOR
+
+- Sustituir la dependencia xlsx vulnerable mediante una migración probada.
+- Diseñar el cierre de cobros posteriores de clientes a crédito.
+- Optimizar la consulta histórica cuando el volumen real lo requiera.

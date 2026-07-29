@@ -1,0 +1,12 @@
+PRODUCTOS CESAR CRM - V9.3.9.4
+
+Incluye:
+- Historial habilitado en Facturación con filtros por fecha, estado, responsable y búsqueda.
+- El botón Detallar artículos solo existe al seleccionar Devuelto parcial.
+- El valor devuelto, total neto y peso neto se recalculan antes de escribir el motivo.
+- El botón Guardar devolución muestra validación dentro de la ficha y regresa al lote.
+
+Instalación:
+1. Extraer el ZIP en C:\Proyectos\productos-cesar-crm
+2. Ejecutar APLICAR_V9394.ps1
+3. No requiere SQL nuevo. Deben estar aplicados los SQL 45, 46 y 47.

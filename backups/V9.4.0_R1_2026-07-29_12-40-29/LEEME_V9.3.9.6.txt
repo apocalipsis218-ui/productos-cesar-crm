@@ -1,0 +1,25 @@
+PRODUCTOS CÉSAR CRM · V9.3.9.6
+
+Esta actualización corrige la cancelación de órdenes que:
+
+1. Fueron recibidas como No entregado.
+2. Regresaron a Validación para reasignación.
+3. Conservan correctamente el lote anterior como historial.
+
+El SQL 49 distingue un lote activo de un lote Cerrado, Revertido o
+Transferido totalmente. También permite cancelar la orden retornada
+solamente cuando todos sus intentos fueron No entregado y no existe
+ningún cobro, crédito ni devolución parcial.
+
+No borra:
+
+- Lote anterior.
+- Intento de entrega.
+- Factura.
+- Artículos.
+- Pesajes.
+- Historial de estados.
+
+Después de instalar, ejecutar en Supabase:
+
+supabase\sql\49_actualizacion_v9396_cancelar_no_entregado_retornado.sql
