@@ -62,3 +62,12 @@ Después del SQL 42, ejecutar una sola vez:
 `43_actualizacion_v9390_configuracion_concurrencia.sql`
 
 Agrega guardado global transaccional, revisión e historial privado de la configuración. No elimina datos.
+
+La V9.4.0 R1 agrega el SQL 52 y la R2 agrega el SQL 53. Ambos ya forman
+parte de la cadena de producción y no deben repetirse.
+
+La V9.4.0 R3 agrega el SQL 54. Debe ejecutarse una sola vez después del SQL
+53. Elimina la creación anticipada de órdenes desde llamadas, guarda llamada,
+orden y artículos en una transacción idempotente, protege la programación de
+órdenes procesadas y registra las reprogramaciones. No modifica las órdenes
+históricas sin artículos.

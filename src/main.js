@@ -20,6 +20,7 @@ import { allocateCxcOldest, normalizeManualCxcApplications, cxcApplicationsTotal
 // V9.4.0 · CXC formal, cobros posteriores, recibos numerados y cartera ligera.
 // V9.4.0 R1 · Toma segura de órdenes programadas cuando llega su fecha.
 // V9.4.0 R2 · Validación centralizada del área operativa del despachador.
+// V9.4.0 R3 · Guardado atómico desde llamadas y programación protegida.
 // Conserva factura, pesaje e historial del intento fallido.
 // Control conservado: Pulsa “Detallar artículos” para registrar producto, cantidad y peso.
 // V9.3.9.1 · Faltantes con seguimiento y liquidación segura de clientes ocasionales.
@@ -3674,14 +3675,12 @@ function openCallModal(c=null, call=null){
       const obs=($('#callObs',m).value||'').trim();
       const row={cliente_id:+cid,fecha:$('#callFecha',m).value||today(),hora:($('#callHora',m).value||new Date().toTimeString().slice(0,5)),vendedor:cl?.vendedor||state.profile.vendedor,resultado:'Pidió',monto:+$('#callMonto',m).value||0,proximo_contacto:$('#callProximo',m).value||null,observacion:obs||'Pedido creado desde gestión de llamada.'};
       $('#callResult',m).value='Pidió';
-      const r=await sb.from('llamadas').insert(row).select('id').single();
-      if(r.error) throw new Error(r.error.message+'\n\nNo se creó la orden porque primero debe guardarse la gestión como “Pidió”.');
-      const extra={initialTotal:+$('#callMonto',m).value||0,initialNotas:obs,fromCall:true,fromCallId:r.data.id};
-      if(callDraftKey) clearDraftLocal(callDraftKey);
+      const operationToken=globalThis.crypto?.randomUUID?.();
+      if(!operationToken) throw new Error('Este navegador no pudo generar el identificador seguro de la operación. Actualiza la aplicación e inténtalo nuevamente.');
+      const extra={initialTotal:+$('#callMonto',m).value||0,initialNotas:obs,fromCall:true,fromCallDraft:{...row,idempotencia_token:operationToken},sourceCallDraftKey:callDraftKey};
       m.remove();
-      await refreshVisibleModuleV9384();
       openOrderForm(null,cl,extra);
-      toast('Gestión guardada como “Pidió”. Completa y guarda la orden.');
+      toast('Completa la orden. La gestión y el pedido se guardarán juntos al confirmar.');
     }catch(e){
       alert(e.message||e);
       createBtn.dataset.busy='0';
@@ -3806,10 +3805,11 @@ function openOrderForm(o=null, client=null, extra={}){
   const initialCustomerType=o?orderCustomerType(o):'Registrado';
   const initialDeliveryMode=o?orderDeliveryMode(o):appCfg('flujos.modalidadPredeterminada','Delivery');
   const allowInternalSales=appCfg('flujos.permitirVentasInternas',true)!==false;
+  const scheduleEditable=!o || ['Programada','Pedido recibido'].includes(o.estado) || isAdminRole();
   const adminFields = adminAdvanced ? `<div class="order-section admin-section"><div class="section-title">Datos administrativos</div><div class="hint">Estos campos pertenecen al cierre del flujo. Úsalos solo para correcciones administrativas.</div><div class="grid2"><div class="field"><label>Factura No.</label><input id="ordFactura" value="${esc(o?.factura_no||'')}"></div><div class="field"><label>Delivery</label>${deliveryOptions.length?`<select id="ordDelivery"><option value="">Sin asignar</option>${deliveryOptions.map(n=>`<option ${n===selectedDelivery?'selected':''}>${esc(n)}</option>`).join('')}<option value="__manual__" ${selectedDelivery&&!deliveryOptions.includes(selectedDelivery)?'selected':''}>Otro / manual</option></select><input id="ordDeliveryManual" value="${selectedDelivery&&!deliveryOptions.includes(selectedDelivery)?esc(selectedDelivery):''}" placeholder="Nombre del delivery" style="margin-top:8px;${selectedDelivery&&!deliveryOptions.includes(selectedDelivery)?'':'display:none'}">`:`<input id="ordDelivery" value="${esc(selectedDelivery)}" placeholder="Nombre del delivery">`}</div></div></div>` : `<input type="hidden" id="ordFactura" value="${esc(o?.factura_no||'')}"><input type="hidden" id="ordDelivery" value="${esc(selectedDelivery)}"><input type="hidden" id="ordDeliveryManual" value="">`;
   const body=`<div class="form order-form-pro order-form-r10"><input type="hidden" id="ordTotal" value="${currentTotal}">
     <div class="order-section order-client-section-r10"><div class="section-title">1. Cliente e identificación</div><div class="grid2 order-customer-mode-grid"><div class="field"><label>Tipo de cliente</label><select id="ordCustomerType"><option value="Registrado" ${initialCustomerType==='Registrado'?'selected':''}>Cliente registrado</option><option value="Ocasional" ${initialCustomerType==='Ocasional'?'selected':''}>Cliente ocasional / sin registrar</option><option value="Venta interna" ${initialCustomerType==='Venta interna'?'selected':''}>Venta interna / mostrador</option></select></div><div class="field"><label>Modalidad de entrega</label><select id="ordDeliveryMode"><option value="Delivery" ${initialDeliveryMode==='Delivery'?'selected':''}>Delivery</option><option value="Retiro en negocio" ${initialDeliveryMode==='Retiro en negocio'?'selected':''}>Retiro en negocio</option><option value="No aplica" ${initialDeliveryMode==='No aplica'?'selected':''}>No aplica</option></select></div></div><div id="registeredClientBlock" class="field relative"><label>Cliente registrado</label><input id="ordClientText" autocomplete="off" data-lpignore="true" data-form-type="other" value="${esc(client?client.codigo+' · '+client.negocio:(o?.cliente?o.cliente.codigo+' · '+o.cliente.negocio:''))}" placeholder="Buscar nombre del cliente..."><input type="hidden" id="ordClientId" value="${client?.id||o?.cliente_id||''}"><div id="ordSuggest" class="suggest" style="display:none"></div></div><div id="temporaryClientBlock" style="display:none"><div class="grid2"><div class="field"><label>Nombre del comprador *</label><input id="ordInternalName" maxlength="120" value="${esc(initialCustomerType!=='Registrado'?orderClientName(o):'')}" placeholder="Nombre obligatorio"></div><div class="field"><label>Teléfono</label><input id="ordInternalPhone" maxlength="30" value="${esc(initialCustomerType!=='Registrado'?orderClientPhone(o):'')}" placeholder="Obligatorio para delivery"></div></div><div id="occasionalAddressBlock" style="display:none"><div class="grid2"><div class="field"><label>Sector *</label><input id="ordOccasionalSector" list="orderSectorOptions" value="${esc(isOccasionalCustomer(o)?orderClientSector(o):'')}" placeholder="Escribe para buscar"><datalist id="orderSectorOptions">${sectorValues().map(v=>`<option value="${esc(v)}">`).join('')}</datalist></div><div class="field"><label>Dirección completa *</label><input id="ordOccasionalAddress" value="${esc(isOccasionalCustomer(o)?orderClientAddress(o):'')}" placeholder="Calle, número y ubicación"></div></div><div class="field"><label>Referencia de ubicación</label><input id="ordOccasionalReference" value="${esc(isOccasionalCustomer(o)?orderClientReference(o):'')}" placeholder="Ej.: casa azul, frente a la escuela"></div></div></div><div id="customerFlowNote" class="weight-alert info"></div></div>
-    <div class="order-section order-schedule-section-r10"><div class="section-title">2. Programación del pedido</div><div class="grid3"><div class="field"><label>Fecha despacho</label><input id="ordFechaDespacho" type="date" value="${esc(o?.fecha_despacho||today())}"></div><div class="field"><label>Hora despacho</label><input id="ordHoraDespacho" type="time" value="${esc((o?.hora_despacho||'').slice(0,5))}"></div><div class="field"><label>Prioridad</label><select id="ordPrioridad"><option ${(!o?.prioridad||o?.prioridad==='Normal')?'selected':''}>Normal</option><option ${o?.prioridad==='Alta'?'selected':''}>Alta</option><option ${o?.prioridad==='Urgente'?'selected':''}>Urgente</option></select></div></div><div class="grid3 order-type-grid" style="margin-top:12px"><div class="field order-type-main"><label>Tipo de orden</label><select id="ordTipoOrden">${orderTypes().map(t=>`<option value="${esc(t)}" ${(orderType(o||{tipo_orden:extra.tipo_orden||'Pedido normal'})===t)?'selected':''}>${esc(t)}</option>`).join('')}</select></div><div class="field order-flow-detail-r10"><label>Preparación</label><input id="ordReqPrepInfo" readonly></div><div class="field order-flow-detail-r10"><label>Facturación</label><input id="ordReqFactInfo" readonly></div></div><div id="orderTypeNote" class="weight-alert info"></div><div id="programNote" class="weight-alert" style="display:none"><strong>Pedido programado</strong>Esta orden tiene fecha futura. No aparecerá en Carnicería hasta la fecha de despacho.</div>${orderStateControlHtml(o)}</div>
+    <div class="order-section order-schedule-section-r10"><div class="section-title">2. Programación del pedido</div><div class="grid3"><div class="field"><label>Fecha despacho</label><input id="ordFechaDespacho" type="date" value="${esc(o?.fecha_despacho||today())}" ${scheduleEditable?'':'disabled'}></div><div class="field"><label>Hora despacho</label><input id="ordHoraDespacho" type="time" value="${esc((o?.hora_despacho||'').slice(0,5))}" ${scheduleEditable?'':'disabled'}></div><div class="field"><label>Prioridad</label><select id="ordPrioridad"><option ${(!o?.prioridad||o?.prioridad==='Normal')?'selected':''}>Normal</option><option ${o?.prioridad==='Alta'?'selected':''}>Alta</option><option ${o?.prioridad==='Urgente'?'selected':''}>Urgente</option></select></div></div><div class="grid3 order-type-grid" style="margin-top:12px"><div class="field order-type-main"><label>Tipo de orden</label><select id="ordTipoOrden">${orderTypes().map(t=>`<option value="${esc(t)}" ${(orderType(o||{tipo_orden:extra.tipo_orden||'Pedido normal'})===t)?'selected':''}>${esc(t)}</option>`).join('')}</select></div><div class="field order-flow-detail-r10"><label>Preparación</label><input id="ordReqPrepInfo" readonly></div><div class="field order-flow-detail-r10"><label>Facturación</label><input id="ordReqFactInfo" readonly></div></div><div id="orderTypeNote" class="weight-alert info"></div><div id="programNote" class="weight-alert" style="display:none"><strong>Pedido programado</strong>Esta orden tiene fecha futura. No aparecerá en Carnicería hasta la fecha de despacho.</div>${orderStateControlHtml(o)}</div>
     ${adminFields}
     <div class="order-section order-products-section-r10"><div class="section-title">3. Productos solicitados</div><div class="order-builder professional"><div class="order-entry"><div class="order-stage-grid pro"><div class="field relative wide"><label>Producto</label><input id="newItemName" autocomplete="off" data-lpignore="true" data-form-type="other" placeholder="Buscar producto o escribir manualmente"><input type="hidden" id="newItemPid"><div id="newItemSuggest" class="suggest" style="display:none"></div></div><div class="field"><label>Cantidad</label><input id="newItemQty" type="number" step="0.01" value="1"></div><div class="field"><label>Unidad</label><div id="newItemUnitDisplay" class="calc-box unit-display">lb</div><input id="newItemUnit" value="lb" type="hidden"></div><div class="field"><label>Precio</label><input id="newItemPrice" type="number" step="0.01" value="0"></div></div><div class="field order-item-note-entry"><label>Corte / observación del artículo</label><input id="newItemNote" maxlength="180" placeholder="Ej.: cortar pequeño, moler dos veces, empacar separado"></div><div class="actions" style="margin-top:12px"><button type="button" class="btn dark" id="addStagedItem">Agregar producto</button><button type="button" class="btn gray" id="addManualItem">Agregar no listado</button><button type="button" class="btn gray" id="clearStage">Limpiar entrada</button></div></div><div class="order-total-card order-total-readonly"><div><span class="count" id="orderItemCount">0 productos</span><div class="big-total" id="orderBigTotal">RD$ 0</div><div class="hint">Total estimado automático. No se edita manualmente en creación; Facturación registra la factura final.</div></div></div></div><div id="orderItems" class="order-summary-list professional"></div></div>
     <details class="order-section order-notes-details-r10" ${(o?.nota_programacion||o?.notas||extra.initialNotas)?'open':''}><summary>4. Notas adicionales</summary><div class="order-notes-content-r10"><div class="field"><label>Nota de programación</label><textarea id="ordNotaProgramacion" placeholder="Ejemplo: cliente pidió para el lunes temprano.">${esc(o?.nota_programacion||'')}</textarea></div><div class="field"><label>Notas internas</label><textarea id="ordNotas">${esc(o?.notas||extra.initialNotas||'')}</textarea></div></div></details><button class="btn save-order-btn" id="saveOrder">Guardar orden</button></div>`;
@@ -3897,7 +3897,7 @@ function openOrderForm(o=null, client=null, extra={}){
   addBtn.onclick=()=>addFromStage(false);
   manualBtn.onclick=()=>addFromStage(true);
   drawItems(); focusSelect(nameInp);
-  const orderDraftKey=draftKey(o?'orden_editar':'orden', o?.id || extra.fromCallId || client?.id || 'nueva');
+  const orderDraftKey=draftKey(o?'orden_editar':'orden', o?.id || extra.fromCallDraft?.idempotencia_token || client?.id || 'nueva');
   attachOrderDraft(m, orderDraftKey, ()=>({
     customerType:$('#ordCustomerType',m)?.value||'Registrado', deliveryMode:$('#ordDeliveryMode',m)?.value||'Delivery', internalName:$('#ordInternalName',m)?.value||'', internalPhone:$('#ordInternalPhone',m)?.value||'', occasionalSector:$('#ordOccasionalSector',m)?.value||'', occasionalAddress:$('#ordOccasionalAddress',m)?.value||'', occasionalReference:$('#ordOccasionalReference',m)?.value||'', clientText:$('#ordClientText',m)?.value||'', clientId:$('#ordClientId',m)?.value||'', fechaDespacho:$('#ordFechaDespacho',m)?.value||today(), horaDespacho:$('#ordHoraDespacho',m)?.value||'', prioridad:$('#ordPrioridad',m)?.value||'Normal', total:$('#ordTotal',m)?.value||0, factura:$('#ordFactura',m)?.value||'', delivery:$('#ordDelivery',m)?.value||'', deliveryManual:$('#ordDeliveryManual',m)?.value||'', notaProgramacion:$('#ordNotaProgramacion',m)?.value||'', notas:$('#ordNotas',m)?.value||'', lineItems:lineItems, stage:{name:$('#newItemName',m)?.value||'',pid:$('#newItemPid',m)?.value||'',qty:$('#newItemQty',m)?.value||1,unit:$('#newItemUnit',m)?.value||'lb',price:$('#newItemPrice',m)?.value||0,note:$('#newItemNote',m)?.value||''}
   }), data=>{
@@ -3923,7 +3923,14 @@ function openOrderForm(o=null, client=null, extra={}){
     if(data.stage){ $('#newItemName',m).value=data.stage.name||''; $('#newItemPid',m).value=data.stage.pid||''; $('#newItemQty',m).value=data.stage.qty||1; $('#newItemUnit',m).value=data.stage.unit||'lb'; const uDisp=$('#newItemUnitDisplay',m); if(uDisp) uDisp.textContent=data.stage.unit||'lb'; $('#newItemPrice',m).value=data.stage.price||0; if($('#newItemNote',m)) $('#newItemNote',m).value=data.stage.note||''; }
     syncScheduleUi(); syncCustomerModeUi();
   });
-  $('#saveOrder',m).onclick=async()=>{
+  const saveOrderBtn=$('#saveOrder',m);
+  saveOrderBtn.onclick=async()=>{
+    if(saveOrderBtn.dataset.busy==='1') return;
+    saveOrderBtn.dataset.busy='1';
+    saveOrderBtn.disabled=true;
+    const saveOrderText=saveOrderBtn.textContent;
+    saveOrderBtn.textContent='Guardando orden...';
+    try{
     const customerType=$('#ordCustomerType',m)?.value||'Registrado';
     const deliveryMode=$('#ordDeliveryMode',m)?.value||'Delivery';
     const cid=$('#ordClientId',m).value;
@@ -3974,17 +3981,29 @@ function openOrderForm(o=null, client=null, extra={}){
     const historyComment=composition.changed?`Composición modificada después del pesaje${removedNames?`; productos eliminados: ${removedNames}`:''}. Se invalidaron los pesos posteriores y la orden requiere confirmación y nuevo pesaje en Carnicería.`:null;
     const baseObs=String(extra.initialNotas||'').trim();
     const provisionalCode=o?.codigo||'la nueva orden';
-    const callObservation=extra.fromCallId?(baseObs?baseObs+'\n\n':'')+`Orden ${provisionalCode} creada desde esta gestión. Total: ${money(total)}.`:null;
-    const saved=await sb.rpc('guardar_orden_v9381',{p_orden_id:o?.id||null,p_llamada_id:extra.fromCallId||null,p_orden:row,p_items:clean,p_composicion_cambio:!!(o&&composition.changed),p_comentario:historyComment,p_llamada_observacion:callObservation});
-    if(saved.error) return alert('No se pudo guardar la orden completa: '+saved.error.message+'\n\nVerifica que aplicaste el SQL 39 de la actualización anterior.');
+    const callObservation=extra.fromCallDraft?(baseObs?baseObs+'\n\n':'')+`Orden ${provisionalCode} creada desde esta gestión. Total: ${money(total)}.`:null;
+    const saved=extra.fromCallDraft
+      ? await sb.rpc('guardar_orden_desde_llamada_v940r3',{p_llamada:extra.fromCallDraft,p_orden:row,p_items:clean,p_llamada_observacion:callObservation})
+      : await sb.rpc('guardar_orden_v9381',{p_orden_id:o?.id||null,p_llamada_id:null,p_orden:row,p_items:clean,p_composicion_cambio:!!(o&&composition.changed),p_comentario:historyComment,p_llamada_observacion:null});
+    if(saved.error) return alert('No se pudo guardar la orden completa: '+saved.error.message+'\n\nSi el mensaje indica una actualización pendiente, verifica que esté aplicado el SQL 54 de la V9.4.0 R3.');
     const savedRow=Array.isArray(saved.data)?saved.data[0]:saved.data;
     const orderId=savedRow?.id||o?.id;
     const orderCode=savedRow?.codigo||o?.codigo||('ORD-'+orderId);
     clearDraftLocal(orderDraftKey);
+    if(extra.sourceCallDraftKey) clearDraftLocal(extra.sourceCallDraftKey);
     const orderWasUpdate=!!o;
-    m.remove(); await refreshVisibleModuleV9384(); render(); toast(extra.fromCallId?'Gestión y orden guardadas correctamente':'Orden guardada con '+clean.length+' producto(s)');
+    m.remove(); await refreshVisibleModuleV9384(); render(); toast(extra.fromCallDraft?'Gestión y orden guardadas correctamente':'Orden guardada con '+clean.length+' producto(s)');
     const savedOrder=state.ordenes.find(x=>String(x.id)===String(orderId));
     if(savedOrder) maybeOfferOrderWhatsApp(savedOrder,orderWasUpdate?'actualizacion':'confirmacion');
+    }catch(e){
+      alert(e?.message||e||'No se pudo guardar la orden.');
+    }finally{
+      if(saveOrderBtn.isConnected){
+        saveOrderBtn.dataset.busy='0';
+        saveOrderBtn.disabled=false;
+        saveOrderBtn.textContent=saveOrderText;
+      }
+    }
   };
 }
 

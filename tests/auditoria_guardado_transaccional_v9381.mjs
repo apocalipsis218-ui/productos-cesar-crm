@@ -16,7 +16,7 @@ const checks=[
   ['RPC protegidas',/revoke all on function public\.guardar_orden_v9381/.test(sql)&&/grant execute on function public\.guardar_preparacion_v9381/.test(sql)],
   ['frontend ya no borra detalle antes de guardar',!main.includes("sb.from('orden_detalle').delete().eq('orden_id',o.id)")],
   ['frontend ya no guarda preparación línea por línea',!main.includes("sb.from('orden_detalle').update(payload).eq('id',id)")],
-  ['errores exigen SQL 39',main.includes('SQL 39 de la actualización anterior')]
+  ['errores orientan a la actualización vigente',!main.includes('SQL 39 de la actualización anterior')&&main.includes('SQL 54 de la V9.4.0 R3')]
 ];
 
 for(const [name,ok] of checks){
