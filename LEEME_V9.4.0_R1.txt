@@ -1,0 +1,26 @@
+PRODUCTOS CESAR CRM - V9.4.0 R1
+TOMA SEGURA DE ORDENES PROGRAMADAS
+
+CORRECCION
+- Permite tomar una orden Programada cuando su fecha de despacho ya llego.
+- Mantiene bloqueadas las ordenes programadas para fechas futuras.
+- Valida la fecha en el servidor con horario de Republica Dominicana.
+- Conserva la identidad del despachador, el limite de cola y la auditoria.
+- Integra la correccion final del SQL 51 sin tablas temporales.
+
+ORDEN DE APLICACION
+1. Extraer el ZIP directamente dentro de:
+   C:\Proyectos\productos-cesar-crm
+
+2. Ejecutar:
+   powershell -ExecutionPolicy Bypass `
+     -File .\HOTFIX_V9.4.0_R1_ORDENES_PROGRAMADAS\APLICAR_V940_R1.ps1
+
+3. Aplicar en Supabase:
+   supabase\sql\52_actualizacion_v940_r1_ordenes_programadas.sql
+
+4. Confirmar que los cinco controles devuelvan true.
+
+5. Publicar solamente despues de confirmar el SQL 52.
+
+NO VOLVER A EJECUTAR LOS SQL 50 NI 51.

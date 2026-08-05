@@ -1,0 +1,27 @@
+PRODUCTOS CÉSAR CRM · V9.4.0 R2
+VALIDACIÓN CENTRALIZADA DE ÁREAS OPERATIVAS
+
+CORRECCIÓN
+- Evita el falso rechazo de empleados activos cuya área principal o adicional
+  es Carnicería.
+- La autorización se consulta directamente por empleado_id en la base.
+- La RPC de toma y el disparador de identidad usan la misma función.
+- Continúan vigentes el límite de tres órdenes, el bloqueo de empleados
+  inactivos, el control de concurrencia y las fechas programadas.
+
+ORDEN DE INSTALACIÓN
+1. Extraer la carpeta del hotfix dentro de la raíz del proyecto.
+2. Ejecutar APLICAR_V940_R2.ps1.
+3. Ejecutar únicamente el SQL 53 en Supabase.
+4. Publicar con npx.cmd wrangler deploy.
+5. Actualizar el CRM y probar nuevamente la toma de la orden.
+
+NO REPETIR
+- SQL 50
+- SQL 51
+- SQL 52
+
+ARCHIVOS CLAVE
+- supabase/sql/53_actualizacion_v940_r2_validacion_areas_carniceria.sql
+- tests/auditoria_validacion_areas_v940_r2.mjs
+- APLICAR_V940_R2.ps1

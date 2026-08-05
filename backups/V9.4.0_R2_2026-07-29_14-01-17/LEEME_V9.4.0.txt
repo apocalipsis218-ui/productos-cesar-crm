@@ -1,0 +1,50 @@
+PRODUCTOS CÉSAR CRM · V9.4.0
+
+CXC Y COBROS POSTERIORES
+
+Esta versión:
+
+1. Separa las cuentas por cobrar de las órdenes operativas pendientes.
+2. Muestra saldo por cliente, factura, vencimiento, días de atraso y antigüedad.
+3. Registra cobros posteriores mediante recibos numerados.
+4. Permite aplicar el dinero manualmente por factura o a las más antiguas.
+5. Bloquea abonos mayores que el saldo y cobros sin aplicación completa.
+6. Conserva saldo anterior, monto aplicado y saldo restante.
+7. Acepta efectivo, transferencia y mixto; exige referencia cuando corresponde.
+8. Permite reversión solo a Administración/Gerencia, con motivo y auditoría.
+9. Conserva los movimientos reversados; no borra recibos ni aplicaciones.
+10. Optimiza la consulta histórica para no cargar créditos cerrados como trabajo operativo.
+
+ORDEN DE INSTALACIÓN
+
+1. Ejecutar APLICAR_V940.ps1.
+2. Confirmar que npm test y npm run build terminen correctamente.
+3. Ejecutar en Supabase:
+
+   supabase\sql\51_actualizacion_v940_cxc_cobros_posteriores.sql
+
+4. Verificar que el resultado muestre:
+
+   cobro_transaccional = true
+   reversion_auditada = true
+   cartera_disponible = true
+   escritura_directa_bloqueada = true
+   version = 9.4.0
+
+5. Publicar con:
+
+   npx.cmd wrangler deploy
+
+6. Actualizar cada computadora y tableta. La aplicación debe mostrar
+   V9.4.0 PWA.
+
+PRUEBAS FUNCIONALES
+
+1. Abrir Liquidación / CXC → Cuentas por cobrar.
+2. Elegir un cliente con saldo y pulsar Registrar cobro.
+3. Probar “Más antiguas primero” con un abono parcial.
+4. Confirmar el recibo, el saldo restante y el historial de cobros.
+5. Con un usuario Administrador/Gerente, reversar un recibo de prueba y
+   verificar que el saldo se restituye.
+
+No ejecutar otra vez los SQL 01–50.
