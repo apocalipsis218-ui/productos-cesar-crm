@@ -12,7 +12,7 @@ function ok(cond,label){
   console.log('OK - '+label);
 }
 
-ok(/^(?:9\.3\.(?:[1-9]\d*)(?:\.\d+)?|9\.4\.0)$/.test(pkg.version),'package conserva la PWA desde V9.3.1');
+ok(/^(?:9\.3\.(?:[1-9]\d*)(?:\.\d+)?|9\.4\.[0-9]+)$/.test(pkg.version),'package conserva la PWA desde V9.3.1');
 ok(pkg.devDependencies?.['vite-plugin-pwa'],'vite-plugin-pwa instalado');
 ok(vite.includes("registerType: 'prompt'"),'actualización controlada por aviso');
 ok(vite.includes("display: 'standalone'"),'manifest abre como aplicación independiente');
@@ -20,7 +20,7 @@ ok(vite.includes("handler: 'NetworkOnly'") && vite.includes('supabase'),'Supabas
 ok(vite.includes('cleanupOutdatedCaches: true'),'cachés anteriores se limpian');
 ok(vite.includes('maximumFileSizeToCacheInBytes'),'bundle principal incluido de forma explícita');
 ok(main.includes("import { initPwa } from './pwa.js';") && main.includes('initPwa();'),'PWA integrada al arranque');
-ok(/V(?:9\.3\.(?:[1-9]|\d{2,})(?:\.\d+)?|9\.4\.0) PWA/.test(main),'versión PWA actual visible');
+ok(/V(?:9\.3\.(?:[1-9]|\d{2,})(?:\.\d+)?|9\.4\.[0-9]+) PWA/.test(main),'versión PWA actual visible');
 ok(pwa.includes('beforeinstallprompt'),'instalación desde la aplicación');
 ok(pwa.includes('onNeedRefresh'),'aviso de nueva versión');
 ok(pwa.includes('onOfflineReady'),'confirmación de estructura disponible');

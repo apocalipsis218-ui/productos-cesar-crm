@@ -17,7 +17,7 @@ assert.throws(()=>calculatePartialReturn(3000,[{name:'Paleta',maxQty:2,qty:3,pri
 assert.throws(()=>calculatePartialReturn(3000,[{name:'Paleta',maxQty:20,qty:20,price:150,weight:20}]),/No entregado/);
 
 const checks=[
-  ['versión 9.3.9.2 o superior',/^(?:9\.3\.9\.(?:[2-9]|\d{2,})|9\.4\.0)$/.test(pkg.version)],
+  ['versión 9.3.9.2 o superior',/^(?:9\.3\.9\.(?:[2-9]|\d{2,})|9\.4\.[0-9]+)$/.test(pkg.version)],
   ['modal por artículos',/partialReturnRowsHtml/.test(main)&&/data-return-detail/.test(main)],
   ['RPC conectada',/registrar_devolucion_parcial_v9392/.test(main)],
   ['batch muestra devolución con puente al detalle',/const opts=\['Cobrado','Entregado a crédito','Devuelto parcial','No entregado'\]/.test(main)&&/data-batch-partial/.test(main)&&/openBatchPartialReturnModal\(o/.test(main)],

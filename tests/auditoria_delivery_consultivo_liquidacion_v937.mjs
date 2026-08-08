@@ -13,7 +13,7 @@ const sql=fs.readFileSync(new URL('../supabase/30_actualizacion_v937_delivery_co
 const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
 
 const checks=[
-  ['versión V9.3.7 o superior visible',/V(?:9\.3\.(?:7(?:\.[123456789])?|8\.\d+|9\.\d+)|9\.4\.0) PWA/.test(main) && /^(?:9\.3\.(?:7(?:\.[123456789])?|8\.\d+|9\.\d+)|9\.4\.0)$/.test(pkg.version)],
+  ['versión V9.3.7 o superior visible',/V(?:9\.3\.(?:7(?:\.[123456789])?|8\.\d+|9\.\d+)|9\.4\.[0-9]+) PWA/.test(main) && /^(?:9\.3\.(?:7(?:\.[123456789])?|8\.\d+|9\.\d+)|9\.4\.[0-9]+)$/.test(pkg.version)],
   ['Delivery marcado como consulta',/Delivery consultivo/.test(main)],
   ['Delivery no emite botones de ruta o resultados',/function deliveryActionButtons\(o\)\{\s*return `<button class="btn small gray" data-oper-order=/.test(main)],
   ['Liquidación tiene panel de viajes pendientes',/deliveryPendingPanelHtml/.test(main) && /delivery-pending-strip-v937/.test(css)],

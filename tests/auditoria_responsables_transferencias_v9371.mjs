@@ -18,7 +18,7 @@ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const pkg=fs.readFileSync(new URL('../package.json',import.meta.url),'utf8');
 
 const checks=[
-  ['marcador V9.3.7.1 o superior visible',/V(?:9\.3\.(?:7\.(?:1|2|3|4|5|6|7|8|9)|8\.\d+|9\.\d+)|9\.4\.0) PWA/.test(main)&&/V(?:9\.3\.(?:7\.(?:1|2|3|4|5|6|7|8|9)|8\.\d+|9\.\d+)|9\.4\.0) PWA/.test(pwa)&&/V(?:9\.3\.(?:7\.(?:1|2|3|4|5|6|7|8|9)|8\.\d+|9\.\d+)|9\.4\.0) PWA/.test(html)],
+  ['marcador V9.3.7.1 o superior visible',/V(?:9\.3\.(?:7\.(?:1|2|3|4|5|6|7|8|9)|8\.\d+|9\.\d+)|9\.4\.[0-9]+) PWA/.test(main)&&/V(?:9\.3\.(?:7\.(?:1|2|3|4|5|6|7|8|9)|8\.\d+|9\.\d+)|9\.4\.[0-9]+) PWA/.test(pwa)&&/V(?:9\.3\.(?:7\.(?:1|2|3|4|5|6|7|8|9)|8\.\d+|9\.\d+)|9\.4\.[0-9]+) PWA/.test(html)],
   ['responsable formal en Validación',/Responsable del viaje/.test(main)&&/tripResponsibleOptions/.test(main)],
   ['manual y otro empleado disponibles',/manual_externo/.test(helperSource)&&/otro_empleado/.test(helperSource)&&/Otros empleados/.test(main)],
   ['responsables manuales alimentan filtros',/mergeResponsibleNames/.test(main)&&/function activeDeliveryNames\(\)\{ return allTripResponsibleNames\(\); \}/.test(main)],

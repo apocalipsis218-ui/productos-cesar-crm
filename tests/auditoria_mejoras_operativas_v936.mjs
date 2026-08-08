@@ -6,7 +6,7 @@ const css=fs.readFileSync(new URL('../src/styles.css',import.meta.url),'utf8');
 const sql=fs.readFileSync(new URL('../supabase/28_actualizacion_v936_correccion_lotes.sql',import.meta.url),'utf8');
 const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
 const checks=[
- ['versión V9.3.6 o superior visible',/V(?:9\.3\.(?:6|7(?:\.[123456789])?|8(?:\.\d+)?|9(?:\.\d+)?)|9\.4\.0) PWA/.test(main)],
+ ['versión V9.3.6 o superior visible',/V(?:9\.3\.(?:6|7(?:\.[123456789])?|8(?:\.\d+)?|9(?:\.\d+)?)|9\.4\.[0-9]+) PWA/.test(main)],
  ['lotes plegables en Validación',/data-validation-lot-toggle/.test(main)&&/validationLots/.test(main)],
  ['lotes activos plegables en Delivery',/data-delivery-active-toggle/.test(main)&&/deliveryActive/.test(main)],
  ['lotes pendientes plegables en Liquidación',/data-liq-pending-toggle/.test(main)&&/liquidacionPending/.test(main)],

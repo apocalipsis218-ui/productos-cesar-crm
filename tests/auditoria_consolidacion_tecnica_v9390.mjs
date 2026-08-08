@@ -8,13 +8,13 @@ const installer=fs.readFileSync('APLICAR_V9390.ps1','utf8');
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 
 const checks=[
-  ['versión V9.3.9.0 o superior sincronizada',/^(?:9\.3\.9\.[0-9]+|9\.4\.0)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
+  ['versión V9.3.9.0 o superior sincronizada',/^(?:9\.3\.9\.[0-9]+|9\.4\.[0-9]+)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
   ['conexión solo desde variables de entorno',/VITE_SUPABASE_URL/.test(main)&&/VITE_SUPABASE_ANON_KEY/.test(main)&&!main.includes('jmcbaduxjrzfnesbslmp.supabase.co')&&!main.includes('sb_publishable_')],
   ['configuración incompleta se bloquea',main.includes('Configuración incompleta: define VITE_SUPABASE_URL')],
   ['configuración remota es autoritativa',/normalizeSystemConfig\(cfgPatch\)/.test(main)],
   ['guardado global usa RPC transaccional',main.includes("sb.rpc('guardar_configuracion_v9390'")],
   ['fallo no conserva cambio local',main.includes('Ningún cambio local fue aplicado')],
-  ['configuración se sincroniza por Realtime',main.includes("table:'sistema_configuracion'")&&main.includes('refreshSystemConfigV9390')],
+  ['configuración se sincroniza por Realtime',(main.includes("table:'sistema_configuracion'")||main.includes('realtimeTablesForPageV942'))&&main.includes('refreshSystemConfigV9390')],
   ['diálogo integrado reemplaza alertas nativas',main.includes('window.alert=appAlert')&&css.includes('.app-alert-card-v9390')],
   ['zona horaria dominicana centralizada',main.includes("BUSINESS_TIME_ZONE = 'America/Santo_Domingo'")&&main.includes('function businessDateTime')&&main.includes('function businessTime')],
   ['perfil administrativo no se inventa por correo',!main.includes("email==='apocalipsis218@gmail.com'")],

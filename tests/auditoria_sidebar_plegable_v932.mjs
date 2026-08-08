@@ -10,8 +10,8 @@ const css=read('src/styles.css');
 const pkg=JSON.parse(read('package.json'));
 const ok=(cond,msg)=>{ if(!cond){ console.error('ERROR - '+msg); process.exit(1); } console.log('OK - '+msg); };
 
-ok((Number(pkg.version.split('.')[0])===9 && Number(pkg.version.split('.')[1])===3 && Number(pkg.version.split('.')[2])>=2)||pkg.version==='9.4.0','package V9.3.2 o superior');
-ok(/V(?:9\.3\.(?:[2-9]|\d{2,})(?:\.\d+)?|9\.4\.0) PWA/.test(main),'versión V9.3.2 o superior visible');
+ok((Number(pkg.version.split('.')[0])===9 && Number(pkg.version.split('.')[1])===3 && Number(pkg.version.split('.')[2])>=2)||/^9\.4\.\d+$/.test(pkg.version),'package V9.3.2 o superior');
+ok(/V(?:9\.3\.(?:[2-9]|\d{2,})(?:\.\d+)?|9\.4\.[0-9]+) PWA/.test(main),'versión V9.3.2 o superior visible');
 ok(main.includes("pc_sidebar_collapsed_v932"),'preferencia local por dispositivo');
 ok(main.includes('id="sidebarToggle"'),'botón para ocultar y mostrar la barra');
 ok(main.includes('aria-controls="appSidebar"'),'botón accesible conectado al menú');

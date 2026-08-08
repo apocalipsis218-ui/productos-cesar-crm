@@ -24,7 +24,7 @@ const result=calculatePartialReturn(6020.4,[{
 assert.equal(result.returnedAmount,1500);
 assert.equal(result.netTotal,4520.4);
 assert.equal(result.returnedWeight,10);
-assert.match(pkg.version,/^(?:9\.3\.9\.(?:[4-9]|\d{2,})|9\.4\.0)$/);
+assert.match(pkg.version,/^(?:9\.3\.9\.(?:[4-9]|\d{2,})|9\.4\.[0-9]+)$/);
 assert.match(pkg.scripts.pretest,/auditoria_facturacion_devoluciones_v9394\.mjs/);
 
 console.log('Auditoría Facturación y Devoluciones V9.3.9.4 aprobada.');

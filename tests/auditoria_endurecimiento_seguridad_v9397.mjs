@@ -10,9 +10,9 @@ const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),
 
 const checks=[
   ['versión V9.3.9.7 o superior sincronizada',
-    ['9.3.9.7','9.4.0'].includes(pkg.version) && main.includes('V9.3.9.7') &&
-    /APP_VERSION = 'V(?:9\.3\.9\.7|9\.4\.0) PWA'/.test(pwa) &&
-    /V(?:9\.3\.9\.7|9\.4\.0) PWA/.test(html)],
+    /^(?:9\.3\.9\.7|9\.4\.\d+)$/.test(pkg.version) && main.includes('V9.3.9.7') &&
+    /APP_VERSION = 'V(?:9\.3\.9\.7|9\.4\.[0-9]+) PWA'/.test(pwa) &&
+    /V(?:9\.3\.9\.7|9\.4\.[0-9]+) PWA/.test(html)],
   ['SQL 44–49 verificados',
     /guardar_preparacion_faltantes_v9391/.test(sql) &&
     /registrar_devolucion_parcial_v9392/.test(sql) &&

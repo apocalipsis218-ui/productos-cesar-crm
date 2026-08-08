@@ -29,7 +29,7 @@ ok('detalle sin campos económicos',!bodyOf('orderDetailWithoutPrices').match(/\
 ok('plantilla bloquea variables económicas',bodyOf('sanitizeOrderWhatsAppTemplate').includes('monto|precio|precios|subtotal|total|factura'));
 ok('no envía silenciosamente',bodyOf('showOrderWhatsAppPrompt').includes('Abrir WhatsApp') && bodyOf('openOrderWhatsApp').includes('window.open'));
 ok('auditoría dice preparado',bodyOf('logOrderWhatsAppPrepared').includes('WhatsApp preparado'));
-ok('auditoría no cambia el estado',bodyOf('logOrderWhatsAppPrepared').includes('estado_anterior:o.estado') && bodyOf('logOrderWhatsAppPrepared').includes("estado_nuevo:o.estado"));
+ok('auditoría no cambia el estado',bodyOf('logOrderWhatsAppPrepared').includes("sb.rpc('registrar_evento_orden_v942'") && !bodyOf('logOrderWhatsAppPrepared').includes('p_estado'));
 ok('órdenes anuladas bloqueadas',bodyOf('openOrderWhatsApp').includes("o.estado==='Anulado'"));
 ok('solo pedidos normales',bodyOf('openOrderWhatsApp').includes('isCommercialNormalOrder(o)'));
 ok('diseño de vista previa móvil',css.includes('V9.3.0 R7 - Confirmación de órdenes por WhatsApp') && css.includes('.wa-order-preview'));

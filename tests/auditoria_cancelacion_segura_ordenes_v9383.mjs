@@ -6,7 +6,7 @@ const sql=fs.readFileSync(new URL('../supabase/sql/41_actualizacion_v9383_cancel
 const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
 
 const checks=[
-  ['versión V9.3.9.0 o superior sincronizada',/^(?:9\.3\.9\.[0-9]+|9\.4\.0)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
+  ['versión V9.3.9.0 o superior sincronizada',/^(?:9\.3\.9\.[0-9]+|9\.4\.[0-9]+)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
   ['columnas de archivado aditivas',/add column if not exists archivada boolean/.test(sql)&&/motivo_anulacion text/.test(sql)],
   ['snapshot privado antes de cancelar',/create table if not exists public\.orden_archivos_v9383/.test(sql)&&/'orden',to_jsonb\(v_o\)/.test(sql)],
   ['solo administración cancela',/Solo Gerente\/Administrador puede cancelar o archivar órdenes/.test(sql)],

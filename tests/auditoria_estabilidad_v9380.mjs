@@ -24,7 +24,8 @@ assert.ok(
 );
 assert.match(main,/if\(!takenRows\?\.length\)/,'Debe detectar que otra estación ganó la toma.');
 assert.match(main,/fetchPendingOrdersV9380/,'Debe cargar pendientes históricos paginados.');
-assert.match(main,/PENDING_HISTORY_KEY_V9380/,'Debe conservar localmente el historial que no pudo enviarse.');
+assert.doesNotMatch(main,/PENDING_HISTORY_KEY_V9380/,'El historial sensible no debe quedar en localStorage.');
+assert.match(main,/registrar_evento_orden_v942/,'Los eventos deben registrarse mediante RPC protegida.');
 assert.match(main,/shouldRunFallbackPolling/,'Realtime debe suspender el polling redundante.');
 
 for(let n=19;n<=32;n+=1){
@@ -35,7 +36,7 @@ for(let n=19;n<=32;n+=1){
 console.log('OK - fusión real de órdenes recientes y pendientes');
 console.log('OK - órdenes antiguas pendientes permanecen visibles');
 console.log('OK - toma condicional impide doble asignación');
-console.log('OK - historial fallido queda pendiente para reintento');
+console.log('OK - historial sensible sale de localStorage y usa RPC protegida');
 console.log('OK - polling se pausa cuando Realtime está en vivo');
 console.log('OK - cadena SQL 19-32 recuperada');
 console.log('Auditoría de estabilidad V9.3.9.0 aprobada.');

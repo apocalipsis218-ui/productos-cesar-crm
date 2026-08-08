@@ -15,7 +15,7 @@ const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),
 const sql=fs.readFileSync(new URL('../supabase/sql/51_actualizacion_v940_cxc_cobros_posteriores.sql',import.meta.url),'utf8');
 
 const checks=[
-  ['versión V9.4.0 sincronizada',pkg.version==='9.4.0'&&main.includes('V9.4.0 PWA')&&pwa.includes("APP_VERSION = 'V9.4.0 PWA'")&&html.includes('V9.4.0 PWA')],
+  ['versión V9.4.x sincronizada',/^9\.4\.\d+$/.test(pkg.version)&&main.includes('V9.4.0 · CXC formal')&&pwa.includes(`APP_VERSION = 'V${pkg.version} PWA'`)&&html.includes(`V${pkg.version} PWA`)],
   ['cartera formal por orden',/cxc_saldo_inicial/.test(sql)&&/cxc_pagado_acumulado/.test(sql)&&/cxc_vencimiento/.test(sql)&&/cxc_estado/.test(sql)],
   ['backfill compatible con SQL Editor',
     /v_triggers_activos/.test(sql)&&

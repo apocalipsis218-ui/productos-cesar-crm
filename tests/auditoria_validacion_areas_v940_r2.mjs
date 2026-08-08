@@ -72,7 +72,7 @@ const checks=[
   ],
   [
     'mensaje de interfaz deja de culpar al SQL 52',
-    !/verifica que aplicaste el SQL 52 de la V9\.4\.0 R1/.test(main) &&
+    !/verifica que aplicaste el SQL 52 de la V9\.4\.[0-9]+ R1/.test(main) &&
     /área principal y sus áreas adicionales/.test(main)
   ],
   [
@@ -83,7 +83,7 @@ const checks=[
     'controles finales identifican versión R2',
     /validacion_area_centralizada/.test(sql) &&
     /funcion_area_activa/.test(sql) &&
-    /'9\.4\.0 R2' as version/.test(sql)
+    /'9\.4\.[0-9]+ R2' as version/.test(sql)
   ],
   [
     'instalador exige SQL 53 y auditoría R2',

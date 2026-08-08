@@ -1,6 +1,6 @@
 import { registerSW } from 'virtual:pwa-register';
 
-const APP_VERSION = 'V9.4.0 PWA';
+const APP_VERSION = 'V9.4.2 PWA';
 const UPDATE_INTERVAL_MS = 60 * 60 * 1000;
 
 let deferredInstallPrompt = null;

@@ -8,8 +8,8 @@ const pwa=fs.readFileSync(new URL('../src/pwa.js',import.meta.url),'utf8');
 const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
 function ok(cond,msg){ if(!cond){console.error('FALLO - '+msg);process.exit(1);} console.log('OK - '+msg); }
 
-ok(/^(?:9\.3\.(?:[5-9]|[1-9]\d+)(?:\.\d+)?|9\.4\.0)$/.test(pkg.version),'package actualizado a V9.3.5');
-ok(/V(?:9\.3\.9\.[0-9]+|9\.4\.0) PWA/.test(main)&&/APP_VERSION = 'V(?:9\.3\.9\.[0-9]+|9\.4\.0) PWA'/.test(pwa),'versión V9.3.5 PWA o revisión visible');
+ok(/^(?:9\.3\.(?:[5-9]|[1-9]\d+)(?:\.\d+)?|9\.4\.[0-9]+)$/.test(pkg.version),'package actualizado a V9.3.5');
+ok(/V(?:9\.3\.9\.[0-9]+|9\.4\.[0-9]+) PWA/.test(main)&&/APP_VERSION = 'V(?:9\.3\.9\.[0-9]+|9\.4\.[0-9]+) PWA'/.test(pwa),'versión V9.3.5 PWA o revisión visible');
 ok(main.includes("data-quick-invoice=\"${o.id}\"")&&!/function renderFacturacion[\s\S]*?data-invoice-order=/.test(main.match(/function renderFacturacion[\s\S]*?\n\}/)?.[0]||''),'Facturación usa acción rápida sin abrir formulario');
 ok(main.includes("button.dataset.processing='1'")&&main.includes("button.disabled=true")&&main.includes("Procesando..."),'protección contra doble clic');
 ok(main.includes("p_estado_esperado:transition.oldState")&&main.includes("p_estado_nuevo:transition.nextState"),'actualización condicionada al estado vigente');

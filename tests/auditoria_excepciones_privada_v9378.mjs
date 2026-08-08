@@ -30,7 +30,7 @@ assert.equal(summary.critical,1);
 assert.equal(summary.followup,1);
 
 const checks=[
-  ['versión V9.3.9.0 o superior',/^(?:9\.3\.9\.[0-9]+|9\.4\.0)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
+  ['versión V9.3.9.0 o superior',/^(?:9\.3\.9\.[0-9]+|9\.4\.[0-9]+)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
   ['módulo privado por rol',/id==='auditoria' && !isAuditAdministrator/.test(main)],
   ['motivo obligatorio en interfaz',/Motivo obligatorio/.test(main)&&/Mínimo 5 caracteres/.test(main)],
   ['operación se detiene si falla auditoría',/La operación fue detenida/.test(main)],
