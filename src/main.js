@@ -14,6 +14,7 @@ import { isAuditAdministrator, normalizeExceptionPayload, exceptionSummary } fro
 import { mergeRecentAndPendingOrders, shouldRunFallbackPolling } from './stabilityV9380.js';
 import { calculatePartialReturn, deliveredQuantity, netDeliveredWeight, partialReturnMeasure, returnedWeightForMeasure } from './partialReturnsV9392.js';
 import { allocateCxcOldest, normalizeManualCxcApplications, cxcApplicationsTotal, groupCxcAccounts, cxcPortfolioSummary } from './cxcV940.js';
+import { auxTablesForPageV942, boundedOrderIdsV942, changedOrderIdV942, isOperationalPageV942, realtimeTablesForPageV942, removeRowByIdV942, upsertRowByIdV942 } from './runtimeDataV942.js';
 // Compatibilidad de auditoría: V9.2.15 permanece integrada en la V9.3.0 Mobile First.
 // Compatibilidad histórica de auditorías: V9.2.14 · Operación y tiempos | V9.2.15 · Ventas, clientes, productos y CRM.
 // V9.3.9.7 · Endurecimiento de seguridad operativa.
@@ -22,6 +23,7 @@ import { allocateCxcOldest, normalizeManualCxcApplications, cxcApplicationsTotal
 // V9.4.0 R2 · Validación centralizada del área operativa del despachador.
 // V9.4.0 R3 · Guardado atómico desde llamadas y programación protegida.
 // V9.4.2 PWA · R1: escrituras críticas cerradas y trazabilidad atómica en servidor.
+// V9.4.2 PWA · R2: carga por módulo, RLS eficiente y Realtime incremental.
 // Conserva factura, pesaje e historial del intento fallido.
 // Control conservado: Pulsa “Detallar artículos” para registrar producto, cantidad y peso.
 // V9.3.9.1 · Faltantes con seguimiento y liquidación segura de clientes ocasionales.
@@ -166,7 +168,7 @@ function setupKeyboardShortcuts(){
     if(e.ctrlKey && e.key.toLowerCase()==='s'){ const m=document.querySelector('.modal-backdrop:last-child'); const btn=m?.querySelector('.btn:not(.gray):not(.dark), button.btn:not(.gray):not(.dark)'); if(btn){ e.preventDefault(); btn.click(); return; } }
     if(!e.ctrlKey || !e.altKey) return;
     const k=e.key.toLowerCase();
-    const go=p=>{ e.preventDefault(); state.page=p; render(); };
+    const go=p=>{ e.preventDefault(); navigateToPageV942(p); };
     if(k==='o') return go('ordenes');
     if(k==='c') return go('clientes');
     if(k==='l') return go('liquidacion');
@@ -247,7 +249,7 @@ function saveBatchRowDraft(row){
 }
 function clearValidationBatchDraft(){ state.validationBatchDraft=emptyValidationBatchDraft(); saveValidationBatchDraftLocal(); }
 
-const state = {session:null,user:null,profile:null,page:'inicio',clientes:[],llamadas:[],productos:[],ordenes:[],cobranza:[],plantillas:[],catalogos:{},deliverys:[],empleados:[],pesos:[],entregas:[],pagos:[],historialEstados:[],auditExceptions:[],auditExceptionsSchemaOk:false,entregaLotes:[],entregaLoteDetalle:[],entregaDocumentosHistorial:[],liquidacionesLotes:[],liquidacionLoteDetalle:[],casosHistorial:[],deliveryLotCorrections:[],liquidacionLotEvents:[],deliveryTransfers:[],liquidacionSchemaOk:false,validacionR5SchemaOk:false,v936SchemaOk:false,v937SchemaOk:false,v9371SchemaOk:false,cxcSaldos:[],cxcCobros:[],cxcAplicaciones:[],cxcSchemaOk:false,cxcLoadedAt:0,cxcLoading:null,cxcSearch:'',cxcStatusFilter:'Pendientes',cxcAgingFilter:'Todas',cxcHistorySearch:'',cxcHistoryLimit:20,specialSearch:'',specialStatusFilter:'Todos',specialTypeFilter:'Todos',modulos:[],permisos:[],usuarios:[],usuarioModulos:[],errors:[],filter:'Todos',clientSearch:'',productSearch:'',productFilter:'Todos',productCategoryFilter:'Todas',productUnitFilter:'Todas',productWeightFilter:'Todos',modal:null,configTab:'general',controlTab:'gestiones',controlDate:today(),agendaDate:today(),callSearch:'',followPage:0,followSize:8,deliveryFiltro:'',orderSearch:'',carniceriaSearch:'',facturacionSearch:'',facturacionTab:'pendientes',facturacionHistorySearch:'',facturacionHistoryFrom:today().slice(0,8)+'01',facturacionHistoryTo:today(),facturacionHistoryStatus:'Todos',facturacionHistoryWorker:'Todos',validacionSearch:'',validacionTab:'pendientes',validationHistoryFrom:today(),validationHistoryTo:today(),validationHistoryDelivery:'',validationHistorySearch:'',pickupSearch:'',pickupHistorySearch:'',deliverySearch:'',deliveryTab:'activos',deliveryHistorySearch:'',deliveryHistoryLimit:10,liquidacionDeliveryFilter:'',liquidacionSearch:'',liqHistorySearch:'',liquidacionHistoryLimit:10,liquidacionTab:'pendientes',liqHistFrom:today(),liqHistTo:today(),deliveryHistoryFrom:today(),deliveryHistoryTo:today(),historyUi:loadHistoryUi(),orderView:'recientes',carniceriaTab:'libres',ui:loadUi(),weightConfig:loadWeightConfigLocal(),systemConfig:loadSystemConfigLocal(),liveStatus:'inactivo',liveLastRefresh:null,liveNotices:[],liveUnread:0,liveSound:localStorage.getItem('pc_live_sound_v61')==='1',liveLoading:false,liveFlashOrders:{},reportTab:'resumen',reportPreset:'mes',reportFrom:today().slice(0,8)+'01',reportTo:today(),reportStatus:'Todos',reportSeller:'Todos',reportZone:'Todas',reportClient:'Todos',reportProduct:'Todos',reportPayment:'Todas',prodMonth:String(new Date().getMonth()+1),prodYear:String(new Date().getFullYear()),prodRole:'Todos',auditSearch:'',auditType:'todos',auditExceptionSearch:'',auditExceptionStatus:'Todos',auditExceptionSeverity:'Todas',auditExceptionFrom:today().slice(0,8)+'01',auditExceptionTo:today(),alertSearch:'',alertLevel:'todos',kanbanSearch:'',kanbanClosedLimit:10,kanbanClosedHidden:false,kanbanHistorySearch:'',kanbanHistoryPeriod:'todos',kanbanHistoryStatus:'Todos',kanbanHistoryFrom:'',kanbanHistoryTo:'',kanbanHistoryPage:0,kanbanHistoryPageSize:25,userSearch:'',userRoleFilter:'Todos',userStatusFilter:'Todos',userLinkFilter:'Todos',kanbanMobileStage:'recibido',mobileMoreOpen:false,validationBatchDraft:loadValidationBatchDraftLocal()};
+const state = {session:null,user:null,profile:null,page:'inicio',clientes:[],llamadas:[],productos:[],ordenes:[],cobranza:[],plantillas:[],catalogos:{},deliverys:[],empleados:[],pesos:[],entregas:[],pagos:[],historialEstados:[],auditExceptions:[],auditExceptionsSchemaOk:false,entregaLotes:[],entregaLoteDetalle:[],entregaDocumentosHistorial:[],liquidacionesLotes:[],liquidacionLoteDetalle:[],casosHistorial:[],deliveryLotCorrections:[],liquidacionLotEvents:[],deliveryTransfers:[],liquidacionSchemaOk:false,validacionR5SchemaOk:false,v936SchemaOk:false,v937SchemaOk:false,v9371SchemaOk:false,cxcSaldos:[],cxcCobros:[],cxcAplicaciones:[],cxcSchemaOk:false,cxcLoadedAt:0,cxcLoading:null,cxcSearch:'',cxcStatusFilter:'Pendientes',cxcAgingFilter:'Todas',cxcHistorySearch:'',cxcHistoryLimit:20,specialSearch:'',specialStatusFilter:'Todos',specialTypeFilter:'Todos',modulos:[],permisos:[],usuarios:[],usuarioModulos:[],errors:[],loadedScopes:{},moduleLoading:null,filter:'Todos',clientSearch:'',productSearch:'',productFilter:'Todos',productCategoryFilter:'Todas',productUnitFilter:'Todas',productWeightFilter:'Todos',modal:null,configTab:'general',controlTab:'gestiones',controlDate:today(),agendaDate:today(),callSearch:'',followPage:0,followSize:8,deliveryFiltro:'',orderSearch:'',carniceriaSearch:'',facturacionSearch:'',facturacionTab:'pendientes',facturacionHistorySearch:'',facturacionHistoryFrom:today().slice(0,8)+'01',facturacionHistoryTo:today(),facturacionHistoryStatus:'Todos',facturacionHistoryWorker:'Todos',validacionSearch:'',validacionTab:'pendientes',validationHistoryFrom:today(),validationHistoryTo:today(),validationHistoryDelivery:'',validationHistorySearch:'',pickupSearch:'',pickupHistorySearch:'',deliverySearch:'',deliveryTab:'activos',deliveryHistorySearch:'',deliveryHistoryLimit:10,liquidacionDeliveryFilter:'',liquidacionSearch:'',liqHistorySearch:'',liquidacionHistoryLimit:10,liquidacionTab:'pendientes',liqHistFrom:today(),liqHistTo:today(),deliveryHistoryFrom:today(),deliveryHistoryTo:today(),historyUi:loadHistoryUi(),orderView:'recientes',carniceriaTab:'libres',ui:loadUi(),weightConfig:loadWeightConfigLocal(),systemConfig:loadSystemConfigLocal(),liveStatus:'inactivo',liveLastRefresh:null,liveNotices:[],liveUnread:0,liveSound:localStorage.getItem('pc_live_sound_v61')==='1',liveLoading:false,liveFlashOrders:{},reportTab:'resumen',reportPreset:'mes',reportFrom:today().slice(0,8)+'01',reportTo:today(),reportStatus:'Todos',reportSeller:'Todos',reportZone:'Todas',reportClient:'Todos',reportProduct:'Todos',reportPayment:'Todas',prodMonth:String(new Date().getMonth()+1),prodYear:String(new Date().getFullYear()),prodRole:'Todos',auditSearch:'',auditType:'todos',auditExceptionSearch:'',auditExceptionStatus:'Todos',auditExceptionSeverity:'Todas',auditExceptionFrom:today().slice(0,8)+'01',auditExceptionTo:today(),alertSearch:'',alertLevel:'todos',kanbanSearch:'',kanbanClosedLimit:10,kanbanClosedHidden:false,kanbanHistorySearch:'',kanbanHistoryPeriod:'todos',kanbanHistoryStatus:'Todos',kanbanHistoryFrom:'',kanbanHistoryTo:'',kanbanHistoryPage:0,kanbanHistoryPageSize:25,userSearch:'',userRoleFilter:'Todos',userStatusFilter:'Todos',userLinkFilter:'Todos',kanbanMobileStage:'recibido',mobileMoreOpen:false,validationBatchDraft:loadValidationBatchDraftLocal()};
 const navItems = [
   ['inicio','Inicio','Resumen general'],['control','Control','Llamadas y gestiones'],['clientes','Clientes','Ficha y WhatsApp'],['ordenes','Órdenes','Panel completo'],
   ['carniceria','Carnicería','Preparar y pesar'],['facturacion','Facturación','Imprimir y facturar'],['validacion','Validación','Asignar responsables'],['delivery','Delivery','Mis pedidos'],['liquidacion','Liquidación','Cobros y CXC'],['alertas','Alertas','Centro operativo'],['kanban','Kanban','Tablero de órdenes'],
@@ -318,7 +320,7 @@ function openMobileMoreMenu(items){
   overlay.innerHTML=`<div class="mobile-more-backdrop" data-mobile-close></div><div class="mobile-more-sheet"><div class="mobile-sheet-handle"></div><div class="mobile-more-head"><div><b>Más opciones</b><span>${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span></div><button type="button" class="close" data-mobile-close aria-label="Cerrar">×</button></div><div class="mobile-more-scroll">${modules||'<div class="empty compact">No hay otros módulos disponibles.</div>'}</div><div class="mobile-account-actions"><button type="button" class="btn gray" data-mobile-profile>Perfil</button><button type="button" class="btn gray" data-mobile-refresh>Actualizar</button><button type="button" class="btn dark" data-mobile-logout>Salir</button></div></div>`;
   document.body.appendChild(overlay);
   $$('[data-mobile-close]',overlay).forEach(b=>b.onclick=closeMobileMore);
-  $$('[data-mobile-page]',overlay).forEach(b=>b.onclick=()=>{state.page=b.dataset.mobilePage;closeMobileMore();render();});
+  $$('[data-mobile-page]',overlay).forEach(b=>b.onclick=()=>{const page=b.dataset.mobilePage;closeMobileMore();navigateToPageV942(page);});
   $('[data-mobile-profile]',overlay).onclick=()=>{closeMobileMore();openMyAccess();};
   $('[data-mobile-refresh]',overlay).onclick=async()=>{await refreshVisibleModuleV9384();state.liveLastRefresh=new Date().toISOString();closeMobileMore();render();toast('Datos actualizados');};
   $('[data-mobile-logout]',overlay).onclick=async()=>{await sb.auth.signOut();teardownLiveUpdates();state.session=null;state.user=null;closeMobileMore();renderLogin();};
@@ -435,6 +437,7 @@ async function ensureCxcDataV940(force=false){
 }
 
 let liveChannel=null, livePollTimer=null, liveRefreshTimer=null;
+let liveSubscribedSignature='', liveChangedOrderIds=new Set();
 function liveStatusText(){
   const s=state.liveStatus||'inactivo';
   if(s==='en vivo') return 'En vivo';
@@ -529,18 +532,17 @@ function setupLiveUpdates(){
   if(!state.user) return;
   state.liveStatus='conectando';
   state.liveLastRefresh=new Date().toISOString();
+  const tables=realtimeTablesForPageV942(state.page,state.liquidacionTab);
+  liveSubscribedSignature=`${state.page}|${state.liquidacionTab||''}|${tables.join(',')}`;
   try{
-    liveChannel=sb.channel('productos_cesar_ordenes_v61_'+state.user.id)
-      .on('postgres_changes',{event:'*',schema:'public',table:'ordenes'},handleLiveOrderChange)
-      .on('postgres_changes',{event:'*',schema:'public',table:'orden_detalle'},p=>handleLiveAuxChange(p,'Detalle de orden actualizado'))
-      .on('postgres_changes',{event:'*',schema:'public',table:'orden_pesos'},p=>handleLiveAuxChange(p,'Pesaje actualizado'))
-      .on('postgres_changes',{event:'*',schema:'public',table:'orden_entregas'},p=>handleLiveAuxChange(p,'Entrega actualizada'))
-      .on('postgres_changes',{event:'*',schema:'public',table:'orden_pagos'},p=>handleLiveAuxChange(p,'Pago actualizado'))
-      .on('postgres_changes',{event:'*',schema:'public',table:'cxc_cobros'},p=>{state.cxcLoadedAt=0;handleLiveAuxChange(p,'Cobro CXC actualizado');})
-      .on('postgres_changes',{event:'*',schema:'public',table:'cxc_cobro_aplicaciones'},p=>{state.cxcLoadedAt=0;handleLiveAuxChange(p,'Aplicación CXC actualizada');})
-      .on('postgres_changes',{event:'*',schema:'public',table:'orden_estados_historial'},p=>handleLiveAuxChange(p,'Historial actualizado'))
-      .on('postgres_changes',{event:'*',schema:'public',table:'sistema_configuracion'},()=>refreshSystemConfigV9390())
-      .subscribe(status=>{
+    let channel=sb.channel('pc_v942_'+state.user.id+'_'+simpleHash(liveSubscribedSignature));
+    tables.forEach(table=>{
+      const callback=table==='ordenes' ? handleLiveOrderChange
+        : table==='sistema_configuracion' ? ()=>refreshSystemConfigV9390()
+        : payload=>handleLiveAuxChange(payload,table);
+      channel=channel.on('postgres_changes',{event:'*',schema:'public',table},callback);
+    });
+    liveChannel=channel.subscribe(status=>{
         if(status==='SUBSCRIBED') state.liveStatus='en vivo';
         else if(['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(status)) state.liveStatus='polling';
         else state.liveStatus='conectando';
@@ -551,15 +553,24 @@ function setupLiveUpdates(){
 }
 function teardownLiveUpdates(){
   if(liveChannel){ try{ sb.removeChannel(liveChannel); }catch(e){} liveChannel=null; }
-  if(livePollTimer){ clearInterval(livePollTimer); livePollTimer=null; }
+  if(livePollTimer){ clearTimeout(livePollTimer); livePollTimer=null; }
   if(liveRefreshTimer){ clearTimeout(liveRefreshTimer); liveRefreshTimer=null; }
+  liveChangedOrderIds.clear();
+  liveSubscribedSignature='';
   state.liveStatus='inactivo';
 }
 function startLivePolling(){
-  if(livePollTimer) clearInterval(livePollTimer);
-  livePollTimer=setInterval(()=>{
-    if(shouldRunFallbackPolling({hasUser:Boolean(state.user),liveStatus:state.liveStatus})) refreshLiveData('Revisión automática',false);
-  },pollSeconds()*1000);
+  if(livePollTimer) clearTimeout(livePollTimer);
+  const schedule=()=>{
+    const jitter=.85+(Math.random()*.30);
+    livePollTimer=setTimeout(async()=>{
+      if(document.visibilityState!=='hidden' && shouldRunFallbackPolling({hasUser:Boolean(state.user),liveStatus:state.liveStatus})){
+        await refreshLiveData('Revisión automática',false);
+      }
+      if(state.user) schedule();
+    },Math.round(pollSeconds()*1000*jitter));
+  };
+  schedule();
 }
 function handleLiveOrderChange(payload){
   const row=payload.new || payload.old || {};
@@ -580,16 +591,60 @@ function handleLiveOrderChange(payload){
     msg = liveOrderLabel(row)+' · '+oldState+' → '+newState;
   }else if(event==='DELETE'){
     title='Orden eliminada/anulada'; msg=liveOrderLabel(row);
+    state.ordenes=removeRowByIdV942(state.ordenes,row.id);
   }
   pushLiveNotice(title,msg,target);
-  scheduleLiveRefresh('Realtime: '+title);
+  if(event!=='DELETE') scheduleLiveOrderRefreshV942(row.id);
+  else if(!document.querySelector('.modal')) render();
 }
-function handleLiveAuxChange(payload,msg){
-  scheduleLiveRefresh(msg);
+function handleLiveAuxChange(payload,table){
+  const event=payload.eventType||'';
+  const row=payload.new||payload.old||{};
+  const map={orden_pesos:'pesos',orden_entregas:'entregas',orden_pagos:'pagos',orden_estados_historial:'historialEstados',cxc_cobros:'cxcCobros',cxc_cobro_aplicaciones:'cxcAplicaciones'};
+  const stateKey=map[table];
+  if(stateKey){
+    state[stateKey]=event==='DELETE'
+      ? removeRowByIdV942(state[stateKey],row.id)
+      : upsertRowByIdV942(state[stateKey],row);
+    const limits={pesos:1500,entregas:1500,pagos:1500,historialEstados:2000,cxcCobros:1000,cxcAplicaciones:5000};
+    state[stateKey]=state[stateKey].slice(0,limits[stateKey]||2000);
+  }
+  if(table==='cxc_cobros'||table==='cxc_cobro_aplicaciones'){
+    state.cxcLoadedAt=0;
+    if(state.page==='liquidacion'&&['cxc','cxc_historial'].includes(state.liquidacionTab)){
+      loadCxcDataV940(true).then(()=>{
+        if(state.page==='liquidacion'&&['cxc','cxc_historial'].includes(state.liquidacionTab)&&!document.querySelector('.modal')) render();
+      });
+    }
+  }
+  const orderId=changedOrderIdV942(table,payload,state.ordenes);
+  if(orderId) scheduleLiveOrderRefreshV942(orderId);
+  else if(!document.querySelector('.modal')) render();
 }
-function scheduleLiveRefresh(reason='Actualización en vivo'){
+function scheduleLiveOrderRefreshV942(orderId){
+  const ids=boundedOrderIdsV942([orderId]);
+  ids.forEach(id=>liveChangedOrderIds.add(id));
+  if(!ids.length) return;
   if(liveRefreshTimer) clearTimeout(liveRefreshTimer);
-  liveRefreshTimer=setTimeout(()=>refreshLiveData(reason,true),2200);
+  liveRefreshTimer=setTimeout(flushLiveOrderRefreshV942,450);
+}
+async function flushLiveOrderRefreshV942(){
+  liveRefreshTimer=null;
+  if(!state.user || state.liveLoading) return;
+  const ids=boundedOrderIdsV942([...liveChangedOrderIds]);
+  liveChangedOrderIds.clear();
+  if(!ids.length) return;
+  state.liveLoading=true;
+  try{
+    const result=await loadOrdersSnapshotV942(state.page,ids);
+    const requested=new Set(ids.map(String));
+    const unchanged=(state.ordenes||[]).filter(row=>!requested.has(String(row?.id)));
+    state.ordenes=[...(result.data||[]),...unchanged].sort((a,b)=>Number(b?.id||0)-Number(a?.id||0));
+    state.liveLastRefresh=new Date().toISOString();
+    if(!document.querySelector('.modal')) render(); else updateLiveDom();
+  }catch(e){
+    state.liveStatus='polling'; updateLiveDom();
+  }finally{state.liveLoading=false;}
 }
 async function refreshLiveData(reason='Actualización',fromRealtime=false){
   if(!state.user || state.liveLoading) return;
@@ -651,64 +706,96 @@ async function fetchPendingOrdersV9380(orderSelect){
   }
   return {data:rows,error:new Error('La consulta de órdenes operativas pendientes superó 20,000 filas.')};
 }
-async function loadAll(){
-  state.errors=[];
-  const uid = state.user.id;
-  const prof = await safe(sb.from('perfiles').select('*').eq('id',uid).maybeSingle(),'perfil');
-  state.profile=prof.data || {id:uid,nombre:state.user.email,rol:'Sin perfil',vendedor:null,activo:false};
-  const orderSelect='*, cliente:clientes(id,codigo,negocio,contacto,telefono,sector,direccion,referencia,tipo,vendedor,estado,ultimo_pedido,credito,limite_credito), items:orden_detalle(*)';
-  const [mods,perms,ums,cats,items,pls,clientes,llamadas,productos,ordenes,ordenesPendientes,cobranza,usuarios,deliverys,empleados,pesos,entregas,pagos,historialEstados,sistemaCfg,entregaLotes,entregaLoteDetalle,entregaDocumentosHistorial,liquidacionesLotes,liquidacionLoteDetalle,casosHistorial,deliveryLotCorrections,liquidacionLotEvents,deliveryTransfers] = await Promise.all([
+const SYSTEM_CONFIG_KEYS_V942=['control_peso','empresa','menu','alertas','impresion','recibos','respaldo','atajos','facturacion','seguridad','incentivos','whatsapp','flujos'];
+const ORDER_SELECT_V942='*, cliente:clientes(id,codigo,negocio,contacto,telefono,sector,direccion,referencia,tipo,vendedor,estado,ultimo_pedido,credito,limite_credito), items:orden_detalle(*)';
+function scopeFreshV942(name,maxAge=60000){ return Date.now()-Number(state.loadedScopes?.[name]||0)<maxAge; }
+function markScopeV942(name){ state.loadedScopes=state.loadedScopes||{}; state.loadedScopes[name]=Date.now(); }
+function applySystemConfigRowsV942(rows=[]){
+  if(!rows.length) return;
+  const byKey=Object.fromEntries(rows.map(r=>[r.clave,r.valor]));
+  if(byKey.control_peso) state.weightConfig=normalizeWeightConfig(byKey.control_peso);
+  const patch={};
+  SYSTEM_CONFIG_KEYS_V942.filter(k=>k!=='control_peso').forEach(k=>{if(byKey[k]!==undefined&&byKey[k]!==null) patch[k]=byKey[k];});
+  state.systemConfig=normalizeSystemConfig(patch);
+  saveWeightConfigLocal(state.weightConfig); saveSystemConfigLocal(state.systemConfig);
+  if(state.systemConfig.alertas?.sonidoDefault===true && localStorage.getItem('pc_live_sound_v61')===null) state.liveSound=true;
+}
+async function loadOrdersSnapshotV942(page=state.page,ids=null){
+  const cleanIds=boundedOrderIdsV942(ids||[]);
+  const rpc=await sb.rpc('cargar_ordenes_v942',{
+    p_modulo:page,
+    p_ids:cleanIds.length?cleanIds:null,
+    p_limite_recientes:250
+  });
+  if(!rpc.error) return {data:Array.isArray(rpc.data)?rpc.data:[],error:null};
+  if(!['PGRST202','42883'].includes(String(rpc.error.code||''))) return {data:[],error:rpc.error};
+  if(cleanIds.length){
+    return sb.from('ordenes').select(ORDER_SELECT_V942).in('id',cleanIds).eq('archivada',false).order('id',{ascending:false});
+  }
+  const [recent,pending]=await Promise.all([
+    sb.from('ordenes').select(ORDER_SELECT_V942).eq('archivada',false).order('id',{ascending:false}).limit(500),
+    fetchPendingOrdersV9380(ORDER_SELECT_V942)
+  ]);
+  return {data:mergeRecentAndPendingOrders(recent.data||[],pending.data||[]),error:recent.error||pending.error||null};
+}
+async function loadCoreAccessV942(force=false){
+  if(!force&&scopeFreshV942('core')) return;
+  const [mods,perms,ums,deliverys,empleados,config]=await Promise.all([
     safe(sb.from('modulos_sistema').select('*').order('orden'),'módulos'),
     safe(sb.from('roles_permisos').select('*'),'permisos'),
     safe(sb.from('usuario_modulos').select('*'),'permisos usuario'),
-    safe(sb.from('catalogos').select('*').eq('activo',true).order('orden'),'catálogos'),
-    safe(sb.from('catalogo_items').select('*').eq('activo',true).order('orden'),'items catálogo'),
-    safe(sb.from('plantillas_whatsapp').select('*').order('orden'),'plantillas'),
-    safe(sb.from('clientes').select('*').eq('archivado',false).order('codigo',{ascending:true}).limit(2000),'clientes'),
-    safe(sb.from('llamadas').select('*, cliente:clientes(id,codigo,negocio,contacto,telefono,sector,tipo,vendedor)').order('id',{ascending:false}).limit(1000),'llamadas'),
-    safe(sb.from('productos_despacho').select('*').order('nombre').limit(1000),'productos'),
-    safe(sb.from('ordenes').select(orderSelect).eq('archivada',false).order('id',{ascending:false}).limit(500),'órdenes'),
-    safe(fetchPendingOrdersV9380(orderSelect),'órdenes pendientes históricas'),
-    safe(sb.from('cobranza').select('*').order('id',{ascending:false}).limit(1000),'cobranza'),
-    safe(sb.from('perfiles').select('*').order('nombre'),'usuarios'),
     safe(sb.from('deliverys_config').select('*').order('nombre'),'deliverys'),
     safe(sb.from('empleados_operativos').select('*').order('area').order('nombre'),'empleados operativos'),
-    safe(sb.from('orden_pesos').select('*').order('creado_en',{ascending:false}).limit(1500),'pesos'),
-    safe(sb.from('orden_entregas').select('*').order('creado_en',{ascending:false}).limit(1500),'entregas'),
-    safe(sb.from('orden_pagos').select('*').order('creado_en',{ascending:false}).limit(1500),'pagos'),
-    safe(sb.from('orden_estados_historial').select('*').order('creado_en',{ascending:false}).limit(2000),'historial de estados'),
-    safe(sb.from('sistema_configuracion').select('*').in('clave',['control_peso','empresa','menu','alertas','impresion','recibos','respaldo','atajos','facturacion','seguridad','incentivos','whatsapp','flujos']),'configuración sistema'),
-    optionalSafe(sb.from('entrega_lotes').select('*').order('creado_en',{ascending:false}).limit(500),'entrega_lotes'),
-    optionalSafe(sb.from('entrega_lote_detalle').select('*').order('id',{ascending:false}).limit(2000),'entrega_lote_detalle'),
-    optionalSafe(sb.from('entrega_documentos_historial').select('*').order('fecha_evento',{ascending:false}).limit(2000),'entrega_documentos_historial'),
-    optionalSafe(sb.from('liquidaciones_lotes').select('*').order('fecha_liquidacion',{ascending:false}).limit(500),'liquidaciones_lotes'),
-    optionalSafe(sb.from('liquidacion_lote_detalle').select('*').order('id',{ascending:false}).limit(3000),'liquidacion_lote_detalle'),
-    optionalSafe(sb.from('orden_casos_historial').select('*').order('creado_en',{ascending:false}).limit(2000),'orden_casos_historial'),
-    optionalSafe(sb.from('entrega_lote_correcciones').select('*').order('fecha_evento',{ascending:false}).limit(1000),'entrega_lote_correcciones'),
-    optionalSafe(sb.from('liquidacion_lote_eventos').select('*').order('creado_en',{ascending:false}).limit(1500),'liquidacion_lote_eventos'),
-    optionalSafe(sb.from('entrega_pedido_transferencias').select('*').order('creado_en',{ascending:false}).limit(1500),'entrega_pedido_transferencias')
+    safe(sb.from('sistema_configuracion').select('*').in('clave',SYSTEM_CONFIG_KEYS_V942),'configuración sistema')
   ]);
-  state.modulos=mods.data; state.permisos=perms.data; state.usuarioModulos=ums.data; state.plantillas=pls.data; state.clientes=clientes.data; state.llamadas=llamadas.data; state.productos=productos.data; state.ordenes=mergeRecentAndPendingOrders(ordenes.data||[],ordenesPendientes.data||[]); state.cobranza=cobranza.data; state.usuarios=usuarios.data; state.deliverys=deliverys.data; state.empleados=empleados.data; state.pesos=pesos.data; state.entregas=entregas.data; state.pagos=pagos.data; state.historialEstados=historialEstados.data; state.entregaLotes=entregaLotes.data; state.entregaLoteDetalle=entregaLoteDetalle.data; state.entregaDocumentosHistorial=entregaDocumentosHistorial.data||[]; state.liquidacionesLotes=liquidacionesLotes.data; state.liquidacionLoteDetalle=liquidacionLoteDetalle.data; state.casosHistorial=casosHistorial.data||[]; state.deliveryLotCorrections=deliveryLotCorrections.data||[]; state.liquidacionLotEvents=liquidacionLotEvents.data||[]; state.deliveryTransfers=deliveryTransfers.data||[]; state.liquidacionSchemaOk=!entregaLotes.error && !liquidacionesLotes.error; state.validacionR5SchemaOk=!entregaLotes.error && !entregaDocumentosHistorial.error; state.v936SchemaOk=!deliveryLotCorrections.error; state.v937SchemaOk=!liquidacionLotEvents.error; state.v9371SchemaOk=!deliveryTransfers.error;
-  state.catalogos={}; cats.data.forEach(c=>state.catalogos[c.id]=[]); items.data.forEach(i=>{ if(!state.catalogos[i.catalogo_id]) state.catalogos[i.catalogo_id]=[]; state.catalogos[i.catalogo_id].push(i); });
-  if(isAuditAdministrator(state.profile?.rol)){
-    const exceptionRows=await optionalSafe(
-      sb.from('auditoria_excepciones').select('*').order('creado_en',{ascending:false}).limit(2000),
-      'auditoria_excepciones'
-    );
-    state.auditExceptions=exceptionRows.data||[];
-    state.auditExceptionsSchemaOk=!exceptionRows.error;
-  }else{
-    state.auditExceptions=[];
-    state.auditExceptionsSchemaOk=false;
-  }
-  if(sistemaCfg?.data?.length){
-    const byKey=Object.fromEntries(sistemaCfg.data.map(r=>[r.clave,r.valor]));
-    if(byKey.control_peso){ state.weightConfig=normalizeWeightConfig(byKey.control_peso); saveWeightConfigLocal(state.weightConfig); }
-    const cfgPatch={}; ['empresa','menu','alertas','impresion','recibos','respaldo','atajos','facturacion','seguridad','incentivos','whatsapp','flujos'].forEach(k=>{ if(byKey[k]!==undefined && byKey[k]!==null) cfgPatch[k]=byKey[k]; });
-    const sys=normalizeSystemConfig(cfgPatch);
-    state.systemConfig=sys; saveSystemConfigLocal(sys);
-    if(sys.alertas?.sonidoDefault===true && localStorage.getItem('pc_live_sound_v61')===null) state.liveSound=true;
-  }
+  state.modulos=mods.data; state.permisos=perms.data; state.usuarioModulos=ums.data;
+  state.deliverys=deliverys.data; state.empleados=empleados.data;
+  applySystemConfigRowsV942(config.data||[]); markScopeV942('core');
+}
+async function loadReferenceDataV942(force=false){
+  if(!force&&scopeFreshV942('references')) return;
+  const [clientes,llamadas,productos]=await Promise.all([
+    safe(sb.from('clientes').select('*').eq('archivado',false).order('codigo',{ascending:true}).limit(2000),'clientes'),
+    safe(sb.from('llamadas').select('*, cliente:clientes(id,codigo,negocio,contacto,telefono,sector,tipo,vendedor)').order('id',{ascending:false}).limit(1000),'llamadas'),
+    safe(sb.from('productos_despacho').select('*').order('nombre').limit(1000),'productos')
+  ]);
+  state.clientes=clientes.data; state.llamadas=llamadas.data; state.productos=productos.data;
+  markScopeV942('references');
+}
+async function loadCatalogDataV942(force=false){
+  if(!force&&scopeFreshV942('catalogs',300000)) return;
+  const [cats,items,plantillas]=await Promise.all([
+    safe(sb.from('catalogos').select('*').eq('activo',true).order('orden'),'catálogos'),
+    safe(sb.from('catalogo_items').select('*').eq('activo',true).order('orden'),'items catálogo'),
+    safe(sb.from('plantillas_whatsapp').select('*').order('orden'),'plantillas')
+  ]);
+  state.plantillas=plantillas.data; state.catalogos={};
+  cats.data.forEach(c=>state.catalogos[c.id]=[]);
+  items.data.forEach(i=>{if(!state.catalogos[i.catalogo_id]) state.catalogos[i.catalogo_id]=[];state.catalogos[i.catalogo_id].push(i);});
+  markScopeV942('catalogs');
+}
+async function loadAdminDataV942(force=false){
+  if(!force&&scopeFreshV942('admin')) return;
+  const [usuarios,cobranza]=await Promise.all([
+    safe(sb.from('perfiles').select('*').order('nombre'),'usuarios'),
+    safe(sb.from('cobranza').select('*').order('id',{ascending:false}).limit(1000),'cobranza')
+  ]);
+  state.usuarios=usuarios.data; state.cobranza=cobranza.data; markScopeV942('admin');
+}
+async function loadAuditDataV942(force=false){
+  if(!isAuditAdministrator(state.profile?.rol)){state.auditExceptions=[];state.auditExceptionsSchemaOk=false;return;}
+  if(!force&&scopeFreshV942('audit')) return;
+  const rows=await optionalSafe(sb.from('auditoria_excepciones').select('*').order('creado_en',{ascending:false}).limit(2000),'auditoria_excepciones');
+  state.auditExceptions=rows.data||[]; state.auditExceptionsSchemaOk=!rows.error; markScopeV942('audit');
+}
+async function loadAll(){
+  state.errors=[]; state.loadedScopes={};
+  const uid=state.user.id;
+  const prof=await safe(sb.from('perfiles').select('*').eq('id',uid).maybeSingle(),'perfil');
+  state.profile=prof.data||{id:uid,nombre:state.user.email,rol:'Sin perfil',vendedor:null,activo:false};
+  await loadCoreAccessV942(true);
+  if(!puede(state.page)) state.page=firstAllowedPage()||'inicio';
+  await loadModuleDataV942(state.page,true);
 }
 async function refreshSystemConfigV9390(){
   if(!state.user) return;
@@ -725,25 +812,20 @@ async function refreshSystemConfigV9390(){
   if(!document.querySelector('.modal')) render();
   else toast('Configuración global actualizada');
 }
-const operationalPagesV9384=new Set(['inicio','ordenes','carniceria','facturacion','validacion','delivery','liquidacion','alertas','kanban']);
 async function loadOperationalDataV9384(page=state.page){
-  const orderSelect='*, cliente:clientes(id,codigo,negocio,contacto,telefono,sector,direccion,referencia,tipo,vendedor,estado,ultimo_pedido,credito,limite_credito), items:orden_detalle(*)';
-  const includeLots=['validacion','delivery','liquidacion'].includes(page);
-  const includeCases=['ordenes','alertas','kanban'].includes(page);
+  const includeLots=['validacion','delivery','liquidacion','auditoria'].includes(page);
+  const includeCases=['ordenes','alertas','kanban','auditoria'].includes(page);
   const started=performance.now();
-  const [ordenes,pendientes,pesos,entregas,pagos,historial]=await Promise.all([
-    safe(sb.from('ordenes').select(orderSelect).eq('archivada',false).order('id',{ascending:false}).limit(500),'órdenes'),
-    safe(fetchPendingOrdersV9380(orderSelect),'órdenes pendientes históricas'),
-    safe(sb.from('orden_pesos').select('*').order('creado_en',{ascending:false}).limit(1500),'pesos'),
-    safe(sb.from('orden_entregas').select('*').order('creado_en',{ascending:false}).limit(1500),'entregas'),
-    safe(sb.from('orden_pagos').select('*').order('creado_en',{ascending:false}).limit(1500),'pagos'),
-    safe(sb.from('orden_estados_historial').select('*').order('creado_en',{ascending:false}).limit(2000),'historial de estados')
-  ]);
-  state.ordenes=mergeRecentAndPendingOrders(ordenes.data||[],pendientes.data||[]);
-  state.pesos=pesos.data||[];
-  state.entregas=entregas.data||[];
-  state.pagos=pagos.data||[];
-  state.historialEstados=historial.data||[];
+  const aux=auxTablesForPageV942(page).filter(t=>t!=='orden_detalle');
+  const jobs=[safe(loadOrdersSnapshotV942(page),'órdenes V9.4.2 R2')];
+  aux.forEach(table=>{
+    const limits={orden_pesos:1500,orden_entregas:1500,orden_pagos:1500,orden_estados_historial:2000};
+    jobs.push(safe(sb.from(table).select('*').order('creado_en',{ascending:false}).limit(limits[table]||1500),table));
+  });
+  const [ordenes,...auxResults]=await Promise.all(jobs);
+  state.ordenes=ordenes.data||[];
+  const map={orden_pesos:'pesos',orden_entregas:'entregas',orden_pagos:'pagos',orden_estados_historial:'historialEstados'};
+  aux.forEach((table,index)=>{state[map[table]]=auxResults[index]?.data||[];});
 
   if(includeLots){
     const [lotes,detalle,documentos,liquidaciones,liqDetalle,correcciones,eventos,transferencias]=await Promise.all([
@@ -776,18 +858,37 @@ async function loadOperationalDataV9384(page=state.page){
   }
   state.performanceV9384={
     scope:includeLots?'operación + lotes':includeCases?'operación + casos':'operación',
-    requests:6+(includeLots?8:0)+(includeCases?1:0),
+    requests:1+aux.length+(includeLots?8:0)+(includeCases?1:0),
     elapsedMs:Math.round(performance.now()-started),
     refreshedAt:new Date().toISOString()
   };
 }
+async function loadModuleDataV942(page=state.page,force=false){
+  const key=`module:${page}`;
+  const needsReferences=['inicio','control','clientes','ordenes','carniceria','facturacion','validacion','delivery','liquidacion','alertas','kanban','productos','productividad','reportes','config'].includes(page);
+  const needsCatalogs=['inicio','control','clientes','ordenes','productos','config'].includes(page);
+  const needsOperation=isOperationalPageV942(page)||['control','clientes','productividad','reportes','auditoria'].includes(page);
+  if(!force&&!needsOperation&&scopeFreshV942(key,45000)) return;
+  const jobs=[];
+  if(needsReferences) jobs.push(loadReferenceDataV942(force));
+  if(needsCatalogs) jobs.push(loadCatalogDataV942(force));
+  if(needsOperation) jobs.push(loadOperationalDataV9384(page));
+  if(['productividad','reportes','config'].includes(page)) jobs.push(loadAdminDataV942(force));
+  if(page==='auditoria') jobs.push(loadAuditDataV942(force));
+  await Promise.all(jobs); markScopeV942(key);
+}
 async function refreshVisibleModuleV9384(forceFull=false){
-  if(forceFull||!operationalPagesV9384.has(state.page)){
-    await loadAll();
-    state.performanceV9384={scope:'completa',requests:28,refreshedAt:new Date().toISOString()};
-    return;
-  }
-  await loadOperationalDataV9384(state.page);
+  await loadModuleDataV942(state.page,true);
+}
+async function navigateToPageV942(page){
+  const target=String(page||'');
+  if(!puede(target)) return;
+  if(!target||target===state.page){render();return;}
+  state.page=target;
+  setupLiveUpdates();
+  render();
+  try{await loadModuleDataV942(target,false);}catch(e){state.errors.push('Carga de '+target+': '+(e?.message||e));}
+  render();
 }
 function renderLogin(message=''){
   root.innerHTML = `<div class="login"><div class="login-card"><div class="logo">PC</div><h2 style="text-align:center;margin:0 0 6px">Sistema Productos César</h2><p style="text-align:center;color:var(--muted);margin:0 0 22px">Entrada por empleado · permisos por módulo</p><div id="loginError">${message?`<div class="success">${esc(message)}</div>`:''}</div><div class="form"><div class="field"><label>Correo del empleado</label><input id="email" placeholder="empleado@correo.com" autocomplete="username"></div><div class="field"><label>Contraseña</label><input id="pass" type="password" autocomplete="current-password" placeholder="Contraseña asignada"></div><button class="btn" id="loginBtn">Entrar al sistema</button><button class="btn gray" id="forgotBtn" type="button">Recuperar contraseña</button><div class="hint" style="text-align:center">El correo y contraseña se crean en Supabase Auth. Los módulos se asignan en Configuración → Usuarios y módulos.<br><span style="font-size:11px">Proyecto conectado: ${esc(SUPABASE_PROJECT_REF)}</span></div></div></div></div>`;
@@ -850,7 +951,7 @@ function render(){
   root.innerHTML = `<div class="shell${sidebarCollapsed?' sidebar-collapsed':''}"><aside id="appSidebar" class="sidebar" aria-hidden="${sidebarCollapsed?'true':'false'}"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.4.0 PWA · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.4.0 PWA</b><br>CXC, cobros posteriores y recibos numerados.</div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" data-collapsed="${sidebarCollapsed?'1':'0'}" aria-controls="appSidebar" aria-expanded="${sidebarCollapsed?'false':'true'}" aria-label="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}" title="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}"><span aria-hidden="true">${sidebarCollapsed?'›':'‹'}</span></button><main class="main"><div class="top"><div class="mobile-brand-mini"><span>${esc(appCfg('empresa.logoTexto','PC'))}</span></div><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray" aria-label="Mi acceso">Mi acceso</button><button id="refreshBtn" aria-label="Actualizar">Actualizar</button><button id="logoutBtn" class="dark" aria-label="Salir">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
   setupKeyboardShortcuts();
   bindSidebarToggle();
-  $$('[data-page]').forEach(b=>b.onclick=()=>{state.page=b.dataset.page; render();});
+  $$('[data-page]').forEach(b=>b.onclick=()=>navigateToPageV942(b.dataset.page));
   const moreBtn=$('[data-mobile-more]'); if(moreBtn) moreBtn.onclick=()=>openMobileMoreMenu(visibleNav);
   $('#myAccessBtn').onclick=()=>openMyAccess();
   $('#logoutBtn').onclick=async()=>{await sb.auth.signOut(); teardownLiveUpdates(); state.session=null; state.user=null; renderLogin();};
@@ -887,7 +988,7 @@ function renderPage(){
     console.error('Error renderizando módulo', state.page, err);
     c.innerHTML=`<div class="panel"><div class="empty"><b>No se pudo cargar este módulo.</b><br>${esc(err?.message||err)}<br><br><button class="btn" id="recoverModuleBtn">Reintentar</button> <button class="btn gray" id="goOrdersFallback">Ir a órdenes</button></div></div>`;
     const retry=$('#recoverModuleBtn'); if(retry) retry.onclick=()=>renderPage();
-    const go=$('#goOrdersFallback'); if(go) go.onclick=()=>{state.page='ordenes'; render();};
+    const go=$('#goOrdersFallback'); if(go) go.onclick=()=>navigateToPageV942('ordenes');
   }
 }
 function lastCall(clienteId){return state.llamadas.find(l=>Number(l.cliente_id)===Number(clienteId));}
@@ -4945,6 +5046,7 @@ function bindCxcNavigation(c){
   $$('[data-liqtab]',c).forEach(b=>b.onclick=async()=>{
     state.liquidacionTab=b.dataset.liqtab;
     if(['cxc','cxc_historial'].includes(state.liquidacionTab)) await ensureCxcDataV940();
+    setupLiveUpdates();
     renderLiquidacion($('#content'));
   });
 }
@@ -5103,7 +5205,7 @@ function renderLiquidacionHistorial(c, filter){
 function wireLiquidacionCommon(c, rows){
   const sel=$('#liquidDelivery',c); if(sel) sel.onchange=e=>{state.liquidacionDeliveryFilter=e.target.value; renderLiquidacion($('#content'));};
   const search=$('#liquidacionSearch',c); if(search) search.oninput=e=>{ const pos=e.target.selectionStart||e.target.value.length; state.liquidacionSearch=e.target.value; renderLiquidacion($('#content')); focusAfterRender('liquidacionSearch',pos); };
-  $$('[data-liqtab]',c).forEach(b=>b.onclick=async()=>{state.liquidacionTab=b.dataset.liqtab;if(['cxc','cxc_historial'].includes(state.liquidacionTab)) await ensureCxcDataV940();renderLiquidacion($('#content'));});
+  $$('[data-liqtab]',c).forEach(b=>b.onclick=async()=>{state.liquidacionTab=b.dataset.liqtab;if(['cxc','cxc_historial'].includes(state.liquidacionTab)) await ensureCxcDataV940();setupLiveUpdates();renderLiquidacion($('#content'));});
   $$('[data-liq-delivery-panel]',c).forEach(b=>b.onclick=()=>{state.liquidacionDeliveryFilter=b.dataset.liqDeliveryPanel||'';renderLiquidacion($('#content'));});
   try{ bindDynamic(); }catch(err){ console.error('bindDynamic/liquidacion',err); }
 }

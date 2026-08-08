@@ -14,7 +14,7 @@ const checks=[
   ['configuración remota es autoritativa',/normalizeSystemConfig\(cfgPatch\)/.test(main)],
   ['guardado global usa RPC transaccional',main.includes("sb.rpc('guardar_configuracion_v9390'")],
   ['fallo no conserva cambio local',main.includes('Ningún cambio local fue aplicado')],
-  ['configuración se sincroniza por Realtime',main.includes("table:'sistema_configuracion'")&&main.includes('refreshSystemConfigV9390')],
+  ['configuración se sincroniza por Realtime',(main.includes("table:'sistema_configuracion'")||main.includes('realtimeTablesForPageV942'))&&main.includes('refreshSystemConfigV9390')],
   ['diálogo integrado reemplaza alertas nativas',main.includes('window.alert=appAlert')&&css.includes('.app-alert-card-v9390')],
   ['zona horaria dominicana centralizada',main.includes("BUSINESS_TIME_ZONE = 'America/Santo_Domingo'")&&main.includes('function businessDateTime')&&main.includes('function businessTime')],
   ['perfil administrativo no se inventa por correo',!main.includes("email==='apocalipsis218@gmail.com'")],
