@@ -64,6 +64,13 @@ assert.doesNotMatch(sql, /\bservice_role\s*[:=]\s*['"][^'"]+['"]/i);
 assert.doesNotMatch(sql, /\bjmcbaduxjrzfnesbslmp\b|\bodlwbuagtrgmfpdohors\b/i);
 assert.doesNotMatch(sql, /\bcreate\s+table\s+auth\./i);
 
+const sqlWithoutIntentionalEscapedNewlines = sql.replaceAll("E'\\n'", '');
+assert.doesNotMatch(
+  sqlWithoutIntentionalEscapedNewlines,
+  /\\n/,
+  'El SQL contiene secuencias \\n literales fuera de cadenas E de PostgreSQL',
+);
+
 console.log(
   'OK: línea base V9.4.2 de staging validada (DDL, RLS, permisos y Realtime; sin datos ni credenciales).',
 );
