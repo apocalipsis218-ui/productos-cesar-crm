@@ -7,7 +7,7 @@ const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),
 
 const loadAllCalls=(main.match(/loadAll\(\)/g)||[]).length;
 const checks=[
-  ['versión V9.3.9.0 o superior sincronizada',/^(?:9\.3\.9\.[0-9]+|9\.4\.0)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
+  ['versión V9.3.9.0 o superior sincronizada',/^(?:9\.3\.9\.[0-9]+|9\.4\.[0-9]+)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
   ['carga operativa separada',/async function loadOperationalDataV9384/.test(main)],
   ['refresco visible por módulo',/async function refreshVisibleModuleV9384/.test(main)&&/operationalPagesV9384/.test(main)],
   ['Realtime no ejecuta carga completa',/async function refreshLiveData[\s\S]{0,260}await refreshVisibleModuleV9384\(\)/.test(main)],

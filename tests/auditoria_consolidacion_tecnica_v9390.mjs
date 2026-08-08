@@ -8,7 +8,7 @@ const installer=fs.readFileSync('APLICAR_V9390.ps1','utf8');
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 
 const checks=[
-  ['versión V9.3.9.0 o superior sincronizada',/^(?:9\.3\.9\.[0-9]+|9\.4\.0)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
+  ['versión V9.3.9.0 o superior sincronizada',/^(?:9\.3\.9\.[0-9]+|9\.4\.[0-9]+)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
   ['conexión solo desde variables de entorno',/VITE_SUPABASE_URL/.test(main)&&/VITE_SUPABASE_ANON_KEY/.test(main)&&!main.includes('jmcbaduxjrzfnesbslmp.supabase.co')&&!main.includes('sb_publishable_')],
   ['configuración incompleta se bloquea',main.includes('Configuración incompleta: define VITE_SUPABASE_URL')],
   ['configuración remota es autoritativa',/normalizeSystemConfig\(cfgPatch\)/.test(main)],

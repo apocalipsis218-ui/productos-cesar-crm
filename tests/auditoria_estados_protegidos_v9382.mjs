@@ -6,7 +6,7 @@ const sql=fs.readFileSync(new URL('../supabase/sql/40_actualizacion_v9382_estado
 const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
 
 const checks=[
-  ['versión V9.3.9.0 o superior sincronizada',/^(?:9\.3\.9\.[0-9]+|9\.4\.0)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
+  ['versión V9.3.9.0 o superior sincronizada',/^(?:9\.3\.9\.[0-9]+|9\.4\.[0-9]+)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
   ['catálogo formal de transiciones',/create table if not exists public\.orden_transiciones_v9382/.test(sql)],
   ['transiciones operativas completas',sql.includes("('Pedido recibido','En preparación','carniceria')")&&sql.includes("('Facturada','Asignada a delivery','validacion')")&&sql.includes("('En ruta','Cobrado','delivery')")],
   ['saltos inválidos bloqueados por trigger',/Transición no autorizada/.test(sql)&&/trg_pc_validar_transicion_orden_v9382/.test(sql)],

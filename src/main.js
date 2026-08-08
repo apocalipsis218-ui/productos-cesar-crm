@@ -21,6 +21,7 @@ import { allocateCxcOldest, normalizeManualCxcApplications, cxcApplicationsTotal
 // V9.4.0 R1 · Toma segura de órdenes programadas cuando llega su fecha.
 // V9.4.0 R2 · Validación centralizada del área operativa del despachador.
 // V9.4.0 R3 · Guardado atómico desde llamadas y programación protegida.
+// V9.4.2 PWA · R1: escrituras críticas cerradas y trazabilidad atómica en servidor.
 // Conserva factura, pesaje e historial del intento fallido.
 // Control conservado: Pulsa “Detallar artículos” para registrar producto, cantidad y peso.
 // V9.3.9.1 · Faltantes con seguimiento y liquidación segura de clientes ocasionales.
@@ -708,9 +709,6 @@ async function loadAll(){
     state.systemConfig=sys; saveSystemConfigLocal(sys);
     if(sys.alertas?.sonidoDefault===true && localStorage.getItem('pc_live_sound_v61')===null) state.liveSound=true;
   }
-  if(!(await flushPendingOrderHistory())){
-    state.errors.push('Hay registros de historial pendientes en este equipo. El sistema volverá a intentarlo automáticamente.');
-  }
 }
 async function refreshSystemConfigV9390(){
   if(!state.user) return;
@@ -782,9 +780,6 @@ async function loadOperationalDataV9384(page=state.page){
     elapsedMs:Math.round(performance.now()-started),
     refreshedAt:new Date().toISOString()
   };
-  if(!(await flushPendingOrderHistory())){
-    state.errors.push('Hay registros de historial pendientes en este equipo. El sistema volverá a intentarlo automáticamente.');
-  }
 }
 async function refreshVisibleModuleV9384(forceFull=false){
   if(forceFull||!operationalPagesV9384.has(state.page)){
@@ -1825,20 +1820,6 @@ function orderHasProgress(o){
   if(state.pagos.some(p=>Number(p.orden_id)===Number(o.id))) return true;
   return !!((o.preparado_por&&orderPreparationFinalized(o))||o.facturado_por||o.validado_por||o.recibido_por||o.factura_no||o.delivery_nombre||o.peso_preparado||o.peso_facturado||o.peso_validado||o.cantidad_impresiones);
 }
-async function cleanupPedidosForCall(callId){
-  if(!callId) return {error:null};
-  try{
-    const r=await sb.from('pedidos').delete().eq('llamada_id',callId);
-    if(r.error && !/does not exist|relation .*pedidos/i.test(r.error.message||'')) return r;
-  }catch(e){ return {error:e}; }
-  return {error:null};
-}
-async function clearOrderCallLinks(o){
-  if(!o?.id) return {error:null};
-  const patch={llamada_id:null};
-  if(Object.prototype.hasOwnProperty.call(o,'pedido_crm_id')) patch.pedido_crm_id=null;
-  return await sb.from('ordenes').update(patch).eq('id',o.id);
-}
 async function archiveOrderSafely(o,reason=''){
   if(!o) return {error:new Error('Orden no encontrada.')};
   const r=await sb.rpc('cancelar_orden_v9383',{
@@ -1913,32 +1894,12 @@ async function revertCall(call){
     if(!ok) return false;
   }
 
-  // Preferimos una función segura de Supabase para revertir todo en una sola operación.
-  // Si el SQL V6.3 aún no fue ejecutado, usamos el respaldo desde el navegador.
   const rpc=await sb.rpc('revertir_gestion_segura',{p_llamada_id:call.id,p_motivo:reason});
-  if(!rpc.error){
-    await refreshVisibleModuleV9384(); render(); toast('Gestión revertida de forma segura.');
-    return true;
-  }
-  if(!/revertir_gestion_segura/i.test(rpc.error.message||'')){
-    alert(rpc.error.message);
+  if(rpc.error){
+    alert('No se revirtió la gestión. La operación fue detenida para proteger órdenes e historial.\n\n'+rpc.error.message+'\n\nVerifica que la migración V9.4.2 R1 esté aplicada.');
     return false;
   }
-
-  if(linked){
-    const advanced=orderHasProgress(linked);
-    const cancelled=await cancelOrder(linked,{fromRevert:true,skipConfirm:true,reason});
-    if(!cancelled) return false;
-    if(advanced){
-      const clear=await clearOrderCallLinks(linked);
-      if(clear.error){ alert(clear.error.message); return false; }
-    }
-  }
-  const clean=await cleanupPedidosForCall(call.id);
-  if(clean.error){ alert(clean.error.message); return false; }
-  const r=await sb.from('llamadas').delete().eq('id',call.id);
-  if(r.error){ alert(r.error.message); return false; }
-  await refreshVisibleModuleV9384(); render(); toast('Gestión revertida. El cliente vuelve a pendientes.');
+  await refreshVisibleModuleV9384(); render(); toast('Gestión revertida de forma segura.');
   return true;
 }
 
@@ -3105,35 +3066,10 @@ function renderConfigUsuarios(c){
     openUserPerms(u);
   });
 }
-async function saveUserPermissionsDirect(u,profilePatch,overrides){
-  const oldProfile={nombre:u.nombre||'',rol:u.rol||'Sin perfil',activo:u.activo!==false,vendedor:u.vendedor||null,empleado_id:u.empleado_id||null,tipo_cuenta:accountTypeOf(u)};
-  const oldOverrides=(state.usuarioModulos||[]).filter(x=>sameUserId(x.usuario_id,u.id)).map(x=>({usuario_id:u.id,modulo:x.modulo,nivel:x.nivel,actualizado_en:x.actualizado_en||new Date().toISOString()}));
-  const upd=await sb.from('perfiles').update(profilePatch).eq('id',u.id);
-  if(upd.error) throw upd.error;
-  const del=await sb.from('usuario_modulos').delete().eq('usuario_id',u.id);
-  if(del.error){
-    await sb.from('perfiles').update(oldProfile).eq('id',u.id);
-    throw del.error;
-  }
-  if(overrides.length){
-    const ins=await sb.from('usuario_modulos').insert(overrides.map(x=>({usuario_id:u.id,modulo:x.modulo,nivel:x.nivel,actualizado_en:new Date().toISOString()})));
-    if(ins.error){
-      await sb.from('perfiles').update(oldProfile).eq('id',u.id);
-      await sb.from('usuario_modulos').delete().eq('usuario_id',u.id);
-      if(oldOverrides.length) await sb.from('usuario_modulos').insert(oldOverrides);
-      throw ins.error;
-    }
-  }
-  return {fallback:true};
-}
 async function saveUserPermissions(u,profilePatch,overrides){
   const args={p_usuario_id:u.id,p_nombre:profilePatch.nombre,p_rol:profilePatch.rol,p_activo:profilePatch.activo,p_vendedor:profilePatch.vendedor||null,p_empleado_id:profilePatch.empleado_id||null,p_tipo_cuenta:profilePatch.tipo_cuenta||'empleado',p_modulos:overrides};
   const rpc=await sb.rpc('actualizar_usuario_permisos_v930r9',args);
   if(!rpc.error) return rpc.data;
-  const msg=String(rpc.error.message||rpc.error.details||'');
-  if(/Could not find the function|function .* does not exist|PGRST202|schema cache/i.test(msg)){
-    return await saveUserPermissionsDirect(u,profilePatch,overrides);
-  }
   throw rpc.error;
 }
 function employeeSelectOptionsForUser(u,selectedId=''){
@@ -3426,9 +3362,11 @@ function buildOrderWhatsAppMessage(o,kind='confirmacion',templateOverride=null){
   return template.replace(/\{([a-zA-Z0-9_áéíóúÁÉÍÓÚñÑ]+)\}/g,(m,k)=>Object.prototype.hasOwnProperty.call(map,k)?map[k]:m).replace(/\n{3,}/g,'\n\n').trim();
 }
 async function logOrderWhatsAppPrepared(o,kind,phone){
-  try{
-    await sb.from('orden_estados_historial').insert({orden_id:o.id,estado_anterior:o.estado||null,estado_nuevo:o.estado||'Pedido recibido',comentario:`WhatsApp preparado · ${kind} · teléfono ${phone}`,usuario:state.user?.id});
-  }catch(e){ console.warn('No se pudo registrar auditoría de WhatsApp:',e?.message||e); }
+  const {error}=await sb.rpc('registrar_evento_orden_v942',{
+    p_orden_id:o.id,
+    p_comentario:`WhatsApp preparado · ${kind} · teléfono ${phone}`
+  });
+  if(error) console.warn('No se pudo registrar auditoría de WhatsApp:',error.message);
 }
 async function openOrderWhatsApp(o,kind='confirmacion'){
   if(!o) return;
@@ -5227,46 +5165,6 @@ function renderLiquidacion(c){
   try{ wireLiquidacionCommon(c, groups); }catch(err){ console.error('wireLiquidacionCommon',err); }
   bindLiquidacionActionButtons(c, filter, orders, groups);
 }
-const PENDING_HISTORY_KEY_V9380='pc_pending_order_history_v9380';
-function pendingOrderHistoryRows(){
-  try{
-    const rows=JSON.parse(localStorage.getItem(PENDING_HISTORY_KEY_V9380)||'[]');
-    return Array.isArray(rows)?rows:[];
-  }catch(e){ return []; }
-}
-function queuePendingOrderHistory(row,error){
-  const rows=pendingOrderHistoryRows();
-  rows.push({...row,pendiente_desde:new Date().toISOString(),error_local:String(error?.message||error||'Error desconocido')});
-  localStorage.setItem(PENDING_HISTORY_KEY_V9380,JSON.stringify(rows.slice(-100)));
-}
-async function flushPendingOrderHistory(){
-  const rows=pendingOrderHistoryRows();
-  if(!rows.length || !state.user) return true;
-  const remaining=[];
-  for(const saved of rows){
-    const {pendiente_desde,error_local,...row}=saved;
-    const {error}=await sb.from('orden_estados_historial').insert(row);
-    if(error) remaining.push(saved);
-  }
-  if(remaining.length) localStorage.setItem(PENDING_HISTORY_KEY_V9380,JSON.stringify(remaining));
-  else localStorage.removeItem(PENDING_HISTORY_KEY_V9380);
-  return remaining.length===0;
-}
-async function logOrderState(order, oldState, newState, comentario=''){
-  const row={orden_id:order.id,estado_anterior:oldState||null,estado_nuevo:newState,comentario,usuario:state.user?.id};
-  let result=await sb.from('orden_estados_historial').insert(row);
-  if(result.error){
-    await new Promise(resolve=>setTimeout(resolve,250));
-    result=await sb.from('orden_estados_historial').insert(row);
-  }
-  if(!result.error) return true;
-  queuePendingOrderHistory(row,result.error);
-  const msg=`No se pudo registrar ahora el historial de ${order.codigo||'la orden'}. Quedó pendiente para reintento automático.`;
-  state.errors.push(msg);
-  console.error('Historial de orden pendiente',result.error);
-  toast(msg);
-  return false;
-}
 async function setOrderState(o, estado, extra={}){
   if(!o) return false;
   const old=o.estado;
@@ -5645,10 +5543,11 @@ async function printPreparationTicket(o){
     .live-bar{background:#fff;border:1px solid var(--line);border-radius:18px;padding:12px 14px;margin:-6px 0 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;box-shadow:var(--shadow2);flex-wrap:wrap}.live-left{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.live-dot{width:10px;height:10px;border-radius:999px;background:#94a3b8;box-shadow:0 0 0 4px rgba(148,163,184,.15)}.live-dot.on{background:#10b981;box-shadow:0 0 0 4px rgba(16,185,129,.15)}.live-dot.warn{background:#f59e0b;box-shadow:0 0 0 4px rgba(245,158,11,.15)}.live-dot.bad{background:#ef4444;box-shadow:0 0 0 4px rgba(239,68,68,.15)}.live-title{font-weight:950}.live-sub{font-size:12px;color:var(--muted);font-weight:700}.live-notice{border:1px solid #bfdbfe;background:#eff6ff;border-radius:14px;padding:9px 11px;font-size:12px;color:#1e40af;font-weight:800}.live-notice b{display:block;color:#111827;margin-bottom:2px}.live-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   </style></head><body><div class="center"><h2>PRODUCTOS CÉSAR</h2><div class="b">ORDEN DE PREPARACIÓN</div><div>${esc(o.codigo||'')}</div></div>${pickupAlert}<div class="line"></div><div>Fecha orden: ${shortDate(o.fecha)}</div><div>Fecha despacho: ${shortDate(dispatchDateOf(o))} ${o.hora_despacho?esc(String(o.hora_despacho).slice(0,5)):''}</div><div>Impreso: ${businessDateTime(now)}</div>${isFutureDispatch(o)?'<div class="b">NO DESPACHAR HOY</div>':''}<div class="line"></div><div class="b">CLIENTE</div><div>${esc(orderClientName(o))}</div><div>Tel: ${esc(orderClientPhone(o))}</div><div>Sector: ${esc(orderClientSector(o))}</div>${occasionalPrintBlock(o)}<div class="line"></div><div>Tomado por: ${esc(workerDisplayName(o.tomado_por||o.preparado_por)||'________________')}</div><div>Hora tomada: ${o.tomado_en?businessDateTime(o.tomado_en):'________________'}</div><div class="line"></div><div class="b">DETALLE SIN PRECIOS</div><table>${lines}</table><div class="line"></div>${o.notas?`<div>Notas: ${esc(o.notas)}</div>`:''}${o.nota_programacion?`<div>Programación: ${esc(o.nota_programacion)}</div>`:''}<div class="sign">Peso final</div><div class="sign">Paquetes</div><div class="sign">Firma despacho</div><button onclick="window.print()">Imprimir</button><script>setTimeout(()=>window.print(),400)<\/script></body></html>`;
   const w=window.open('','_blank','width=420,height=720'); if(!w) return alert('El navegador bloqueó la ventana de impresión. Permite popups para esta página.'); w.document.open(); w.document.write(html); w.document.close();
-  const count=(+o.impresiones_preparacion||0)+1;
-  const {error}=await sb.from('ordenes').update({impresiones_preparacion:count,ultima_impresion_preparacion:new Date().toISOString(),impreso_preparacion_por:state.user.id}).eq('id',o.id);
-  if(error) console.warn(error.message);
-  await logOrderState(o,o.estado,o.estado,'Impresión de orden de preparación 80 mm');
+  const {error}=await sb.rpc('registrar_impresion_preparacion_v942',{
+    p_orden_id:o.id,
+    p_estado_esperado:o.estado
+  });
+  if(error) appAlert('El volante se abrió, pero no se pudo registrar la impresión de forma segura.\n\n'+error.message,'Impresión no auditada');
   await refreshVisibleModuleV9384(); render();
 }
 function shortageFollowupDialog(o,lines){
@@ -5953,10 +5852,6 @@ function specialCaseEmployeeOptions(selected=''){
   const sel=String(selected||'').trim();
   return `<option value="">Sin asignar</option>${names.map(n=>`<option ${norm(n)===norm(sel)?'selected':''}>${esc(n)}</option>`).join('')}<option value="__manual__">Otro / manual</option>`;
 }
-async function logSpecialCase(o, estado, comentario){
-  try{ await sb.from('orden_casos_historial').insert({orden_id:o.id,estado_caso:estado,comentario,usuario:state.user?.id||null}); }catch(e){ console.warn('Historial caso no disponible:',e.message||e); }
-  try{ await logOrderState(o,o.estado,o.estado,`Caso especial: ${estado}. ${comentario||''}`); }catch(e){}
-}
 function specialCasePatchFromModal(m,o){
   const type=$('#caseType',m)?.value||orderType(o);
   const rule=orderTypeRule(type);
@@ -5964,21 +5859,19 @@ function specialCasePatchFromModal(m,o){
   const status=$('#caseStatus',m)?.value||'Abierto';
   const resp=$('#caseResp',m)?.value==='__manual__'?($('#caseRespManual',m)?.value||'').trim():($('#caseResp',m)?.value||'');
   const notas=[`Tipo caso: ${type}`,`Estado caso: ${status}`,`Responsable: ${resp||'Sin asignar'}`,$('#caseAction',m)?.value?`Acción: ${$('#caseAction',m).value}`:'',$('#casePick',m)?.value?`Recoger: ${$('#casePick',m).value}`:'',$('#caseGive',m)?.value?`Entregar/cambiar: ${$('#caseGive',m).value}`:'',$('#caseResolution',m)?.value?`Resolución: ${$('#caseResolution',m).value}`:''].filter(Boolean).join('\n');
-  const patch={tipo_orden:type,requiere_preparacion:!!rule.prep,requiere_facturacion:!!rule.invoice,requiere_delivery:!!reqDelivery,modalidad_entrega:reqDelivery?'Delivery':'No aplica',delivery_nombre:reqDelivery?(o?.delivery_nombre||null):null,estado_caso_especial:status,responsable_caso:resp||null,accion_caso:$('#caseAction',m)?.value||null,producto_recoger:$('#casePick',m)?.value||null,producto_entregar:$('#caseGive',m)?.value||null,monto_ajuste:Number($('#caseAmount',m)?.value||0),fecha_compromiso:$('#caseDue',m)?.value||null,requiere_nota_credito:!!$('#caseCredit',m)?.checked,resolucion_caso:$('#caseResolution',m)?.value||null,caso_resuelto_por:['Resuelto','Cerrado'].includes(status)?currentWorkerName():(o?.caso_resuelto_por||null),caso_resuelto_en:['Resuelto','Cerrado'].includes(status)?(o?.caso_resuelto_en||new Date().toISOString()):null,notas:[o?.notas||'',`[${businessDateTime(new Date())}] ${notas}`].filter(Boolean).join('\n')};
+  const patch={tipo_orden:type,requiere_preparacion:!!rule.prep,requiere_facturacion:!!rule.invoice,requiere_delivery:!!reqDelivery,modalidad_entrega:reqDelivery?'Delivery':'No aplica',delivery_nombre:reqDelivery?(o?.delivery_nombre||null):null,estado_caso_especial:status,responsable_caso:resp||null,accion_caso:$('#caseAction',m)?.value||null,producto_recoger:$('#casePick',m)?.value||null,producto_entregar:$('#caseGive',m)?.value||null,monto_ajuste:Number($('#caseAmount',m)?.value||0),fecha_compromiso:$('#caseDue',m)?.value||null,requiere_nota_credito:!!$('#caseCredit',m)?.checked,resolucion_caso:$('#caseResolution',m)?.value||null,notas:[o?.notas||'',`[${businessDateTime(new Date())}] ${notas}`].filter(Boolean).join('\n')};
   if(reqDelivery && ['Abierto','En revisión','Asignado a delivery'].includes(status) && !['Asignada a delivery','En ruta','Cobrado','Entregado a crédito','No entregado','Devuelto parcial','Anulado'].includes(o?.estado||'')) patch.estado='Validada para delivery';
   if(['Resuelto','Cerrado'].includes(status)) patch.estado=o?.estado==='Anulado'?'Anulado':(o?.estado||'Pedido recibido');
   return patch;
 }
-async function saveSpecialCasePatch(o,patch){
-  const {estado,...cols}=patch;
-  let r=await sb.from('ordenes').update(patch).eq('id',o.id);
-  if(r.error && /estado_caso_especial|responsable_caso|accion_caso|producto_recoger|producto_entregar|monto_ajuste|fecha_compromiso|requiere_nota_credito|resolucion_caso|caso_resuelto/i.test(r.error.message||'')){
-    const fallback={tipo_orden:cols.tipo_orden,requiere_preparacion:cols.requiere_preparacion,requiere_facturacion:cols.requiere_facturacion,requiere_delivery:cols.requiere_delivery,notas:cols.notas};
-    if(estado) fallback.estado=estado;
-    r=await sb.from('ordenes').update(fallback).eq('id',o.id);
-    if(!r.error) alert('Se guardó el caso en notas, pero para historial estructurado ejecuta el SQL V9.1.');
-  }
-  return r;
+async function saveSpecialCasePatch(o,patch,comentario){
+  return await sb.rpc('actualizar_caso_especial_v942',{
+    p_orden_id:o.id,
+    p_estado_esperado:o.estado,
+    p_actualizado_en_esperado:o.actualizado_en||null,
+    p_cambios:patch,
+    p_comentario:comentario||'Seguimiento actualizado'
+  });
 }
 function openSpecialCaseQuickModal(){
   const rows=state.clientes.filter(c=>c.archivado!==true).slice(0,2000);
@@ -6018,9 +5911,9 @@ function openSpecialCaseModal(o){
   wireManual(m,'caseResp','caseRespManual');
   $('#saveSpecialCase',m).onclick=async()=>{
     const patch=specialCasePatchFromModal(m,o);
-    const r=await saveSpecialCasePatch(o,patch);
+    const comentario=$('#caseResolution',m).value||$('#caseAction',m).value||'Seguimiento actualizado';
+    const r=await saveSpecialCasePatch(o,patch,comentario);
     if(r.error) return alert(r.error.message);
-    await logSpecialCase(o,patch.estado_caso_especial||'Actualizado',$('#caseResolution',m).value||$('#caseAction',m).value||'Seguimiento actualizado');
     m.remove(); await refreshVisibleModuleV9384(); render(); toast('Caso actualizado');
   };
 }
@@ -6781,7 +6674,45 @@ function downloadClienteTemplate(){ sheetExport('plantilla_clientes_productos_ce
 function downloadProductoTemplate(){ sheetExport('plantilla_productos_productos_cesar.xlsx',[{codigo:'PR-999',nombre:'Longaniza ejemplo',categoria:'Carnes',unidad:'lb',precio:100,tipo_despacho_peso:'Por libra',peso_estandar_lb:'',requiere_pesaje:true,suma_peso_final:true,tolerancia_lb:0.25,permitir_ajustar_peso:true,permite_fraccion:true,activo:true,observaciones:''},{codigo:'PR-998',nombre:'Salami ejemplo',categoria:'Embutidos',unidad:'unidad',precio:300,tipo_despacho_peso:'Unidad peso fijo',peso_estandar_lb:3.5,requiere_pesaje:false,suma_peso_final:true,tolerancia_lb:0.25,permitir_ajustar_peso:false,permite_fraccion:false,activo:true,observaciones:'1 unidad = 3.5 lb; no se vende al granel'}]); }
 function exportClientes(rows){ sheetExport('clientes_productos_cesar.xlsx', rows.map(c=>({codigo:c.codigo,negocio:c.negocio,contacto:c.contacto,tipo:c.tipo,sector:c.sector,telefono:c.telefono,vendedor:c.vendedor,dias_contacto:contactDaysText(c),frecuencia_automatica:freqFromDays(contactDaysOf(c)),estado:c.estado,whatsapp:c.whatsapp,credito:c.credito,limite_credito:c.limite_credito,observaciones:c.observaciones}))); }
 function exportProductos(rows){ sheetExport('productos_productos_cesar.xlsx', rows.map(p=>({codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,unidad:p.unidad,precio:p.precio_defecto,tipo_despacho_peso:productWeightTypeFromProduct(p),peso_estandar_lb:p.peso_estandar_lb,requiere_pesaje:p.requiere_pesaje!==false,suma_peso_final:p.suma_peso_final!==false,tolerancia_lb:p.tolerancia_lb||0.25,permitir_ajustar_peso:p.permitir_ajustar_peso!==false,permite_fraccion:productAllowsFraction(p),activo:p.activo,observaciones:p.observaciones}))); }
-async function readXlsx(file){ if(!file) return []; const data=await file.arrayBuffer(); const wb=XLSX.read(data); return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''}); }
+const MAX_XLSX_IMPORT_BYTES=2*1024*1024;
+const MAX_XLSX_IMPORT_ROWS=5000;
+const MAX_XLSX_IMPORT_COLUMNS=50;
+const FORBIDDEN_XLSX_HEADERS=new Set(['__proto__','prototype','constructor']);
+function safeXlsxCell(value){
+  return typeof value==='string' ? value.slice(0,2000) : value;
+}
+async function readXlsx(file){
+  if(!file) return [];
+  try{
+    const name=String(file.name||'').toLowerCase();
+    if(!/\.(xlsx|xls)$/.test(name)) throw new Error('Solo se permiten archivos .xlsx o .xls.');
+    if(Number(file.size||0)>MAX_XLSX_IMPORT_BYTES) throw new Error('El archivo supera el límite de 2 MB.');
+    const data=await file.arrayBuffer();
+    const wb=XLSX.read(data,{
+      type:'array',dense:true,cellFormula:false,cellHTML:false,cellNF:false,
+      cellStyles:false,bookVBA:false,sheetRows:MAX_XLSX_IMPORT_ROWS+2
+    });
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    if(!ws) throw new Error('El archivo no contiene una hoja válida.');
+    const range=XLSX.utils.decode_range(ws['!ref']||'A1:A1');
+    if(range.e.c+1>MAX_XLSX_IMPORT_COLUMNS) throw new Error('El archivo supera el límite de 50 columnas.');
+    const matrix=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true,blankrows:false});
+    if(matrix.length>MAX_XLSX_IMPORT_ROWS+1) throw new Error('El archivo supera el límite de 5,000 filas.');
+    if(!matrix.length) return [];
+    const headers=matrix[0].slice(0,MAX_XLSX_IMPORT_COLUMNS).map(x=>String(x??'').trim().slice(0,100));
+    return matrix.slice(1).map(cells=>{
+      const row=Object.create(null);
+      headers.forEach((header,index)=>{
+        if(header && !FORBIDDEN_XLSX_HEADERS.has(header.toLowerCase())) row[header]=safeXlsxCell(cells[index]);
+      });
+      return row;
+    });
+  }catch(error){
+    console.error('Importación Excel rechazada:',error);
+    alert(error?.message||'No se pudo leer el archivo Excel de forma segura.');
+    return [];
+  }
+}
 function val(row,names){ const keys=Object.keys(row); for(const n of names){ const k=keys.find(k=>norm(k)===norm(n)); if(k) return row[k]; } return ''; }
 async function importClientes(file){ const rows=await readXlsx(file); if(!rows.length) return; const payload=rows.map(r=>({codigo:String(val(r,['codigo','código'])).trim(),negocio:String(val(r,['negocio','cliente'])).trim(),contacto:String(val(r,['contacto'])).trim(),tipo:String(val(r,['tipo','tipo_negocio'])).trim()||'Otro',sector:String(val(r,['sector','zona'])).trim(),telefono:String(val(r,['telefono','teléfono'])).trim(),vendedor:String(val(r,['vendedor'])).trim()||state.profile.vendedor||'Cesar',dia_contacto:(String(val(r,['dias_contacto','días_contacto','dia_contacto','día','dia'])).trim()||'Lunes'),frecuencia:freqFromDays(splitContactDays(String(val(r,['dias_contacto','días_contacto','dia_contacto','día','dia'])).trim()||'Lunes')),estado:String(val(r,['estado'])).trim()||'Activo',whatsapp:String(val(r,['whatsapp'])).toLowerCase()!=='false',credito:String(val(r,['credito','crédito'])).toLowerCase()==='true',limite_credito:+val(r,['limite_credito','límite_credito'])||0,observaciones:String(val(r,['observaciones'])).trim(),archivado:false})).filter(x=>x.codigo&&x.negocio); if(!payload.length) return alert('No encontré filas válidas.'); const {error}=await sb.from('clientes').upsert(payload,{onConflict:'codigo'}); if(error) return alert(error.message); await sb.from('importaciones_log').insert({tipo:'clientes',archivo:file.name,importados:payload.length,detalle:{filas:rows.length},usuario:state.user.id}); await refreshVisibleModuleV9384(); render(); toast('Clientes importados/actualizados: '+payload.length); }
 async function importProductos(file){

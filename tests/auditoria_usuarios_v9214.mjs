@@ -11,7 +11,7 @@ const section = (a,b) => {
   return source.slice(start,end);
 };
 
-const users = section('function renderConfigUsuarios(c){','\nasync function saveUserPermissionsDirect');
+const users = section('function renderConfigUsuarios(c){','\nasync function saveUserPermissions');
 const editor = section('function openUserPerms(u){','\nfunction openAuthGuide');
 const saver = section('async function saveUserPermissions(u,profilePatch,overrides){','\nfunction openUserPerms');
 
@@ -23,7 +23,7 @@ assert.ok(editor.includes('Heredar del rol'), 'Falta la opción para heredar per
 assert.ok(editor.includes("configOverride!=='editar'"), 'Falta protección contra autobloqueo administrativo.');
 assert.ok(editor.includes('saveUserPermissions('), 'El editor no guarda perfil y permisos.');
 assert.ok(saver.includes("sb.rpc('actualizar_usuario_permisos_v9214'") || saver.includes("sb.rpc('actualizar_usuario_permisos_v930r9'"), 'Falta guardado transaccional RPC.');
-assert.ok(saver.includes('saveUserPermissionsDirect'), 'Falta respaldo directo si la RPC todavía no está instalada.');
+assert.ok(!source.includes('saveUserPermissionsDirect'), 'No debe existir respaldo directo que evada la RPC segura.');
 assert.ok(source.includes("userSearch:''") && source.includes("userRoleFilter:'Todos'") && source.includes("userStatusFilter:'Todos'"), 'Faltan filtros del módulo Usuarios.');
 assert.ok(sql.includes("('reportes','Reportes'") && sql.includes("('auditoria','Auditoría'") && sql.includes("('kanban','Kanban'"), 'El SQL no registra todos los módulos de la V9.2.14.');
 assert.ok(sql.includes('create or replace function public.actualizar_usuario_permisos_v9214'), 'Falta la función transaccional de Supabase.');

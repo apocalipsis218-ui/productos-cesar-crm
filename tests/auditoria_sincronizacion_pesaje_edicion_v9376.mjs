@@ -33,7 +33,7 @@ assert.equal(reset.peso_facturado,null);
 assert.equal(reset.peso_validado,null);
 
 const checks=[
-  ['versión V9.3.9.0 o superior visible',/^(?:9\.3\.9\.[0-9]+|9\.4\.0)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
+  ['versión V9.3.9.0 o superior visible',/^(?:9\.3\.9\.[0-9]+|9\.4\.[0-9]+)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
   ['conserva preparación de líneas sin cambios',/cantidad_preparada:i\.cantidad_preparada/.test(main)&&/peso_equivalente_preparado:i\.peso_equivalente_preparado/.test(main)],
   ['detecta cambio de composición',/orderCompositionChange\(o\?\.items\|\|\[\],clean\)/.test(main)],
   ['eliminación regresa a Carnicería',/composition\.changed\)\{[\s\S]*volverá a Carnicería/.test(main)],

@@ -12,8 +12,8 @@ const sql=read('supabase/27_actualizacion_v933_retiros_ventas_internas.sql');
 const pkg=JSON.parse(read('package.json'));
 const ok=(cond,msg)=>{ if(!cond){ console.error('ERROR - '+msg); process.exit(1); } console.log('OK - '+msg); };
 
-ok(/^(?:9\.3\.(?:[3-9]|[1-9]\d+)(?:\.\d+)?|9\.4\.0)$/.test(pkg.version),'package actualizado a V9.3.3');
-ok(main.includes('V9.3.3') && /APP_VERSION = 'V(?:9\.3\.(?:[3-9]|\d{2,})(?:\.\d+)?|9\.4\.0) PWA'/.test(pwa),'versión V9.3.3 PWA o superior visible');
+ok(/^(?:9\.3\.(?:[3-9]|[1-9]\d+)(?:\.\d+)?|9\.4\.[0-9]+)$/.test(pkg.version),'package actualizado a V9.3.3');
+ok(main.includes('V9.3.3') && /APP_VERSION = 'V(?:9\.3\.(?:[3-9]|\d{2,})(?:\.\d+)?|9\.4\.[0-9]+) PWA'/.test(pwa),'versión V9.3.3 PWA o superior visible');
 ok(main.includes('modalidad_entrega') && main.includes("Retiro en negocio"),'modalidad de entrega separada del tipo de orden');
 ok(main.includes('tipo_cliente_orden') && main.includes('Venta interna / mostrador'),'venta interna disponible sin crear cliente');
 ok(main.includes("Es obligatorio escribir el nombre del comprador") && main.includes("El nombre del cliente es obligatorio"),'nombre obligatorio en toda orden');

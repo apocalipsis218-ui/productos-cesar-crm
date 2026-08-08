@@ -6,7 +6,7 @@ const sql=fs.readFileSync(new URL('../supabase/sql/39_actualizacion_v9381_guarda
 const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
 
 const checks=[
-  ['versión V9.3.9.0 o superior sincronizada',/^(?:9\.3\.9\.[0-9]+|9\.4\.0)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
+  ['versión V9.3.9.0 o superior sincronizada',/^(?:9\.3\.9\.[0-9]+|9\.4\.[0-9]+)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
   ['RPC transaccional de órdenes',/function public\.guardar_orden_v9381/.test(sql)&&main.includes("sb.rpc('guardar_orden_v9381'")],
   ['RPC transaccional de preparación',/function public\.guardar_preparacion_v9381/.test(sql)&&main.includes("sb.rpc('guardar_preparacion_v9381'")],
   ['orden guarda encabezado y detalle juntos',/delete from public\.orden_detalle where orden_id=v_id;/.test(sql)&&/jsonb_array_elements\(p_items\)/.test(sql)],

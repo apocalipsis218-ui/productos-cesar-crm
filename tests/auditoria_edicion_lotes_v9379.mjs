@@ -6,7 +6,7 @@ const sql=fs.readFileSync('supabase/sql/38_actualizacion_v9379_edicion_segura_lo
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 
 const checks=[
-  ['versión V9.3.9.0 o superior sincronizada',/^(?:9\.3\.(?:[89]|\d{2,})\.|9\.4\.0)/.test(pkg.version)&&new RegExp(`V${pkg.version.replaceAll('.','\\.')} PWA`).test(main)],
+  ['versión V9.3.9.0 o superior sincronizada',/^(?:9\.3\.(?:[89]|\d{2,})\.|9\.4\.[0-9]+)/.test(pkg.version)&&new RegExp(`V${pkg.version.replaceAll('.','\\.')} PWA`).test(main)],
   ['botón Editar lote visible',/>Editar lote</.test(main)&&/openModal\('Editar lote'/.test(main)],
   ['lista órdenes incluidas',/data-lot-current-order/.test(main)],
   ['lista órdenes disponibles',/data-lot-add-order/.test(main)],

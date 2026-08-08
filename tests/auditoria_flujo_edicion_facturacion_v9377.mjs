@@ -23,7 +23,7 @@ assert.equal(patch.peso_validado,null);
 assert.equal(patch.preparado_por,null);
 
 const checks=[
-  ['versión V9.3.9.0 o superior',/^(?:9\.3\.9\.[0-9]+|9\.4\.0)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
+  ['versión V9.3.9.0 o superior',/^(?:9\.3\.9\.[0-9]+|9\.4\.[0-9]+)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
   ['borrado y reinserción son transaccionales',/guardar_orden_v9381/.test(main)],
   ['error transaccional impide guardado parcial',/No se pudo guardar la orden completa/.test(main)],
   ['edición vuelve a Carnicería',/estado:'Pedido recibido'/.test(helper)],

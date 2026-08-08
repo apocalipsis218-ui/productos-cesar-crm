@@ -5,7 +5,7 @@ const sql=fs.readFileSync(new URL('../supabase/sql/44_actualizacion_v9391_faltan
 const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
 
 const checks=[
-  ['versión V9.3.9.1 o superior sincronizada',/^(?:9\.3\.9\.[1-9][0-9]*|9\.4\.0)$/.test(pkg.version) && main.includes(`V${pkg.version}`)],
+  ['versión V9.3.9.1 o superior sincronizada',/^(?:9\.3\.9\.[1-9][0-9]*|9\.4\.[0-9]+)$/.test(pkg.version) && main.includes(`V${pkg.version}`)],
   ['cliente_id de pago admite ocasionales',/orden_pagos[\s\S]*alter column cliente_id drop not null/i.test(sql)],
   ['pago conserva snapshot del cliente',sql.includes('pc_snapshot_pago_cliente_v9391') && sql.includes('cliente_nombre') && sql.includes('cliente_telefono')],
   ['preparación y pendiente son transaccionales',sql.includes('guardar_preparacion_faltantes_v9391') && sql.includes('guardar_preparacion_v9381')],

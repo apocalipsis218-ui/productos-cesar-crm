@@ -9,8 +9,8 @@ const sql9371=fs.readFileSync(new URL('../supabase/31_actualizacion_v9371_respon
 const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
 function ok(cond,msg){ if(!cond){console.error('FALLO - '+msg);process.exit(1);} console.log('OK - '+msg); }
 
-ok(/^(?:9\.3\.(?:[5-9]|[1-9]\d+)(?:\.\d+)?|9\.4\.0)$/.test(pkg.version),'package base V9.3.5 con revisión V9.3.5.1 integrada');
-ok(/V(?:9\.3\.9\.[0-9]+|9\.4\.0) PWA/.test(main)&&/APP_VERSION = 'V(?:9\.3\.9\.[0-9]+|9\.4\.0) PWA'/.test(pwa),'versión V9.3.5.1 PWA o superior visible');
+ok(/^(?:9\.3\.(?:[5-9]|[1-9]\d+)(?:\.\d+)?|9\.4\.[0-9]+)$/.test(pkg.version),'package base V9.3.5 con revisión V9.3.5.1 integrada');
+ok(/V(?:9\.3\.9\.[0-9]+|9\.4\.[0-9]+) PWA/.test(main)&&/APP_VERSION = 'V(?:9\.3\.9\.[0-9]+|9\.4\.[0-9]+) PWA'/.test(pwa),'versión V9.3.5.1 PWA o superior visible');
 ok(main.includes('data-batch-amount="${o.id}"')&&main.includes('Factura final'),'monto editable en Validación por lote');
 ok(main.includes("const amount=normalizeValidationInvoiceAmount($('[data-batch-amount]',row)?.value||0)"),'lote usa el monto digitado por Validación');
 ok(main.includes('amountChanged')&&main.includes('d.rows[id]={checked,weight,amount,updatedAt:new Date().toISOString()}'),'borrador conserva solo monto editado o fila activa');
