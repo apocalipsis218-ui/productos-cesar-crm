@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const source = readFileSync(new URL('../scripts/staging/fixtures_v942.mjs', import.meta.url), 'utf8');
+const catalogs = JSON.parse(readFileSync(new URL('../scripts/staging/catalogos_v942.json', import.meta.url), 'utf8'));
+
+assert.match(source, /const EXPECTED_REF = 'odlwbuagtrgmfpdohors'/);
+assert.match(source, /projectRef\(url\) !== EXPECTED_REF/);
+assert.match(source, /CONFIRM_STAGING_PROJECT/);
+assert.match(source, /--execute/);
+assert.match(source, /--confirm-delete=STG942/);
+assert.match(source, /STAGING_TEST_PASSWORD/);
+assert.match(source, /SUPABASE_SECRET_KEY/);
+assert.match(source, /SUPABASE_PUBLISHABLE_KEY/);
+assert.match(source, /example\.invalid/);
+assert.match(source, /app_metadata: \{ fixture: TAG \}/);
+assert.doesNotMatch(source, /sb_secret_[A-Za-z0-9_-]+/);
+assert.doesNotMatch(source, /service_role\s*[:=]\s*['"][^'"]+['"]/i);
+assert.doesNotMatch(source, /jmcbaduxjrzfnesbslmp/);
+assert.doesNotMatch(source, /delete\(\)\.neq\(/);
+assert.doesNotMatch(source, /truncate\s+/i);
+assert.doesNotMatch(source, /drop\s+(?:table|schema|database)/i);
+assert.match(source, /like\('codigo', `\$\{TAG\}-ORD-%`\)/);
+assert.match(source, /like\('codigo_lote', `\$\{TAG\}-%`\)/);
+assert.match(source, /email\?\.endsWith\(EMAIL_SUFFIX\)/);
+assert.equal(catalogs.modulos_sistema.length, 22);
+assert.equal(catalogs.roles_permisos.length, 224);
+assert.equal(catalogs.orden_transiciones_v9382.length, 68);
+assert.match(catalogs.source, /sin usuarios ni datos operativos/);
+
+console.log('OK: paquete de fixtures V9.4.2 aislado, confirmable y sin credenciales.');

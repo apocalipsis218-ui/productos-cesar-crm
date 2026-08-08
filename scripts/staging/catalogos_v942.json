@@ -1,0 +1,1713 @@
+{
+  "source": "Catálogos técnicos sanitizados V9.4.2; sin usuarios ni datos operativos.",
+  "modulos_sistema": [
+    {
+      "id": "inicio",
+      "grupo": "General",
+      "orden": 1,
+      "activo": true,
+      "nombre": "Inicio",
+      "descripcion": "Resumen general"
+    },
+    {
+      "id": "control",
+      "grupo": "Ventas / CRM",
+      "orden": 2,
+      "activo": true,
+      "nombre": "Control",
+      "descripcion": "Llamadas y gestiones"
+    },
+    {
+      "id": "clientes",
+      "grupo": "Ventas / CRM",
+      "orden": 3,
+      "activo": true,
+      "nombre": "Clientes",
+      "descripcion": "Ficha y WhatsApp"
+    },
+    {
+      "id": "ordenes",
+      "grupo": "Ventas / CRM",
+      "orden": 4,
+      "activo": true,
+      "nombre": "Órdenes",
+      "descripcion": "Panel completo"
+    },
+    {
+      "id": "carniceria",
+      "grupo": "Operación",
+      "orden": 5,
+      "activo": true,
+      "nombre": "Carnicería",
+      "descripcion": "Preparar y pesar"
+    },
+    {
+      "id": "facturacion",
+      "grupo": "Operación",
+      "orden": 6,
+      "activo": true,
+      "nombre": "Facturación",
+      "descripcion": "Imprimir y facturar"
+    },
+    {
+      "id": "validacion",
+      "grupo": "Operación",
+      "orden": 7,
+      "activo": true,
+      "nombre": "Validación",
+      "descripcion": "Entrega a delivery"
+    },
+    {
+      "id": "delivery",
+      "grupo": "Operación",
+      "orden": 8,
+      "activo": true,
+      "nombre": "Delivery",
+      "descripcion": "Mis pedidos"
+    },
+    {
+      "id": "liquidacion",
+      "grupo": "Operación",
+      "orden": 9,
+      "activo": true,
+      "nombre": "Liquidación",
+      "descripcion": "Cobros y CXC"
+    },
+    {
+      "id": "alertas",
+      "grupo": "Operación",
+      "orden": 10,
+      "activo": true,
+      "nombre": "Alertas",
+      "descripcion": "Centro operativo"
+    },
+    {
+      "id": "panel",
+      "grupo": "Inicio",
+      "orden": 10,
+      "activo": true,
+      "nombre": "Panel general",
+      "descripcion": "Indicadores y resumen operativo."
+    },
+    {
+      "id": "kanban",
+      "grupo": "Operación",
+      "orden": 11,
+      "activo": true,
+      "nombre": "Kanban",
+      "descripcion": "Tablero de órdenes"
+    },
+    {
+      "id": "productos",
+      "grupo": "Administración",
+      "orden": 12,
+      "activo": true,
+      "nombre": "Productos",
+      "descripcion": "Catálogo"
+    },
+    {
+      "id": "productividad",
+      "grupo": "Administración",
+      "orden": 13,
+      "activo": true,
+      "nombre": "Productividad",
+      "descripcion": "Incentivos y KPI"
+    },
+    {
+      "id": "reportes",
+      "grupo": "Administración",
+      "orden": 14,
+      "activo": true,
+      "nombre": "Reportes",
+      "descripcion": "Indicadores y análisis"
+    },
+    {
+      "id": "auditoria",
+      "grupo": "Administración",
+      "orden": 15,
+      "activo": true,
+      "nombre": "Auditoría",
+      "descripcion": "Trazabilidad de acciones"
+    },
+    {
+      "id": "config",
+      "grupo": "Administración",
+      "orden": 16,
+      "activo": true,
+      "nombre": "Configuración",
+      "descripcion": "Sistema"
+    },
+    {
+      "id": "crm",
+      "grupo": "Ventas",
+      "orden": 20,
+      "activo": true,
+      "nombre": "CRM / llamadas",
+      "descripcion": "Gestión de llamadas y resultado del contacto."
+    },
+    {
+      "id": "nuevo",
+      "grupo": "Ventas",
+      "orden": 30,
+      "activo": true,
+      "nombre": "Nuevo pedido",
+      "descripcion": "Crear pedidos manuales o desde WhatsApp."
+    },
+    {
+      "id": "peso",
+      "grupo": "Operación",
+      "orden": 50,
+      "activo": true,
+      "nombre": "Peso y factura",
+      "descripcion": "Preparación, pesaje y facturación."
+    },
+    {
+      "id": "viajes",
+      "grupo": "Logística",
+      "orden": 60,
+      "activo": true,
+      "nombre": "Viajes / delivery",
+      "descripcion": "Asignar órdenes al delivery y controlar rutas."
+    },
+    {
+      "id": "cierre",
+      "grupo": "CXC",
+      "orden": 70,
+      "activo": true,
+      "nombre": "Cierre / CXC",
+      "descripcion": "Cerrar entregas, cobros y crédito."
+    }
+  ],
+  "roles_permisos": [
+    {
+      "rol": "Carnicería",
+      "nivel": "none",
+      "modulo": "alertas"
+    },
+    {
+      "rol": "Carnicería",
+      "nivel": "none",
+      "modulo": "auditoria"
+    },
+    {
+      "rol": "Carnicería",
+      "nivel": "editar",
+      "modulo": "carniceria"
+    },
+    {
+      "rol": "Carnicería",
+      "nivel": "none",
+      "modulo": "clientes"
+    },
+    {
+      "rol": "Carnicería",
+      "nivel": "none",
+      "modulo": "config"
+    },
+    {
+      "rol": "Carnicería",
+      "nivel": "none",
+      "modulo": "control"
+    },
+    {
+      "rol": "Carnicería",
+      "nivel": "none",
+      "modulo": "delivery"
+    },
+    {
+      "rol": "Carnicería",
+      "nivel": "none",
+      "modulo": "facturacion"
+    },
+    {
+      "rol": "Carnicería",
+      "nivel": "ver",
+      "modulo": "inicio"
+    },
+    {
+      "rol": "Carnicería",
+      "nivel": "none",
+      "modulo": "kanban"
+    },
+    {
+      "rol": "Carnicería",
+      "nivel": "none",
+      "modulo": "liquidacion"
+    },
+    {
+      "rol": "Carnicería",
+      "nivel": "ver",
+      "modulo": "ordenes"
+    },
+    {
+      "rol": "Carnicería",
+      "nivel": "none",
+      "modulo": "productividad"
+    },
+    {
+      "rol": "Carnicería",
+      "nivel": "ver",
+      "modulo": "productos"
+    },
+    {
+      "rol": "Carnicería",
+      "nivel": "none",
+      "modulo": "reportes"
+    },
+    {
+      "rol": "Carnicería",
+      "nivel": "none",
+      "modulo": "validacion"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "none",
+      "modulo": "alertas"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "none",
+      "modulo": "auditoria"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "none",
+      "modulo": "carniceria"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "editar",
+      "modulo": "cierre"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "ver",
+      "modulo": "clientes"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "editar",
+      "modulo": "cobranza"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "none",
+      "modulo": "config"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "none",
+      "modulo": "control"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "none",
+      "modulo": "crm"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "ver",
+      "modulo": "delivery"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "none",
+      "modulo": "facturacion"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "ver",
+      "modulo": "inicio"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "none",
+      "modulo": "kanban"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "editar",
+      "modulo": "liquidacion"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "none",
+      "modulo": "nuevo"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "ver",
+      "modulo": "ordenes"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "ver",
+      "modulo": "panel"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "none",
+      "modulo": "peso"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "none",
+      "modulo": "productividad"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "ver",
+      "modulo": "productos"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "none",
+      "modulo": "reportes"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "none",
+      "modulo": "validacion"
+    },
+    {
+      "rol": "Cobrador",
+      "nivel": "ver",
+      "modulo": "viajes"
+    },
+    {
+      "rol": "Control",
+      "nivel": "none",
+      "modulo": "alertas"
+    },
+    {
+      "rol": "Control",
+      "nivel": "none",
+      "modulo": "auditoria"
+    },
+    {
+      "rol": "Control",
+      "nivel": "none",
+      "modulo": "carniceria"
+    },
+    {
+      "rol": "Control",
+      "nivel": "editar",
+      "modulo": "clientes"
+    },
+    {
+      "rol": "Control",
+      "nivel": "none",
+      "modulo": "config"
+    },
+    {
+      "rol": "Control",
+      "nivel": "editar",
+      "modulo": "control"
+    },
+    {
+      "rol": "Control",
+      "nivel": "none",
+      "modulo": "delivery"
+    },
+    {
+      "rol": "Control",
+      "nivel": "none",
+      "modulo": "facturacion"
+    },
+    {
+      "rol": "Control",
+      "nivel": "ver",
+      "modulo": "inicio"
+    },
+    {
+      "rol": "Control",
+      "nivel": "none",
+      "modulo": "kanban"
+    },
+    {
+      "rol": "Control",
+      "nivel": "none",
+      "modulo": "liquidacion"
+    },
+    {
+      "rol": "Control",
+      "nivel": "editar",
+      "modulo": "ordenes"
+    },
+    {
+      "rol": "Control",
+      "nivel": "none",
+      "modulo": "productividad"
+    },
+    {
+      "rol": "Control",
+      "nivel": "ver",
+      "modulo": "productos"
+    },
+    {
+      "rol": "Control",
+      "nivel": "none",
+      "modulo": "reportes"
+    },
+    {
+      "rol": "Control",
+      "nivel": "none",
+      "modulo": "validacion"
+    },
+    {
+      "rol": "CXC",
+      "nivel": "none",
+      "modulo": "alertas"
+    },
+    {
+      "rol": "CXC",
+      "nivel": "none",
+      "modulo": "auditoria"
+    },
+    {
+      "rol": "CXC",
+      "nivel": "none",
+      "modulo": "carniceria"
+    },
+    {
+      "rol": "CXC",
+      "nivel": "none",
+      "modulo": "clientes"
+    },
+    {
+      "rol": "CXC",
+      "nivel": "none",
+      "modulo": "config"
+    },
+    {
+      "rol": "CXC",
+      "nivel": "none",
+      "modulo": "control"
+    },
+    {
+      "rol": "CXC",
+      "nivel": "ver",
+      "modulo": "delivery"
+    },
+    {
+      "rol": "CXC",
+      "nivel": "none",
+      "modulo": "facturacion"
+    },
+    {
+      "rol": "CXC",
+      "nivel": "none",
+      "modulo": "inicio"
+    },
+    {
+      "rol": "CXC",
+      "nivel": "none",
+      "modulo": "kanban"
+    },
+    {
+      "rol": "CXC",
+      "nivel": "editar",
+      "modulo": "liquidacion"
+    },
+    {
+      "rol": "CXC",
+      "nivel": "ver",
+      "modulo": "ordenes"
+    },
+    {
+      "rol": "CXC",
+      "nivel": "none",
+      "modulo": "productividad"
+    },
+    {
+      "rol": "CXC",
+      "nivel": "none",
+      "modulo": "productos"
+    },
+    {
+      "rol": "CXC",
+      "nivel": "none",
+      "modulo": "reportes"
+    },
+    {
+      "rol": "CXC",
+      "nivel": "none",
+      "modulo": "validacion"
+    },
+    {
+      "rol": "Delivery",
+      "nivel": "none",
+      "modulo": "alertas"
+    },
+    {
+      "rol": "Delivery",
+      "nivel": "none",
+      "modulo": "auditoria"
+    },
+    {
+      "rol": "Delivery",
+      "nivel": "none",
+      "modulo": "carniceria"
+    },
+    {
+      "rol": "Delivery",
+      "nivel": "none",
+      "modulo": "clientes"
+    },
+    {
+      "rol": "Delivery",
+      "nivel": "none",
+      "modulo": "config"
+    },
+    {
+      "rol": "Delivery",
+      "nivel": "none",
+      "modulo": "control"
+    },
+    {
+      "rol": "Delivery",
+      "nivel": "editar",
+      "modulo": "delivery"
+    },
+    {
+      "rol": "Delivery",
+      "nivel": "none",
+      "modulo": "facturacion"
+    },
+    {
+      "rol": "Delivery",
+      "nivel": "ver",
+      "modulo": "inicio"
+    },
+    {
+      "rol": "Delivery",
+      "nivel": "none",
+      "modulo": "kanban"
+    },
+    {
+      "rol": "Delivery",
+      "nivel": "none",
+      "modulo": "liquidacion"
+    },
+    {
+      "rol": "Delivery",
+      "nivel": "ver",
+      "modulo": "ordenes"
+    },
+    {
+      "rol": "Delivery",
+      "nivel": "none",
+      "modulo": "productividad"
+    },
+    {
+      "rol": "Delivery",
+      "nivel": "none",
+      "modulo": "productos"
+    },
+    {
+      "rol": "Delivery",
+      "nivel": "none",
+      "modulo": "reportes"
+    },
+    {
+      "rol": "Delivery",
+      "nivel": "none",
+      "modulo": "validacion"
+    },
+    {
+      "rol": "Facturación",
+      "nivel": "none",
+      "modulo": "alertas"
+    },
+    {
+      "rol": "Facturación",
+      "nivel": "none",
+      "modulo": "auditoria"
+    },
+    {
+      "rol": "Facturación",
+      "nivel": "none",
+      "modulo": "carniceria"
+    },
+    {
+      "rol": "Facturación",
+      "nivel": "none",
+      "modulo": "clientes"
+    },
+    {
+      "rol": "Facturación",
+      "nivel": "none",
+      "modulo": "config"
+    },
+    {
+      "rol": "Facturación",
+      "nivel": "none",
+      "modulo": "control"
+    },
+    {
+      "rol": "Facturación",
+      "nivel": "none",
+      "modulo": "delivery"
+    },
+    {
+      "rol": "Facturación",
+      "nivel": "editar",
+      "modulo": "facturacion"
+    },
+    {
+      "rol": "Facturación",
+      "nivel": "ver",
+      "modulo": "inicio"
+    },
+    {
+      "rol": "Facturación",
+      "nivel": "none",
+      "modulo": "kanban"
+    },
+    {
+      "rol": "Facturación",
+      "nivel": "none",
+      "modulo": "liquidacion"
+    },
+    {
+      "rol": "Facturación",
+      "nivel": "ver",
+      "modulo": "ordenes"
+    },
+    {
+      "rol": "Facturación",
+      "nivel": "none",
+      "modulo": "productividad"
+    },
+    {
+      "rol": "Facturación",
+      "nivel": "ver",
+      "modulo": "productos"
+    },
+    {
+      "rol": "Facturación",
+      "nivel": "none",
+      "modulo": "reportes"
+    },
+    {
+      "rol": "Facturación",
+      "nivel": "none",
+      "modulo": "validacion"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "agenda"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "alertas"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "auditoria"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "carniceria"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "cierre"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "clientes"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "cobranza"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "config"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "control"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "crm"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "delivery"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "facturacion"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "ver",
+      "modulo": "historial"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "inicio"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "kanban"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "liquidacion"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "nuevo"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "ordenes"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "panel"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "peso"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "productividad"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "productos"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "reportes"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "ver",
+      "modulo": "riesgo"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "usuarios"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "validacion"
+    },
+    {
+      "rol": "Gerente",
+      "nivel": "editar",
+      "modulo": "viajes"
+    },
+    {
+      "rol": "Liquidación",
+      "nivel": "none",
+      "modulo": "alertas"
+    },
+    {
+      "rol": "Liquidación",
+      "nivel": "none",
+      "modulo": "auditoria"
+    },
+    {
+      "rol": "Liquidación",
+      "nivel": "none",
+      "modulo": "carniceria"
+    },
+    {
+      "rol": "Liquidación",
+      "nivel": "none",
+      "modulo": "clientes"
+    },
+    {
+      "rol": "Liquidación",
+      "nivel": "none",
+      "modulo": "config"
+    },
+    {
+      "rol": "Liquidación",
+      "nivel": "none",
+      "modulo": "control"
+    },
+    {
+      "rol": "Liquidación",
+      "nivel": "none",
+      "modulo": "delivery"
+    },
+    {
+      "rol": "Liquidación",
+      "nivel": "none",
+      "modulo": "facturacion"
+    },
+    {
+      "rol": "Liquidación",
+      "nivel": "ver",
+      "modulo": "inicio"
+    },
+    {
+      "rol": "Liquidación",
+      "nivel": "none",
+      "modulo": "kanban"
+    },
+    {
+      "rol": "Liquidación",
+      "nivel": "editar",
+      "modulo": "liquidacion"
+    },
+    {
+      "rol": "Liquidación",
+      "nivel": "ver",
+      "modulo": "ordenes"
+    },
+    {
+      "rol": "Liquidación",
+      "nivel": "none",
+      "modulo": "productividad"
+    },
+    {
+      "rol": "Liquidación",
+      "nivel": "none",
+      "modulo": "productos"
+    },
+    {
+      "rol": "Liquidación",
+      "nivel": "none",
+      "modulo": "reportes"
+    },
+    {
+      "rol": "Liquidación",
+      "nivel": "none",
+      "modulo": "validacion"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "none",
+      "modulo": "alertas"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "none",
+      "modulo": "auditoria"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "editar",
+      "modulo": "carniceria"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "editar",
+      "modulo": "cierre"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "ver",
+      "modulo": "clientes"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "ver",
+      "modulo": "config"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "ver",
+      "modulo": "control"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "ver",
+      "modulo": "crm"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "ver",
+      "modulo": "delivery"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "editar",
+      "modulo": "facturacion"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "ver",
+      "modulo": "inicio"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "none",
+      "modulo": "kanban"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "ver",
+      "modulo": "liquidacion"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "editar",
+      "modulo": "nuevo"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "editar",
+      "modulo": "ordenes"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "ver",
+      "modulo": "panel"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "editar",
+      "modulo": "peso"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "none",
+      "modulo": "productividad"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "ver",
+      "modulo": "productos"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "none",
+      "modulo": "reportes"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "editar",
+      "modulo": "validacion"
+    },
+    {
+      "rol": "Supervisor",
+      "nivel": "editar",
+      "modulo": "viajes"
+    },
+    {
+      "rol": "Validación",
+      "nivel": "none",
+      "modulo": "alertas"
+    },
+    {
+      "rol": "Validación",
+      "nivel": "none",
+      "modulo": "auditoria"
+    },
+    {
+      "rol": "Validación",
+      "nivel": "none",
+      "modulo": "carniceria"
+    },
+    {
+      "rol": "Validación",
+      "nivel": "none",
+      "modulo": "clientes"
+    },
+    {
+      "rol": "Validación",
+      "nivel": "none",
+      "modulo": "config"
+    },
+    {
+      "rol": "Validación",
+      "nivel": "none",
+      "modulo": "control"
+    },
+    {
+      "rol": "Validación",
+      "nivel": "ver",
+      "modulo": "delivery"
+    },
+    {
+      "rol": "Validación",
+      "nivel": "none",
+      "modulo": "facturacion"
+    },
+    {
+      "rol": "Validación",
+      "nivel": "ver",
+      "modulo": "inicio"
+    },
+    {
+      "rol": "Validación",
+      "nivel": "none",
+      "modulo": "kanban"
+    },
+    {
+      "rol": "Validación",
+      "nivel": "none",
+      "modulo": "liquidacion"
+    },
+    {
+      "rol": "Validación",
+      "nivel": "ver",
+      "modulo": "ordenes"
+    },
+    {
+      "rol": "Validación",
+      "nivel": "none",
+      "modulo": "productividad"
+    },
+    {
+      "rol": "Validación",
+      "nivel": "none",
+      "modulo": "productos"
+    },
+    {
+      "rol": "Validación",
+      "nivel": "none",
+      "modulo": "reportes"
+    },
+    {
+      "rol": "Validación",
+      "nivel": "editar",
+      "modulo": "validacion"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "editar",
+      "modulo": "agenda"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "none",
+      "modulo": "alertas"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "none",
+      "modulo": "auditoria"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "none",
+      "modulo": "carniceria"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "none",
+      "modulo": "cierre"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "editar",
+      "modulo": "clientes"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "none",
+      "modulo": "config"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "editar",
+      "modulo": "control"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "editar",
+      "modulo": "crm"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "none",
+      "modulo": "delivery"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "none",
+      "modulo": "facturacion"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "ver",
+      "modulo": "historial"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "ver",
+      "modulo": "inicio"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "none",
+      "modulo": "kanban"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "none",
+      "modulo": "liquidacion"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "editar",
+      "modulo": "nuevo"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "editar",
+      "modulo": "ordenes"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "ver",
+      "modulo": "panel"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "none",
+      "modulo": "peso"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "none",
+      "modulo": "productividad"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "ver",
+      "modulo": "productos"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "none",
+      "modulo": "reportes"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "none",
+      "modulo": "validacion"
+    },
+    {
+      "rol": "Vendedor",
+      "nivel": "none",
+      "modulo": "viajes"
+    },
+    {
+      "rol": "Verificador",
+      "nivel": "none",
+      "modulo": "alertas"
+    },
+    {
+      "rol": "Verificador",
+      "nivel": "none",
+      "modulo": "auditoria"
+    },
+    {
+      "rol": "Verificador",
+      "nivel": "none",
+      "modulo": "carniceria"
+    },
+    {
+      "rol": "Verificador",
+      "nivel": "none",
+      "modulo": "clientes"
+    },
+    {
+      "rol": "Verificador",
+      "nivel": "none",
+      "modulo": "config"
+    },
+    {
+      "rol": "Verificador",
+      "nivel": "none",
+      "modulo": "control"
+    },
+    {
+      "rol": "Verificador",
+      "nivel": "ver",
+      "modulo": "delivery"
+    },
+    {
+      "rol": "Verificador",
+      "nivel": "ver",
+      "modulo": "facturacion"
+    },
+    {
+      "rol": "Verificador",
+      "nivel": "none",
+      "modulo": "inicio"
+    },
+    {
+      "rol": "Verificador",
+      "nivel": "none",
+      "modulo": "kanban"
+    },
+    {
+      "rol": "Verificador",
+      "nivel": "none",
+      "modulo": "liquidacion"
+    },
+    {
+      "rol": "Verificador",
+      "nivel": "ver",
+      "modulo": "ordenes"
+    },
+    {
+      "rol": "Verificador",
+      "nivel": "none",
+      "modulo": "productividad"
+    },
+    {
+      "rol": "Verificador",
+      "nivel": "none",
+      "modulo": "productos"
+    },
+    {
+      "rol": "Verificador",
+      "nivel": "none",
+      "modulo": "reportes"
+    },
+    {
+      "rol": "Verificador",
+      "nivel": "editar",
+      "modulo": "validacion"
+    }
+  ],
+  "orden_transiciones_v9382": [
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Anulado",
+      "estado_anterior": "Asignada a delivery"
+    },
+    {
+      "activo": true,
+      "modulo": "delivery",
+      "estado_nuevo": "Cobrado",
+      "estado_anterior": "Asignada a delivery"
+    },
+    {
+      "activo": true,
+      "modulo": "delivery",
+      "estado_nuevo": "Devuelto parcial",
+      "estado_anterior": "Asignada a delivery"
+    },
+    {
+      "activo": true,
+      "modulo": "delivery",
+      "estado_nuevo": "En ruta",
+      "estado_anterior": "Asignada a delivery"
+    },
+    {
+      "activo": true,
+      "modulo": "delivery",
+      "estado_nuevo": "Entregado",
+      "estado_anterior": "Asignada a delivery"
+    },
+    {
+      "activo": true,
+      "modulo": "delivery",
+      "estado_nuevo": "Entregado a crédito",
+      "estado_anterior": "Asignada a delivery"
+    },
+    {
+      "activo": true,
+      "modulo": "validacion",
+      "estado_nuevo": "Facturada",
+      "estado_anterior": "Asignada a delivery"
+    },
+    {
+      "activo": true,
+      "modulo": "delivery",
+      "estado_nuevo": "No entregado",
+      "estado_anterior": "Asignada a delivery"
+    },
+    {
+      "activo": true,
+      "modulo": "liquidacion",
+      "estado_nuevo": "Cerrado",
+      "estado_anterior": "Cobrado"
+    },
+    {
+      "activo": true,
+      "modulo": "liquidacion",
+      "estado_nuevo": "Cerrado",
+      "estado_anterior": "Devuelto parcial"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Anulado",
+      "estado_anterior": "En preparación"
+    },
+    {
+      "activo": true,
+      "modulo": "carniceria",
+      "estado_nuevo": "Lista para facturar",
+      "estado_anterior": "En preparación"
+    },
+    {
+      "activo": true,
+      "modulo": "carniceria",
+      "estado_nuevo": "Pedido recibido",
+      "estado_anterior": "En preparación"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Anulado",
+      "estado_anterior": "En ruta"
+    },
+    {
+      "activo": true,
+      "modulo": "delivery",
+      "estado_nuevo": "Cobrado",
+      "estado_anterior": "En ruta"
+    },
+    {
+      "activo": true,
+      "modulo": "delivery",
+      "estado_nuevo": "Devuelto parcial",
+      "estado_anterior": "En ruta"
+    },
+    {
+      "activo": true,
+      "modulo": "delivery",
+      "estado_nuevo": "Entregado",
+      "estado_anterior": "En ruta"
+    },
+    {
+      "activo": true,
+      "modulo": "delivery",
+      "estado_nuevo": "Entregado a crédito",
+      "estado_anterior": "En ruta"
+    },
+    {
+      "activo": true,
+      "modulo": "delivery",
+      "estado_nuevo": "No entregado",
+      "estado_anterior": "En ruta"
+    },
+    {
+      "activo": true,
+      "modulo": "liquidacion",
+      "estado_nuevo": "Cobrado",
+      "estado_anterior": "Entregado"
+    },
+    {
+      "activo": true,
+      "modulo": "liquidacion",
+      "estado_nuevo": "Entregado a crédito",
+      "estado_anterior": "Entregado"
+    },
+    {
+      "activo": true,
+      "modulo": "liquidacion",
+      "estado_nuevo": "Cerrado",
+      "estado_anterior": "Entregado a crédito"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Anulado",
+      "estado_anterior": "Facturada"
+    },
+    {
+      "activo": true,
+      "modulo": "validacion",
+      "estado_nuevo": "Asignada a delivery",
+      "estado_anterior": "Facturada"
+    },
+    {
+      "activo": true,
+      "modulo": "validacion",
+      "estado_nuevo": "Impresa para facturar",
+      "estado_anterior": "Facturada"
+    },
+    {
+      "activo": true,
+      "modulo": "validacion",
+      "estado_nuevo": "Lista para validar",
+      "estado_anterior": "Facturada"
+    },
+    {
+      "activo": true,
+      "modulo": "liquidacion",
+      "estado_nuevo": "No entregado",
+      "estado_anterior": "Facturada"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Pedido recibido",
+      "estado_anterior": "Facturada"
+    },
+    {
+      "activo": true,
+      "modulo": "validacion",
+      "estado_nuevo": "Validada para delivery",
+      "estado_anterior": "Facturada"
+    },
+    {
+      "activo": true,
+      "modulo": "validacion",
+      "estado_nuevo": "Validada para ruta",
+      "estado_anterior": "Facturada"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Anulado",
+      "estado_anterior": "Impresa para facturar"
+    },
+    {
+      "activo": true,
+      "modulo": "facturacion",
+      "estado_nuevo": "Facturada",
+      "estado_anterior": "Impresa para facturar"
+    },
+    {
+      "activo": true,
+      "modulo": "facturacion",
+      "estado_nuevo": "Lista para retiro",
+      "estado_anterior": "Impresa para facturar"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Pedido recibido",
+      "estado_anterior": "Impresa para facturar"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Anulado",
+      "estado_anterior": "Lista para facturar"
+    },
+    {
+      "activo": true,
+      "modulo": "facturacion",
+      "estado_nuevo": "Facturada",
+      "estado_anterior": "Lista para facturar"
+    },
+    {
+      "activo": true,
+      "modulo": "facturacion",
+      "estado_nuevo": "Impresa para facturar",
+      "estado_anterior": "Lista para facturar"
+    },
+    {
+      "activo": true,
+      "modulo": "facturacion",
+      "estado_nuevo": "Lista para retiro",
+      "estado_anterior": "Lista para facturar"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Pedido recibido",
+      "estado_anterior": "Lista para facturar"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Anulado",
+      "estado_anterior": "Lista para retiro"
+    },
+    {
+      "activo": true,
+      "modulo": "validacion",
+      "estado_nuevo": "Entregada en negocio",
+      "estado_anterior": "Lista para retiro"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Pedido recibido",
+      "estado_anterior": "Lista para retiro"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Anulado",
+      "estado_anterior": "Lista para validar"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Pedido recibido",
+      "estado_anterior": "Lista para validar"
+    },
+    {
+      "activo": true,
+      "modulo": "validacion",
+      "estado_nuevo": "Validada para delivery",
+      "estado_anterior": "Lista para validar"
+    },
+    {
+      "activo": true,
+      "modulo": "validacion",
+      "estado_nuevo": "Validada para ruta",
+      "estado_anterior": "Lista para validar"
+    },
+    {
+      "activo": true,
+      "modulo": "liquidacion",
+      "estado_nuevo": "Cerrado",
+      "estado_anterior": "No entregado"
+    },
+    {
+      "activo": true,
+      "modulo": "liquidacion",
+      "estado_nuevo": "Facturada",
+      "estado_anterior": "No entregado"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Anulado",
+      "estado_anterior": "Pedido recibido"
+    },
+    {
+      "activo": true,
+      "modulo": "carniceria",
+      "estado_nuevo": "En preparación",
+      "estado_anterior": "Pedido recibido"
+    },
+    {
+      "activo": true,
+      "modulo": "facturacion",
+      "estado_nuevo": "Facturada",
+      "estado_anterior": "Pedido recibido"
+    },
+    {
+      "activo": true,
+      "modulo": "carniceria",
+      "estado_nuevo": "Lista para facturar",
+      "estado_anterior": "Pedido recibido"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Programada",
+      "estado_anterior": "Pedido recibido"
+    },
+    {
+      "activo": true,
+      "modulo": "validacion",
+      "estado_nuevo": "Validada para delivery",
+      "estado_anterior": "Pedido recibido"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Anulado",
+      "estado_anterior": "Pendiente por existencia"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Pedido recibido",
+      "estado_anterior": "Pendiente por existencia"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Anulado",
+      "estado_anterior": "Preparado"
+    },
+    {
+      "activo": true,
+      "modulo": "carniceria",
+      "estado_nuevo": "Lista para facturar",
+      "estado_anterior": "Preparado"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Anulado",
+      "estado_anterior": "Programada"
+    },
+    {
+      "activo": true,
+      "modulo": "carniceria",
+      "estado_nuevo": "En preparación",
+      "estado_anterior": "Programada"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Pedido recibido",
+      "estado_anterior": "Programada"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Anulado",
+      "estado_anterior": "Validada para delivery"
+    },
+    {
+      "activo": true,
+      "modulo": "validacion",
+      "estado_nuevo": "Asignada a delivery",
+      "estado_anterior": "Validada para delivery"
+    },
+    {
+      "activo": true,
+      "modulo": "validacion",
+      "estado_nuevo": "Facturada",
+      "estado_anterior": "Validada para delivery"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Pedido recibido",
+      "estado_anterior": "Validada para delivery"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Anulado",
+      "estado_anterior": "Validada para ruta"
+    },
+    {
+      "activo": true,
+      "modulo": "validacion",
+      "estado_nuevo": "Asignada a delivery",
+      "estado_anterior": "Validada para ruta"
+    },
+    {
+      "activo": true,
+      "modulo": "ordenes",
+      "estado_nuevo": "Pedido recibido",
+      "estado_anterior": "Validada para ruta"
+    }
+  ]
+}
