@@ -120,8 +120,8 @@ async function seed() {
   ], { onConflict: 'codigo' }).select('id,codigo,negocio'), 'clientes');
 
   const products = await checked(sb.from('productos_despacho').upsert([
-    { nombre: `[${TAG}] Paleta de cerdo`, codigo: `${TAG}-PRO-001`, categoria: 'Cerdo', unidad: 'lb', precio_defecto: 115, requiere_pesaje: true },
-    { nombre: `[${TAG}] Pollo entero`, codigo: `${TAG}-PRO-002`, categoria: 'Pollo', unidad: 'unidad', precio_defecto: 325, tipo_despacho_peso: 'Peso estándar', requiere_pesaje: true, peso_estandar_lb: 4.5 },
+    { nombre: `[${TAG}] Paleta de cerdo`, codigo: `${TAG}-PRO-001`, categoria: 'Cerdo', unidad: 'lb', precio_defecto: 115, tipo_despacho_peso: 'Por libra', requiere_pesaje: true, suma_peso_final: true },
+    { nombre: `[${TAG}] Pollo entero`, codigo: `${TAG}-PRO-002`, categoria: 'Pollo', unidad: 'unidad', precio_defecto: 325, tipo_despacho_peso: 'Peso estándar', requiere_pesaje: true, peso_estandar_lb: 4.5, suma_peso_final: true },
     { nombre: `[${TAG}] Arroz selecto`, codigo: `${TAG}-PRO-003`, categoria: 'Abarrotes', unidad: 'saco', precio_defecto: 1850, tipo_despacho_peso: 'Sin pesaje', requiere_pesaje: false, suma_peso_final: false },
   ], { onConflict: 'nombre' }).select('id,nombre,precio_defecto'), 'productos');
 
@@ -187,7 +187,7 @@ async function seed() {
 
   const refreshedOrders = await checked(sb.from('ordenes').select('id,codigo,estado').like('codigo', `${TAG}-ORD-%`), 'releer órdenes');
   const advanced = refreshedOrders.filter((o) => ['Lista para facturar','Facturada','Validada para delivery','Entregado a crédito'].includes(o.estado));
-  await checked(sb.from('orden_pesos').insert(advanced.map((o) => ({ orden_id: o.id, tipo: 'Preparación', libras: 20, paquetes: 2, notas: `[${TAG}] peso sintético`, creado_por: gerente.id }))), 'pesos');
+  await checked(sb.from('orden_pesos').insert(advanced.map((o) => ({ orden_id: o.id, tipo: 'Preparado', libras: 20, paquetes: 2, notas: `[${TAG}] peso sintético`, creado_por: gerente.id }))), 'pesos');
   const billed = refreshedOrders.filter((o) => ['Facturada','Validada para delivery','Entregado a crédito'].includes(o.estado));
   await checked(sb.from('orden_facturas').insert(billed.map((o) => ({ orden_id: o.id, factura_no: o.codigo.replace('ORD','FAC'), monto: 3450, peso_facturado: 20, condicion_pago: o.estado === 'Entregado a crédito' ? 'Crédito' : 'Contado', notas: `[${TAG}] factura sintética`, creado_por: gerente.id }))), 'facturas');
 

@@ -31,6 +31,14 @@ assert.equal(new Set(transitionKeys).size, transitionKeys.length);
 assert.ok(source.includes("onConflict: 'estado_anterior,estado_nuevo'"));
 assert.ok(!source.includes("onConflict: 'estado_anterior,estado_nuevo,modulo'"));
 assert.ok(source.includes("auth.admin.updateUserById(user.id, { password })"));
+const productStart = source.indexOf("const products = await checked(sb.from('productos_despacho').upsert([");
+const productEnd = source.indexOf("], { onConflict: 'nombre' }).select", productStart);
+assert.ok(productStart >= 0 && productEnd > productStart);
+const productBatch = source.slice(productStart, productEnd);
+assert.equal((productBatch.match(/tipo_despacho_peso:/g) ?? []).length, 3);
+assert.equal((productBatch.match(/suma_peso_final:/g) ?? []).length, 3);
+assert.ok(source.includes("tipo: 'Preparado'"));
+assert.ok(!source.includes("tipo: 'Preparación'"));
 assert.match(catalogs.source, /sin usuarios ni datos operativos/);
 
 console.log('OK: paquete de fixtures V9.4.2 aislado, confirmable y sin credenciales.');
