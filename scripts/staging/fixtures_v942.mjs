@@ -75,6 +75,13 @@ async function ensureAuthUsers(sb) {
         app_metadata: { fixture: TAG }, user_metadata: { display_name: name },
       }), `crear ${email}`);
       user = data.user;
+    } else {
+      if (user.app_metadata?.fixture !== TAG) fail(`Usuario existente ajeno a ${TAG}: ${email}`);
+      const data = await checked(
+        sb.auth.admin.updateUserById(user.id, { password }),
+        `sincronizar contraseña ${email}`,
+      );
+      user = data.user;
     }
     result.push({ slug, name, role, email, id: user.id });
   }
@@ -89,7 +96,7 @@ async function seed() {
 
   await checked(sb.from('modulos_sistema').upsert(modules, { onConflict: 'id' }), 'módulos');
   await checked(sb.from('roles_permisos').upsert(catalogs.roles_permisos, { onConflict: 'rol,modulo' }), 'permisos');
-  await checked(sb.from('orden_transiciones_v9382').upsert(catalogs.orden_transiciones_v9382, { onConflict: 'estado_anterior,estado_nuevo,modulo' }), 'transiciones');
+  await checked(sb.from('orden_transiciones_v9382').upsert(catalogs.orden_transiciones_v9382, { onConflict: 'estado_anterior,estado_nuevo' }), 'transiciones');
 
   const employeeRows = users.map(([, name, , area, extras]) => ({
     nombre: `[${TAG}] ${name}`, area, areas_adicionales: extras, activo: true,

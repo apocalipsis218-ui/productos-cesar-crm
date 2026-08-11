@@ -26,6 +26,11 @@ assert.match(source, /email\?\.endsWith\(EMAIL_SUFFIX\)/);
 assert.equal(catalogs.modulos_sistema.length, 22);
 assert.equal(catalogs.roles_permisos.length, 224);
 assert.equal(catalogs.orden_transiciones_v9382.length, 68);
+const transitionKeys = catalogs.orden_transiciones_v9382.map((x) => JSON.stringify([x.estado_anterior, x.estado_nuevo]));
+assert.equal(new Set(transitionKeys).size, transitionKeys.length);
+assert.ok(source.includes("onConflict: 'estado_anterior,estado_nuevo'"));
+assert.ok(!source.includes("onConflict: 'estado_anterior,estado_nuevo,modulo'"));
+assert.ok(source.includes("auth.admin.updateUserById(user.id, { password })"));
 assert.match(catalogs.source, /sin usuarios ni datos operativos/);
 
 console.log('OK: paquete de fixtures V9.4.2 aislado, confirmable y sin credenciales.');
