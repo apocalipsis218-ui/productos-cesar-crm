@@ -177,6 +177,8 @@ async function seed() {
     const matches = existingOrders.filter((o) => o.notas === orderRow.notas);
     if (matches.length > 1) fail(`Hay escenarios duplicados para ${orderRow.fixture_suffix}.`);
     const existing = matches[0];
+    const orderPayload = { ...orderRow };
+    if (existing) delete orderPayload.tomado_por_empleado_id;
     const items = [
       { producto_id: products[0].id, producto_nombre: products[0].nombre, cantidad_pedida: 20, unidad: 'lb', precio: 115, subtotal: 2300, requiere_pesaje: true, tipo_despacho_peso: 'Por libra', suma_peso_final: true },
       { producto_id: products[2].id, producto_nombre: products[2].nombre, cantidad_pedida: 1, unidad: 'saco', precio: 1150, subtotal: 1150, requiere_pesaje: false, tipo_despacho_peso: 'Sin pesaje', suma_peso_final: false },
@@ -184,7 +186,7 @@ async function seed() {
     const createdRows = await checked(vendedorSb.rpc('guardar_orden_v9381', {
       p_orden_id: existing?.id ?? null,
       p_llamada_id: null,
-      p_orden: orderRow,
+      p_orden: orderPayload,
       p_items: items,
       p_composicion_cambio: false,
       p_comentario: null,

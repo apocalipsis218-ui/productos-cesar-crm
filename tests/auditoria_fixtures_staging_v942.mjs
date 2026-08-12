@@ -49,6 +49,8 @@ assert.ok(source.includes("canal: 'WhatsApp', prioridad: 'Normal'"));
 assert.ok(source.includes("dateInTimeZone('America/Santo_Domingo')"));
 assert.ok(source.includes("fecha: todayRD, fecha_despacho: todayRD"));
 assert.ok(source.includes("p_orden_id: existing?.id ?? null"));
+assert.ok(source.includes("if (existing) delete orderPayload.tomado_por_empleado_id"));
+assert.ok(source.includes("p_orden: orderPayload"));
 assert.ok(!source.includes("if (matches.length === 1) {"));
 assert.ok(!source.includes("from('ordenes').delete("));
 assert.ok(source.includes("rpc('cancelar_orden_v9383'"));
