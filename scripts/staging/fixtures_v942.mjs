@@ -90,8 +90,10 @@ async function ensureAuthUsers(sb) {
 async function seed() {
   requireWriteConfirmation('La carga');
   const sb = client();
-  const existingOrders = await checked(sb.from('ordenes').select('id').like('codigo', `${TAG}-ORD-%`).limit(1), 'comprobar fixtures');
-  if (existingOrders.length) fail(`Ya existen fixtures ${TAG}. Verifica o limpia antes de recargar.`);
+  const existingOrders = await checked(
+    sb.from('ordenes').select('id,codigo,estado,notas').like('notas', `[${TAG}] escenario %`).neq('estado', 'Anulado'),
+    'comprobar fixtures',
+  );
   const authUsers = await ensureAuthUsers(sb);
 
   await checked(sb.from('modulos_sistema').upsert(modules, { onConflict: 'id' }), 'módulos');
@@ -112,7 +114,14 @@ async function seed() {
   }));
   await checked(sb.from('perfiles').upsert(profiles, { onConflict: 'id' }), 'perfiles');
   const gerenteLogin = authUsers.find((u) => u.role === 'Gerente');
-  const userSb = await authenticatedClient(gerenteLogin.email, process.env.STAGING_TEST_PASSWORD);
+  const loginByRole = new Map(authUsers.map((u) => [u.role, u]));
+  const sessionByRole = new Map();
+  for (const role of ['Vendedor', 'Carnicería', 'Facturación', 'Validación', 'Delivery']) {
+    const login = loginByRole.get(role);
+    if (!login) fail(`Falta el usuario sintético del rol ${role}.`);
+    sessionByRole.set(role, await authenticatedClient(login.email, process.env.STAGING_TEST_PASSWORD));
+  }
+  const vendedorSb = sessionByRole.get('Vendedor');
 
   const clients = await checked(sb.from('clientes').upsert([
     { codigo: `${TAG}-CLI-001`, negocio: `[${TAG}] Comedor El Ensayo`, contacto: 'Ana Prueba', tipo: 'Comedor', sector: 'San Marcos', telefono: '809-555-0101', estado: 'Activo', credito: true, limite_credito: 25000, direccion: 'Calle de prueba 1' },
@@ -136,11 +145,12 @@ async function seed() {
     ['006','Entregado a crédito','Registrado','Delivery',clients[0],true],
   ];
   const orderRows = scenarios.map(([suffix, estado, tipo, modalidad, cli, delivery]) => ({
-    codigo: `${TAG}-ORD-${suffix}`, cliente_id: cli?.id ?? null, estado: 'Pedido recibido',
+    fixture_suffix: suffix, cliente_id: cli?.id ?? null, estado: 'Pedido recibido',
     condicion_pago: suffix === '006' ? 'Crédito' : 'Contado', total_estimado: 3450,
     total_factura: ['004','005','006'].includes(suffix) ? 3450 : 0,
     factura_no: ['004','005','006'].includes(suffix) ? `${TAG}-FAC-${suffix}` : null,
-    vendedor: 'Vendedor Staging', notas: `[${TAG}] escenario ${estado}`,
+    canal: 'WhatsApp', prioridad: 'Normal', vendedor: 'Vendedor Staging',
+    notas: `[${TAG}] escenario ${suffix}: ${estado}`,
     creado_por: gerente.id, actualizado_por: gerente.id, tipo_orden: 'Pedido normal',
     requiere_delivery: delivery, modalidad_entrega: modalidad, tipo_cliente_orden: tipo,
     cliente_nombre_orden: cli?.negocio ?? `[${TAG}] Cliente ocasional`,
@@ -153,15 +163,31 @@ async function seed() {
     cxc_saldo_inicial: suffix === '006' ? 3450 : null,
     monto_pendiente: suffix === '006' ? 3450 : 0,
   }));
-  await checked(userSb.from('ordenes').insert(orderRows), 'órdenes');
-  const orders = await checked(sb.from('ordenes').select('id,codigo,estado').like('codigo', `${TAG}-ORD-%`), 'leer órdenes');
-
-  await checked(sb.from('orden_detalle').delete().in('orden_id', orders.map((o) => o.id)), 'reiniciar detalles');
-  const detailRows = orders.flatMap((order) => [
-    { orden_id: order.id, producto_id: products[0].id, producto_nombre: products[0].nombre, cantidad_pedida: 20, unidad: 'lb', precio: 115, subtotal: 2300, requiere_pesaje: true, tipo_despacho_peso: 'Por libra' },
-    { orden_id: order.id, producto_id: products[2].id, producto_nombre: products[2].nombre, cantidad_pedida: 1, unidad: 'saco', precio: 1150, subtotal: 1150, requiere_pesaje: false, tipo_despacho_peso: 'Sin pesaje' },
-  ]);
-  await checked(userSb.from('orden_detalle').insert(detailRows), 'detalles');
+  const orders = [];
+  for (const orderRow of orderRows) {
+    const matches = existingOrders.filter((o) => o.notas === orderRow.notas);
+    if (matches.length > 1) fail(`Hay escenarios duplicados para ${orderRow.fixture_suffix}.`);
+    if (matches.length === 1) {
+      orders.push({ ...matches[0], fixture_suffix: orderRow.fixture_suffix });
+      continue;
+    }
+    const items = [
+      { producto_id: products[0].id, producto_nombre: products[0].nombre, cantidad_pedida: 20, unidad: 'lb', precio: 115, subtotal: 2300, requiere_pesaje: true, tipo_despacho_peso: 'Por libra', suma_peso_final: true },
+      { producto_id: products[2].id, producto_nombre: products[2].nombre, cantidad_pedida: 1, unidad: 'saco', precio: 1150, subtotal: 1150, requiere_pesaje: false, tipo_despacho_peso: 'Sin pesaje', suma_peso_final: false },
+    ];
+    const createdRows = await checked(vendedorSb.rpc('guardar_orden_v9381', {
+      p_orden_id: null,
+      p_llamada_id: null,
+      p_orden: orderRow,
+      p_items: items,
+      p_composicion_cambio: false,
+      p_comentario: null,
+      p_llamada_observacion: null,
+    }), `crear escenario ${orderRow.fixture_suffix}`);
+    const created = createdRows?.[0];
+    if (!created?.id) fail(`No se creó el escenario ${orderRow.fixture_suffix}.`);
+    orders.push({ ...created, fixture_suffix: orderRow.fixture_suffix });
+  }
 
   const routes = {
     '002': [['Pedido recibido','En preparación','carniceria']],
@@ -175,26 +201,57 @@ async function seed() {
       ['En ruta','Entregado a crédito','delivery'],
     ],
   };
+  const roleByModule = {
+    carniceria: 'Carnicería',
+    facturacion: 'Facturación',
+    validacion: 'Validación',
+    delivery: 'Delivery',
+  };
   for (const [suffix, steps] of Object.entries(routes)) {
-    const order = orders.find((o) => o.codigo.endsWith(suffix));
+    const order = orders.find((o) => o.fixture_suffix === suffix);
+    if (!order) fail(`No se encontró el escenario ${suffix}.`);
+    let currentState = order.estado;
     for (const [from, to, modulo] of steps) {
-      await checked(userSb.rpc('cambiar_estado_orden_v9382', {
+      if (currentState === to || currentState !== from) continue;
+      const actor = sessionByRole.get(roleByModule[modulo]);
+      if (!actor) fail(`No hay sesión para el módulo ${modulo}.`);
+      await checked(actor.rpc('cambiar_estado_orden_v9382', {
         p_orden_id: order.id, p_estado_esperado: from, p_estado_nuevo: to,
         p_cambios: {}, p_comentario: `[${TAG}] transición sintética`, p_modulo: modulo,
       }), `${order.codigo}: ${from} -> ${to}`);
+      currentState = to;
     }
+    const expectedState = steps.at(-1)[1];
+    if (currentState !== expectedState) fail(`${order.codigo} está en ${currentState}; se esperaba ${expectedState}.`);
   }
 
-  const refreshedOrders = await checked(sb.from('ordenes').select('id,codigo,estado').like('codigo', `${TAG}-ORD-%`), 'releer órdenes');
+  const creditOrder = orders.find((o) => o.fixture_suffix === '006');
+  await checked(sessionByRole.get('Delivery').rpc('cambiar_estado_orden_v9382', {
+    p_orden_id: creditOrder.id,
+    p_estado_esperado: 'Entregado a crédito',
+    p_estado_nuevo: 'Entregado a crédito',
+    p_cambios: { resultado_entrega: 'Entregado a crédito', monto_pendiente: 3450 },
+    p_comentario: `[${TAG}] crédito sintético`,
+    p_modulo: 'delivery',
+  }), `${creditOrder.codigo}: completar crédito sintético`);
+
+  const refreshedRows = await checked(
+    sb.from('ordenes').select('id,codigo,estado').in('id', orders.map((o) => o.id)),
+    'releer órdenes',
+  );
+  const suffixById = new Map(orders.map((o) => [String(o.id), o.fixture_suffix]));
+  const refreshedOrders = refreshedRows.map((o) => ({ ...o, fixture_suffix: suffixById.get(String(o.id)) }));
   const advanced = refreshedOrders.filter((o) => ['Lista para facturar','Facturada','Validada para delivery','Entregado a crédito'].includes(o.estado));
+  await checked(sb.from('orden_pesos').delete().in('orden_id', advanced.map((o) => o.id)).like('notas', `[${TAG}]%`), 'reiniciar pesos');
   await checked(sb.from('orden_pesos').insert(advanced.map((o) => ({ orden_id: o.id, tipo: 'Preparado', libras: 20, paquetes: 2, notas: `[${TAG}] peso sintético`, creado_por: gerente.id }))), 'pesos');
   const billed = refreshedOrders.filter((o) => ['Facturada','Validada para delivery','Entregado a crédito'].includes(o.estado));
-  await checked(sb.from('orden_facturas').insert(billed.map((o) => ({ orden_id: o.id, factura_no: o.codigo.replace('ORD','FAC'), monto: 3450, peso_facturado: 20, condicion_pago: o.estado === 'Entregado a crédito' ? 'Crédito' : 'Contado', notas: `[${TAG}] factura sintética`, creado_por: gerente.id }))), 'facturas');
+  await checked(sb.from('orden_facturas').delete().in('orden_id', billed.map((o) => o.id)).like('notas', `[${TAG}]%`), 'reiniciar facturas');
+  await checked(sb.from('orden_facturas').insert(billed.map((o) => ({ orden_id: o.id, factura_no: `${TAG}-FAC-${o.fixture_suffix}`, monto: 3450, peso_facturado: 20, condicion_pago: o.estado === 'Entregado a crédito' ? 'Crédito' : 'Contado', notas: `[${TAG}] factura sintética`, creado_por: gerente.id }))), 'facturas');
 
   const routeOrder = refreshedOrders.find((o) => o.estado === 'Validada para delivery');
   const lot = await checked(sb.from('entrega_lotes').upsert({ codigo_lote: `${TAG}-LOTE-001`, delivery_nombre: `[${TAG}] Delivery Staging`, cantidad_ordenes: 1, peso_esperado: 20, total_facturado: 3450, estado: 'Abierto', creado_por: gerente.id, validado_por: 'Validación Staging', responsable_nombre: `[${TAG}] Delivery Staging` }, { onConflict: 'codigo_lote' }).select('id').single(), 'lote');
   await checked(sb.from('entrega_lote_detalle').delete().eq('codigo_lote', `${TAG}-LOTE-001`), 'reiniciar lote');
-  await checked(sb.from('entrega_lote_detalle').insert({ lote_id: lot.id, codigo_lote: `${TAG}-LOTE-001`, orden_id: routeOrder.id, codigo_orden: routeOrder.codigo, factura_no: routeOrder.codigo.replace('ORD','FAC'), monto_factura: 3450, peso_esperado: 20, cliente_nombre: `[${TAG}] Cliente de ruta` }), 'detalle de lote');
+  await checked(sb.from('entrega_lote_detalle').insert({ lote_id: lot.id, codigo_lote: `${TAG}-LOTE-001`, orden_id: routeOrder.id, codigo_orden: routeOrder.codigo, factura_no: `${TAG}-FAC-${routeOrder.fixture_suffix}`, monto_factura: 3450, peso_esperado: 20, cliente_nombre: `[${TAG}] Cliente de ruta` }), 'detalle de lote');
 
   console.log(`OK: ${authUsers.length} usuarios y ${refreshedOrders.length} escenarios ${TAG} cargados solo en staging.`);
 }
@@ -203,15 +260,49 @@ async function verify() {
   const sb = client();
   const [authUsers, orders, clients, products, lots] = await Promise.all([
     listAllUsers(sb),
-    checked(sb.from('ordenes').select('id,codigo,estado').like('codigo', `${TAG}-ORD-%`), 'órdenes'),
+    checked(sb.from('ordenes').select('id,codigo,estado,notas').like('notas', `[${TAG}] escenario %`).neq('estado', 'Anulado'), 'órdenes'),
     checked(sb.from('clientes').select('id,codigo').like('codigo', `${TAG}-CLI-%`), 'clientes'),
     checked(sb.from('productos_despacho').select('id,nombre').like('nombre', `[${TAG}]%`), 'productos'),
     checked(sb.from('entrega_lotes').select('id,codigo_lote').like('codigo_lote', `${TAG}-%`), 'lotes'),
   ]);
+  const orderIds = orders.map((o) => o.id);
+  const [details, weights, invoices, lotDetails] = await Promise.all([
+    checked(sb.from('orden_detalle').select('id').in('orden_id', orderIds), 'detalles'),
+    checked(sb.from('orden_pesos').select('id').in('orden_id', orderIds).like('notas', `[${TAG}]%`), 'pesos'),
+    checked(sb.from('orden_facturas').select('id').in('orden_id', orderIds).like('notas', `[${TAG}]%`), 'facturas'),
+    checked(sb.from('entrega_lote_detalle').select('id').like('codigo_lote', `${TAG}-%`), 'detalle de lote'),
+  ]);
   const testUsers = authUsers.filter((u) => u.email?.endsWith(EMAIL_SUFFIX));
-  const counts = { usuarios: testUsers.length, ordenes: orders.length, clientes: clients.length, productos: products.length, lotes: lots.length };
+  const counts = {
+    usuarios: testUsers.length,
+    ordenes: orders.length,
+    clientes: clients.length,
+    productos: products.length,
+    detalles: details.length,
+    pesos: weights.length,
+    facturas: invoices.length,
+    lotes: lots.length,
+    detalle_lote: lotDetails.length,
+  };
   console.log(JSON.stringify(counts, null, 2));
-  if (Object.values(counts).some((n) => n === 0)) fail('El conjunto de pruebas está incompleto.');
+  const expectedCounts = { usuarios: 7, ordenes: 6, clientes: 2, productos: 3, detalles: 12, pesos: 4, facturas: 3, lotes: 1, detalle_lote: 1 };
+  for (const [name, expected] of Object.entries(expectedCounts)) {
+    if (counts[name] !== expected) fail(`${name}: se esperaban ${expected}; se encontraron ${counts[name]}.`);
+  }
+  const expectedStates = {
+    '001': 'Pedido recibido',
+    '002': 'En preparación',
+    '003': 'Lista para facturar',
+    '004': 'Facturada',
+    '005': 'Validada para delivery',
+    '006': 'Entregado a crédito',
+  };
+  for (const order of orders) {
+    const suffix = order.notas?.match(/escenario (\d{3}):/)?.[1];
+    if (!suffix || order.estado !== expectedStates[suffix]) {
+      fail(`${order.codigo}: estado o marca de escenario inválidos.`);
+    }
+  }
   console.log('OK: fixtures staging V9.4.2 completos.');
 }
 
@@ -219,18 +310,30 @@ async function cleanup() {
   requireWriteConfirmation('La limpieza');
   if (!flags.has('--confirm-delete=STG942')) fail('Agrega --confirm-delete=STG942.');
   const sb = client();
-  const orders = await checked(sb.from('ordenes').select('id').like('codigo', `${TAG}-ORD-%`), 'localizar órdenes');
-  await checked(sb.from('entrega_lotes').delete().like('codigo_lote', `${TAG}-%`), 'eliminar lotes');
-  if (orders.length) await checked(sb.from('ordenes').delete().in('id', orders.map((o) => o.id)), 'eliminar órdenes');
-  await checked(sb.from('clientes').delete().like('codigo', `${TAG}-CLI-%`), 'eliminar clientes');
-  await checked(sb.from('productos_despacho').delete().like('nombre', `[${TAG}]%`), 'eliminar productos');
+  const orders = await checked(
+    sb.from('ordenes').select('id,codigo,estado').like('notas', `[${TAG}] escenario %`).neq('estado', 'Anulado'),
+    'localizar órdenes activas',
+  );
   const authUsers = (await listAllUsers(sb)).filter((u) => u.email?.endsWith(EMAIL_SUFFIX));
-  for (const user of authUsers) await checked(sb.auth.admin.deleteUser(user.id), `eliminar ${user.email}`);
-  await checked(sb.from('empleados_operativos').delete().like('nombre', `[${TAG}]%`), 'eliminar empleados');
-  await checked(sb.from('orden_transiciones_v9382').delete().in('modulo', [...new Set(catalogs.orden_transiciones_v9382.map((x) => x.modulo))]), 'eliminar transiciones');
-  await checked(sb.from('roles_permisos').delete().in('rol', [...new Set(catalogs.roles_permisos.map((x) => x.rol))]), 'eliminar permisos');
-  await checked(sb.from('modulos_sistema').delete().in('id', modules.map((x) => x.id)), 'eliminar módulos');
-  console.log(`OK: conjunto ${TAG} eliminado de staging.`);
+  const gerenteLogin = authUsers.find((u) => u.email === `gerente${EMAIL_SUFFIX}`);
+  if (orders.length && !gerenteLogin) fail('No existe el usuario Gerente sintético para retirar los escenarios.');
+
+  await checked(sb.from('entrega_lote_detalle').delete().like('codigo_lote', `${TAG}-%`), 'retirar detalle de lotes');
+  await checked(sb.from('entrega_lotes').delete().like('codigo_lote', `${TAG}-%`), 'eliminar lotes');
+
+  if (orders.length) {
+    const gerenteSb = await authenticatedClient(gerenteLogin.email, process.env.STAGING_TEST_PASSWORD);
+    for (const order of orders) {
+      await checked(gerenteSb.rpc('cancelar_orden_v9383', {
+        p_orden_id: order.id,
+        p_estado_esperado: order.estado,
+        p_motivo: `[${TAG}] retiro seguro de escenario sintético`,
+        p_archivar: ['Programada', 'Pedido recibido'].includes(order.estado),
+      }), `retirar ${order.codigo}`);
+    }
+  }
+
+  console.log(`OK: ${orders.length} escenarios ${TAG} retirados lógicamente; catálogos y usuarios quedan reutilizables en staging.`);
 }
 
 function plan() {
