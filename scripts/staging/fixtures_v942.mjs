@@ -21,6 +21,13 @@ const catalogs = JSON.parse(readFileSync(new URL('./catalogos_v942.json', import
 const modules = catalogs.modulos_sistema;
 
 function fail(message) { throw new Error(message); }
+function dateInTimeZone(timeZone, date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
 function projectRef(url) {
   const host = new URL(url).hostname;
   const match = host.match(/^([a-z0-9]+)\.supabase\.co$/);
@@ -144,8 +151,10 @@ async function seed() {
     ['005','Validada para delivery','Registrado','Delivery',clients[1],true],
     ['006','Entregado a crédito','Registrado','Delivery',clients[0],true],
   ];
+  const todayRD = dateInTimeZone('America/Santo_Domingo');
   const orderRows = scenarios.map(([suffix, estado, tipo, modalidad, cli, delivery]) => ({
     fixture_suffix: suffix, cliente_id: cli?.id ?? null, estado: 'Pedido recibido',
+    fecha: todayRD, fecha_despacho: todayRD,
     condicion_pago: suffix === '006' ? 'Crédito' : 'Contado', total_estimado: 3450,
     total_factura: ['004','005','006'].includes(suffix) ? 3450 : 0,
     factura_no: ['004','005','006'].includes(suffix) ? `${TAG}-FAC-${suffix}` : null,
@@ -167,23 +176,20 @@ async function seed() {
   for (const orderRow of orderRows) {
     const matches = existingOrders.filter((o) => o.notas === orderRow.notas);
     if (matches.length > 1) fail(`Hay escenarios duplicados para ${orderRow.fixture_suffix}.`);
-    if (matches.length === 1) {
-      orders.push({ ...matches[0], fixture_suffix: orderRow.fixture_suffix });
-      continue;
-    }
+    const existing = matches[0];
     const items = [
       { producto_id: products[0].id, producto_nombre: products[0].nombre, cantidad_pedida: 20, unidad: 'lb', precio: 115, subtotal: 2300, requiere_pesaje: true, tipo_despacho_peso: 'Por libra', suma_peso_final: true },
       { producto_id: products[2].id, producto_nombre: products[2].nombre, cantidad_pedida: 1, unidad: 'saco', precio: 1150, subtotal: 1150, requiere_pesaje: false, tipo_despacho_peso: 'Sin pesaje', suma_peso_final: false },
     ];
     const createdRows = await checked(vendedorSb.rpc('guardar_orden_v9381', {
-      p_orden_id: null,
+      p_orden_id: existing?.id ?? null,
       p_llamada_id: null,
       p_orden: orderRow,
       p_items: items,
       p_composicion_cambio: false,
       p_comentario: null,
       p_llamada_observacion: null,
-    }), `crear escenario ${orderRow.fixture_suffix}`);
+    }), `sincronizar escenario ${orderRow.fixture_suffix}`);
     const created = createdRows?.[0];
     if (!created?.id) fail(`No se creó el escenario ${orderRow.fixture_suffix}.`);
     orders.push({ ...created, fixture_suffix: orderRow.fixture_suffix });
