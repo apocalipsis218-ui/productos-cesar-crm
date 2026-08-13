@@ -846,6 +846,7 @@ async function loadOperationalDataV9384(page=state.page){
     state.deliveryLotCorrections=correcciones.data||[];
     state.liquidacionLotEvents=eventos.data||[];
     state.deliveryTransfers=transferencias.data||[];
+    state.v9371SchemaOk=!transferencias.error;
     state.liquidacionSchemaOk=!lotes.error&&!liquidaciones.error;
     state.validacionR5SchemaOk=!lotes.error&&!documentos.error;
   }

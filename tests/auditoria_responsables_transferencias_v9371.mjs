@@ -24,6 +24,7 @@ const checks=[
   ['responsables manuales alimentan filtros',/mergeResponsibleNames/.test(main)&&/function activeDeliveryNames\(\)\{ return allTripResponsibleNames\(\); \}/.test(main)],
   ['creación de lote usa RPC transaccional',/crear_lote_entrega_v9371/.test(main)],
   ['validación individual crea lote formal',/p_items:\[\{orden_id:Number\(o\.id\)/.test(main)],
+  ['disponibilidad SQL 31 se sincroniza al cargar transferencias',/state\.v9371SchemaOk=!transferencias\.error/.test(main)],
   ['transferencia visible por pedido',/data-transfer-order/.test(main)&&/Transferir pedido/.test(main)],
   ['transferencia usa RPC',/transferir_orden_lote_v9371/.test(main)],
   ['SQL agrega responsable formal',/add column if not exists responsable_tipo/i.test(sql)],
