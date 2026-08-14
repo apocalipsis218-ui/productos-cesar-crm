@@ -1,0 +1,22 @@
+diff --git a/src/main.js b/src/main.js
+--- a/src/main.js
++++ b/src/main.js
+@@ -845,6 +845,7 @@
+     state.deliveryLotCorrections=correcciones.data||[];
+     state.liquidacionLotEvents=eventos.data||[];
+     state.deliveryTransfers=transferencias.data||[];
++    state.v9371SchemaOk=!transferencias.error;
+     state.liquidacionSchemaOk=!lotes.error&&!liquidaciones.error;
+     state.validacionR5SchemaOk=!lotes.error&&!documentos.error;
+   }
+diff --git a/tests/auditoria_responsables_transferencias_v9371.mjs b/tests/auditoria_responsables_transferencias_v9371.mjs
+--- a/tests/auditoria_responsables_transferencias_v9371.mjs
++++ b/tests/auditoria_responsables_transferencias_v9371.mjs
+@@ -24,6 +24,7 @@ const checks=[
+   ['responsables manuales alimentan filtros',/mergeResponsibleNames/.test(main)&&/function activeDeliveryNames\(\)\{ return allTripResponsibleNames\(\); \}/.test(main)],
+   ['creación de lote usa RPC transaccional',/crear_lote_entrega_v9371/.test(main)],
+   ['validación individual crea lote formal',/p_items:\[\{orden_id:Number\(o\.id\)/.test(main)],
++  ['disponibilidad SQL 31 se sincroniza al cargar transferencias',/state\.v9371SchemaOk=!transferencias\.error/.test(main)],
+   ['transferencia visible por pedido',/data-transfer-order/.test(main)&&/Transferir pedido/.test(main)],
+   ['transferencia usa RPC',/transferir_orden_lote_v9371/.test(main)],
+   ['SQL agrega responsable formal',/add column if not exists responsable_tipo/i.test(sql)],
