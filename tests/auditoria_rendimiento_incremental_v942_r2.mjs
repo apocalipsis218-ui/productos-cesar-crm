@@ -15,6 +15,8 @@ const sql=fs.readFileSync(
   'utf8'
 );
 const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
+const viteConfig=fs.readFileSync(new URL('../vite.config.js',import.meta.url),'utf8');
+const wrangler=JSON.parse(fs.readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8'));
 
 const checks=[
   ['RPC agrupa órdenes, cliente y detalle',
@@ -53,7 +55,16 @@ const checks=[
     /\.85\+\(Math\.random\(\)\*\.30\)/.test(main) &&
     /document\.visibilityState!==['"]hidden['"]/.test(main)],
   ['R2 forma parte de npm test',
-    pkg.scripts.pretest.includes('auditoria_rendimiento_incremental_v942_r2.mjs')]
+    pkg.scripts.pretest.includes('auditoria_rendimiento_incremental_v942_r2.mjs')],
+  ['build bloquea configuración Supabase ausente, incorrecta o secreta',
+    /loadEnv/.test(viteConfig) &&
+    /VITE_SUPABASE_URL/.test(viteConfig) &&
+    /VITE_SUPABASE_ANON_KEY/.test(viteConfig) &&
+    /SUPABASE_HOST_BY_MODE/.test(viteConfig) &&
+    /service_role\|sb_secret_/.test(viteConfig) &&
+    /Se bloqueó la publicación/.test(viteConfig)],
+  ['Wrangler siempre reconstruye antes de publicar',
+    wrangler.build?.command==='npm run build']
 ];
 
 for(const [name,ok] of checks){

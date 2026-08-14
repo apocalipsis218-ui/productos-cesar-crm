@@ -1,7 +1,43 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig({
+const SUPABASE_HOST_BY_MODE={
+  production:'jmcbaduxjrzfnesbslmp.supabase.co',
+  staging:'odlwbuagtrgmfpdohors.supabase.co'
+};
+
+function validateSupabaseBuildEnv(mode){
+  const fileEnv=loadEnv(mode,process.cwd(),'VITE_');
+  const supabaseUrl=(process.env.VITE_SUPABASE_URL||fileEnv.VITE_SUPABASE_URL||'').trim();
+  const supabaseKey=(process.env.VITE_SUPABASE_ANON_KEY||fileEnv.VITE_SUPABASE_ANON_KEY||'').trim();
+  const placeholder=/TU_|PEGA_AQUI|tu-proyecto/i;
+
+  if(!supabaseUrl||placeholder.test(supabaseUrl)){
+    throw new Error('[build] VITE_SUPABASE_URL no está configurada. Se bloqueó la publicación.');
+  }
+  if(!supabaseKey||placeholder.test(supabaseKey)){
+    throw new Error('[build] VITE_SUPABASE_ANON_KEY no está configurada. Se bloqueó la publicación.');
+  }
+
+  let parsedUrl;
+  try{parsedUrl=new URL(supabaseUrl);}catch{
+    throw new Error('[build] VITE_SUPABASE_URL no es una URL válida.');
+  }
+  const expectedHost=SUPABASE_HOST_BY_MODE[mode]||SUPABASE_HOST_BY_MODE.production;
+  if(parsedUrl.protocol!=='https:'||parsedUrl.hostname!==expectedHost){
+    throw new Error(`[build] El proyecto Supabase no corresponde al entorno ${mode}.`);
+  }
+  if(/service_role|sb_secret_/i.test(supabaseKey)){
+    throw new Error('[build] Se detectó una clave secreta de Supabase en el cliente. Publicación bloqueada.');
+  }
+  if(!supabaseKey.startsWith('sb_publishable_')&&!supabaseKey.startsWith('eyJ')){
+    throw new Error('[build] La clave pública de Supabase no tiene un formato permitido.');
+  }
+}
+
+export default defineConfig(({command,mode})=>{
+  if(command==='build') validateSupabaseBuildEnv(mode);
+  return ({
   plugins: [
     VitePWA({
       registerType: 'prompt',
@@ -75,4 +111,5 @@ export default defineConfig({
       }
     })
   ]
+  });
 });
