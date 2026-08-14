@@ -13,6 +13,7 @@ const checks=[
  ['corregir asignación visible',/Editar lote/.test(main)&&/openLotCorrectionModal/.test(main)],
  ['RPC de corrección integrada',/corregir_lote_entrega_v936/.test(main)&&/corregir_lote_entrega_v936/.test(sql)],
  ['auditoría inmutable de correcciones',/entrega_lote_correcciones/.test(sql)&&/revoke insert, update, delete/.test(sql)],
+ ["disponibilidad SQL 28 se sincroniza al cargar correcciones",/state\.v936SchemaOk=!correcciones\.error/.test(main)],
  ['estilos operativos V9.3.6',/V9\.3\.6 — LOTES OPERATIVOS/.test(css)],
  ['auditoría V9.3.6 integrada',pkg.scripts.test.includes('auditoria_mejoras_operativas_v936.mjs')]
 ];

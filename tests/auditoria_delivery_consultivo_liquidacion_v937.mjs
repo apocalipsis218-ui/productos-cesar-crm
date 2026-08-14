@@ -30,6 +30,7 @@ const checks=[
   ['SQL evita finalizar dos veces el lote',/La última recepción individual ya ejecuta el cierre formal/.test(sql) && /return coalesce\(v_result/.test(sql)],
   ['devolución parcial no se clasifica como crédito',/resultado_entrega,o\.estado\) = 'Entregado a crédito'/.test(sql) && /resultado_entrega,o\.estado\) = 'Devuelto parcial' then coalesce\(o\.monto_pendiente/.test(sql)],
   ['RPC sensibles restringidas a usuarios autenticados',/revoke execute on function public\.recibir_orden_cxc_v937[\s\S]*grant execute on function public\.recibir_orden_cxc_v937/.test(sql)],
+  ["disponibilidad SQL 30 se sincroniza al cargar eventos",/state\.v937SchemaOk=!eventos\.error/.test(main)],
   ['ruta no transaccional anterior eliminada',!main.includes('async function saveFormalLiquidationBatch')],
   ['Delivery no enlaza acciones antiguas',!main.includes("$$('[data-route-order]')") && !main.includes("$$('[data-delivery-result]')")],
   ['auditoría integrada en npm test',/auditoria_delivery_consultivo_liquidacion_v937\.mjs/.test(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'))]
