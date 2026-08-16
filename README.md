@@ -1,4 +1,14 @@
-# Productos César CRM V9.4.2 PWA
+# Productos César CRM V9.4.3 PWA
+
+## V9.4.3 R1 — Progreso mensual de Carnicería
+
+- muestra clientes únicos, pedidos, libras, tiempo promedio y preparados del día;
+- calcula el mes completo en una RPC protegida, sin depender de la carga incremental;
+- permite a estaciones elegir despachador y a administración consultar el equipo;
+- corrige la cola visual de las cuentas compartidas para usar el empleado real;
+- conserva el flujo cuando la métrica no está disponible.
+
+La migración está validada en staging. Producción requiere autorización y despliegue coordinado.
 
 ## V9.4.2 R1 — Preparación comercial y cierre de escrituras directas
 

@@ -12,9 +12,10 @@ const sql=fs.readFileSync(
 const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
 
 const checks=[
-  ['versión V9.4.2 sincronizada',
-    pkg.version==='9.4.2' && main.includes('V9.4.2 PWA') &&
-    pwa.includes("APP_VERSION = 'V9.4.2 PWA'") && html.includes('V9.4.2 PWA')],
+  ['versión V9.4.2 o superior sincronizada',
+    /^9\.4\.\d+$/.test(pkg.version) && Number(pkg.version.split('.')[2])>=2 &&
+    main.includes('V9.4.2 PWA') && pwa.includes(`APP_VERSION = 'V${pkg.version} PWA'`) &&
+    html.includes(`V${pkg.version} PWA`)],
   ['eventos de orden usan RPC protegida',
     /function public\.registrar_evento_orden_v942/.test(sql) &&
     main.includes("sb.rpc('registrar_evento_orden_v942'")],
