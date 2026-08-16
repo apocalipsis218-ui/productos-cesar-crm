@@ -1,4 +1,4 @@
-# Mapeo técnico de Carnicería — V9.4.3 R1
+# Mapeo técnico de Carnicería — V9.4.3 R2
 
 ## Objetivo
 
@@ -39,7 +39,8 @@ flowchart TD
 | Clientes despachados | Clientes registrados por `cliente_id`; ocasionales por teléfono normalizado. Varias órdenes del mismo cliente cuentan una vez. |
 | Pedidos preparados | Órdenes con `preparado_en` dentro del mes y estado distinto de `Anulado`. |
 | Libras preparadas | Suma de `peso_preparado` de las órdenes válidas. |
-| Tiempo promedio | Promedio entre `tomado_en` y `preparado_en`; duraciones negativas se descartan. |
+| Tiempo promedio | Promedio entre `tomado_en` y `preparado_en`; solo usa muestras entre 0 y 480 minutos. |
+| Duraciones atípicas | Cuenta tiempos negativos o mayores a 480 minutos. El pedido conserva su cliente, preparación y libras, pero no altera el promedio. |
 | Preparados hoy | Finalizaciones del día en `America/Santo_Domingo`. |
 
 No se muestra un porcentaje contra meta porque todavía no existe una meta mensual configurada. La barra actual representa únicamente el avance del calendario y evita presentar una productividad ficticia.
@@ -63,7 +64,8 @@ La simulación se ejecutó dentro de una transacción y terminó con `ROLLBACK`;
 | Ocasional con teléfono en dos formatos | Un solo cliente | Aprobado |
 | Ocasionales con teléfonos distintos | Clientes distintos | Aprobado |
 | Registro heredado sin `tomado_por_empleado_id` | Atribución por nombre conservada | Aprobado |
-| Tiempo final anterior a la toma | Pedido contado; duración omitida | Aprobado |
+| Tiempo final anterior a la toma | Pedido contado; duración atípica informada y omitida del promedio | Aprobado |
+| Pedido abierto durante más de ocho horas | Pedido contado; duración atípica informada y omitida del promedio | Aprobado |
 | Orden anulada | Excluida | Aprobado |
 | Preparación no finalizada | Excluida | Aprobado |
 | Orden del mes anterior | Excluida | Aprobado |
@@ -72,7 +74,7 @@ La simulación se ejecutó dentro de una transacción y terminó con `ROLLBACK`;
 | Cuenta de estación selecciona empleado | Permitido | Aprobado |
 | Gerencia consulta el equipo | Permitido | Aprobado |
 
-Resultado cuantitativo del conjunto controlado: 6 clientes únicos, 8 pedidos, 80 lb, 28.6 minutos promedio y 8 preparados en el día.
+Resultado cuantitativo del conjunto controlado R1: 6 clientes únicos, 8 pedidos, 80 lb, 28.6 minutos promedio y 8 preparados en el día. En el fixture persistente de staging, R2 conserva 2 clientes, 2 pedidos y 40 lb, corrige el promedio de 1,076.9 a 2.1 minutos y expone 1 duración atípica excluida.
 
 ## Hallazgos
 
@@ -85,7 +87,7 @@ Resultado cuantitativo del conjunto controlado: 6 clientes únicos, 8 pedidos, 8
 ### Altos
 
 1. La cola visible de una cuenta de estación se atribuía a la cuenta compartida por `tomado_por_user`, mezclando pedidos de empleados distintos. V9.4.3 la corrige usando `tomado_por_empleado_id` y el empleado seleccionado.
-2. Un escenario staging existente produjo 1,076.9 minutos promedio por una toma abierta durante casi 18 horas. La métrica es correcta, pero evidencia pedidos que pueden quedar bloqueados demasiado tiempo.
+2. Un escenario staging existente produjo 1,076.9 minutos promedio por una toma abierta durante casi 36 horas. V9.4.3 R2 conserva el pedido en los demás indicadores, excluye esa muestra del promedio y la informa como duración atípica.
 
 ### Medios
 
@@ -103,4 +105,4 @@ Resultado cuantitativo del conjunto controlado: 6 clientes únicos, 8 pedidos, 8
 
 ## Despliegue
 
-La migración V9.4.3 R1 está aplicada en staging. Producción no fue modificada. Antes de publicar se requiere autorización explícita, aplicar la migración en producción, ejecutar `npm test`, construir con las variables públicas correctas de Supabase y desplegar mediante Wrangler.
+Las migraciones V9.4.3 R1 y R2 están aplicadas en staging. Producción no fue modificada. Antes de publicar se requiere autorización explícita, aplicar ambas migraciones en producción, ejecutar `npm test`, construir con las variables públicas correctas de Supabase y desplegar mediante Wrangler.
