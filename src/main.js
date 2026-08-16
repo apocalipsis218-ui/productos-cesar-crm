@@ -14,6 +14,7 @@ import { isAuditAdministrator, normalizeExceptionPayload, exceptionSummary } fro
 import { mergeRecentAndPendingOrders, shouldRunFallbackPolling } from './stabilityV9380.js';
 import { calculatePartialReturn, deliveredQuantity, netDeliveredWeight, partialReturnMeasure, returnedWeightForMeasure } from './partialReturnsV9392.js';
 import { allocateCxcOldest, normalizeManualCxcApplications, cxcApplicationsTotal, groupCxcAccounts, cxcPortfolioSummary } from './cxcV940.js';
+import { auxTablesForPageV942, boundedOrderIdsV942, changedOrderIdV942, isOperationalPageV942, realtimeTablesForPageV942, removeRowByIdV942, upsertRowByIdV942 } from './runtimeDataV942.js';
 // Compatibilidad de auditoría: V9.2.15 permanece integrada en la V9.3.0 Mobile First.
 // Compatibilidad histórica de auditorías: V9.2.14 · Operación y tiempos | V9.2.15 · Ventas, clientes, productos y CRM.
 // V9.3.9.7 · Endurecimiento de seguridad operativa.
@@ -21,6 +22,8 @@ import { allocateCxcOldest, normalizeManualCxcApplications, cxcApplicationsTotal
 // V9.4.0 R1 · Toma segura de órdenes programadas cuando llega su fecha.
 // V9.4.0 R2 · Validación centralizada del área operativa del despachador.
 // V9.4.0 R3 · Guardado atómico desde llamadas y programación protegida.
+// V9.4.2 PWA · R1: escrituras críticas cerradas y trazabilidad atómica en servidor.
+// V9.4.2 PWA · R2: carga por módulo, RLS eficiente y Realtime incremental.
 // Conserva factura, pesaje e historial del intento fallido.
 // Control conservado: Pulsa “Detallar artículos” para registrar producto, cantidad y peso.
 // V9.3.9.1 · Faltantes con seguimiento y liquidación segura de clientes ocasionales.
@@ -165,7 +168,7 @@ function setupKeyboardShortcuts(){
     if(e.ctrlKey && e.key.toLowerCase()==='s'){ const m=document.querySelector('.modal-backdrop:last-child'); const btn=m?.querySelector('.btn:not(.gray):not(.dark), button.btn:not(.gray):not(.dark)'); if(btn){ e.preventDefault(); btn.click(); return; } }
     if(!e.ctrlKey || !e.altKey) return;
     const k=e.key.toLowerCase();
-    const go=p=>{ e.preventDefault(); state.page=p; render(); };
+    const go=p=>{ e.preventDefault(); navigateToPageV942(p); };
     if(k==='o') return go('ordenes');
     if(k==='c') return go('clientes');
     if(k==='l') return go('liquidacion');
@@ -246,7 +249,7 @@ function saveBatchRowDraft(row){
 }
 function clearValidationBatchDraft(){ state.validationBatchDraft=emptyValidationBatchDraft(); saveValidationBatchDraftLocal(); }
 
-const state = {session:null,user:null,profile:null,page:'inicio',clientes:[],llamadas:[],productos:[],ordenes:[],cobranza:[],plantillas:[],catalogos:{},deliverys:[],empleados:[],pesos:[],entregas:[],pagos:[],historialEstados:[],auditExceptions:[],auditExceptionsSchemaOk:false,entregaLotes:[],entregaLoteDetalle:[],entregaDocumentosHistorial:[],liquidacionesLotes:[],liquidacionLoteDetalle:[],casosHistorial:[],deliveryLotCorrections:[],liquidacionLotEvents:[],deliveryTransfers:[],liquidacionSchemaOk:false,validacionR5SchemaOk:false,v936SchemaOk:false,v937SchemaOk:false,v9371SchemaOk:false,cxcSaldos:[],cxcCobros:[],cxcAplicaciones:[],cxcSchemaOk:false,cxcLoadedAt:0,cxcLoading:null,cxcSearch:'',cxcStatusFilter:'Pendientes',cxcAgingFilter:'Todas',cxcHistorySearch:'',cxcHistoryLimit:20,specialSearch:'',specialStatusFilter:'Todos',specialTypeFilter:'Todos',modulos:[],permisos:[],usuarios:[],usuarioModulos:[],errors:[],filter:'Todos',clientSearch:'',productSearch:'',productFilter:'Todos',productCategoryFilter:'Todas',productUnitFilter:'Todas',productWeightFilter:'Todos',modal:null,configTab:'general',controlTab:'gestiones',controlDate:today(),agendaDate:today(),callSearch:'',followPage:0,followSize:8,deliveryFiltro:'',orderSearch:'',carniceriaSearch:'',facturacionSearch:'',facturacionTab:'pendientes',facturacionHistorySearch:'',facturacionHistoryFrom:today().slice(0,8)+'01',facturacionHistoryTo:today(),facturacionHistoryStatus:'Todos',facturacionHistoryWorker:'Todos',validacionSearch:'',validacionTab:'pendientes',validationHistoryFrom:today(),validationHistoryTo:today(),validationHistoryDelivery:'',validationHistorySearch:'',pickupSearch:'',pickupHistorySearch:'',deliverySearch:'',deliveryTab:'activos',deliveryHistorySearch:'',deliveryHistoryLimit:10,liquidacionDeliveryFilter:'',liquidacionSearch:'',liqHistorySearch:'',liquidacionHistoryLimit:10,liquidacionTab:'pendientes',liqHistFrom:today(),liqHistTo:today(),deliveryHistoryFrom:today(),deliveryHistoryTo:today(),historyUi:loadHistoryUi(),orderView:'recientes',carniceriaTab:'libres',ui:loadUi(),weightConfig:loadWeightConfigLocal(),systemConfig:loadSystemConfigLocal(),liveStatus:'inactivo',liveLastRefresh:null,liveNotices:[],liveUnread:0,liveSound:localStorage.getItem('pc_live_sound_v61')==='1',liveLoading:false,liveFlashOrders:{},reportTab:'resumen',reportPreset:'mes',reportFrom:today().slice(0,8)+'01',reportTo:today(),reportStatus:'Todos',reportSeller:'Todos',reportZone:'Todas',reportClient:'Todos',reportProduct:'Todos',reportPayment:'Todas',prodMonth:String(new Date().getMonth()+1),prodYear:String(new Date().getFullYear()),prodRole:'Todos',auditSearch:'',auditType:'todos',auditExceptionSearch:'',auditExceptionStatus:'Todos',auditExceptionSeverity:'Todas',auditExceptionFrom:today().slice(0,8)+'01',auditExceptionTo:today(),alertSearch:'',alertLevel:'todos',kanbanSearch:'',kanbanClosedLimit:10,kanbanClosedHidden:false,kanbanHistorySearch:'',kanbanHistoryPeriod:'todos',kanbanHistoryStatus:'Todos',kanbanHistoryFrom:'',kanbanHistoryTo:'',kanbanHistoryPage:0,kanbanHistoryPageSize:25,userSearch:'',userRoleFilter:'Todos',userStatusFilter:'Todos',userLinkFilter:'Todos',kanbanMobileStage:'recibido',mobileMoreOpen:false,validationBatchDraft:loadValidationBatchDraftLocal()};
+const state = {session:null,user:null,profile:null,page:'inicio',clientes:[],llamadas:[],productos:[],ordenes:[],cobranza:[],plantillas:[],catalogos:{},deliverys:[],empleados:[],pesos:[],entregas:[],pagos:[],historialEstados:[],auditExceptions:[],auditExceptionsSchemaOk:false,entregaLotes:[],entregaLoteDetalle:[],entregaDocumentosHistorial:[],liquidacionesLotes:[],liquidacionLoteDetalle:[],casosHistorial:[],deliveryLotCorrections:[],liquidacionLotEvents:[],deliveryTransfers:[],liquidacionSchemaOk:false,validacionR5SchemaOk:false,v936SchemaOk:false,v937SchemaOk:false,v9371SchemaOk:false,cxcSaldos:[],cxcCobros:[],cxcAplicaciones:[],cxcSchemaOk:false,cxcLoadedAt:0,cxcLoading:null,cxcSearch:'',cxcStatusFilter:'Pendientes',cxcAgingFilter:'Todas',cxcHistorySearch:'',cxcHistoryLimit:20,specialSearch:'',specialStatusFilter:'Todos',specialTypeFilter:'Todos',modulos:[],permisos:[],usuarios:[],usuarioModulos:[],errors:[],loadedScopes:{},moduleLoading:null,filter:'Todos',clientSearch:'',productSearch:'',productFilter:'Todos',productCategoryFilter:'Todas',productUnitFilter:'Todas',productWeightFilter:'Todos',modal:null,configTab:'general',controlTab:'gestiones',controlDate:today(),agendaDate:today(),callSearch:'',followPage:0,followSize:8,deliveryFiltro:'',orderSearch:'',carniceriaSearch:'',facturacionSearch:'',facturacionTab:'pendientes',facturacionHistorySearch:'',facturacionHistoryFrom:today().slice(0,8)+'01',facturacionHistoryTo:today(),facturacionHistoryStatus:'Todos',facturacionHistoryWorker:'Todos',validacionSearch:'',validacionTab:'pendientes',validationHistoryFrom:today(),validationHistoryTo:today(),validationHistoryDelivery:'',validationHistorySearch:'',pickupSearch:'',pickupHistorySearch:'',deliverySearch:'',deliveryTab:'activos',deliveryHistorySearch:'',deliveryHistoryLimit:10,liquidacionDeliveryFilter:'',liquidacionSearch:'',liqHistorySearch:'',liquidacionHistoryLimit:10,liquidacionTab:'pendientes',liqHistFrom:today(),liqHistTo:today(),deliveryHistoryFrom:today(),deliveryHistoryTo:today(),historyUi:loadHistoryUi(),orderView:'recientes',carniceriaTab:'libres',ui:loadUi(),weightConfig:loadWeightConfigLocal(),systemConfig:loadSystemConfigLocal(),liveStatus:'inactivo',liveLastRefresh:null,liveNotices:[],liveUnread:0,liveSound:localStorage.getItem('pc_live_sound_v61')==='1',liveLoading:false,liveFlashOrders:{},reportTab:'resumen',reportPreset:'mes',reportFrom:today().slice(0,8)+'01',reportTo:today(),reportStatus:'Todos',reportSeller:'Todos',reportZone:'Todas',reportClient:'Todos',reportProduct:'Todos',reportPayment:'Todas',prodMonth:String(new Date().getMonth()+1),prodYear:String(new Date().getFullYear()),prodRole:'Todos',auditSearch:'',auditType:'todos',auditExceptionSearch:'',auditExceptionStatus:'Todos',auditExceptionSeverity:'Todas',auditExceptionFrom:today().slice(0,8)+'01',auditExceptionTo:today(),alertSearch:'',alertLevel:'todos',kanbanSearch:'',kanbanClosedLimit:10,kanbanClosedHidden:false,kanbanHistorySearch:'',kanbanHistoryPeriod:'todos',kanbanHistoryStatus:'Todos',kanbanHistoryFrom:'',kanbanHistoryTo:'',kanbanHistoryPage:0,kanbanHistoryPageSize:25,userSearch:'',userRoleFilter:'Todos',userStatusFilter:'Todos',userLinkFilter:'Todos',kanbanMobileStage:'recibido',mobileMoreOpen:false,validationBatchDraft:loadValidationBatchDraftLocal()};
 const navItems = [
   ['inicio','Inicio','Resumen general'],['control','Control','Llamadas y gestiones'],['clientes','Clientes','Ficha y WhatsApp'],['ordenes','Órdenes','Panel completo'],
   ['carniceria','Carnicería','Preparar y pesar'],['facturacion','Facturación','Imprimir y facturar'],['validacion','Validación','Asignar responsables'],['delivery','Delivery','Mis pedidos'],['liquidacion','Liquidación','Cobros y CXC'],['alertas','Alertas','Centro operativo'],['kanban','Kanban','Tablero de órdenes'],
@@ -317,7 +320,7 @@ function openMobileMoreMenu(items){
   overlay.innerHTML=`<div class="mobile-more-backdrop" data-mobile-close></div><div class="mobile-more-sheet"><div class="mobile-sheet-handle"></div><div class="mobile-more-head"><div><b>Más opciones</b><span>${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span></div><button type="button" class="close" data-mobile-close aria-label="Cerrar">×</button></div><div class="mobile-more-scroll">${modules||'<div class="empty compact">No hay otros módulos disponibles.</div>'}</div><div class="mobile-account-actions"><button type="button" class="btn gray" data-mobile-profile>Perfil</button><button type="button" class="btn gray" data-mobile-refresh>Actualizar</button><button type="button" class="btn dark" data-mobile-logout>Salir</button></div></div>`;
   document.body.appendChild(overlay);
   $$('[data-mobile-close]',overlay).forEach(b=>b.onclick=closeMobileMore);
-  $$('[data-mobile-page]',overlay).forEach(b=>b.onclick=()=>{state.page=b.dataset.mobilePage;closeMobileMore();render();});
+  $$('[data-mobile-page]',overlay).forEach(b=>b.onclick=()=>{const page=b.dataset.mobilePage;closeMobileMore();navigateToPageV942(page);});
   $('[data-mobile-profile]',overlay).onclick=()=>{closeMobileMore();openMyAccess();};
   $('[data-mobile-refresh]',overlay).onclick=async()=>{await refreshVisibleModuleV9384();state.liveLastRefresh=new Date().toISOString();closeMobileMore();render();toast('Datos actualizados');};
   $('[data-mobile-logout]',overlay).onclick=async()=>{await sb.auth.signOut();teardownLiveUpdates();state.session=null;state.user=null;closeMobileMore();renderLogin();};
@@ -434,6 +437,7 @@ async function ensureCxcDataV940(force=false){
 }
 
 let liveChannel=null, livePollTimer=null, liveRefreshTimer=null;
+let liveSubscribedSignature='', liveChangedOrderIds=new Set();
 function liveStatusText(){
   const s=state.liveStatus||'inactivo';
   if(s==='en vivo') return 'En vivo';
@@ -528,18 +532,17 @@ function setupLiveUpdates(){
   if(!state.user) return;
   state.liveStatus='conectando';
   state.liveLastRefresh=new Date().toISOString();
+  const tables=realtimeTablesForPageV942(state.page,state.liquidacionTab);
+  liveSubscribedSignature=`${state.page}|${state.liquidacionTab||''}|${tables.join(',')}`;
   try{
-    liveChannel=sb.channel('productos_cesar_ordenes_v61_'+state.user.id)
-      .on('postgres_changes',{event:'*',schema:'public',table:'ordenes'},handleLiveOrderChange)
-      .on('postgres_changes',{event:'*',schema:'public',table:'orden_detalle'},p=>handleLiveAuxChange(p,'Detalle de orden actualizado'))
-      .on('postgres_changes',{event:'*',schema:'public',table:'orden_pesos'},p=>handleLiveAuxChange(p,'Pesaje actualizado'))
-      .on('postgres_changes',{event:'*',schema:'public',table:'orden_entregas'},p=>handleLiveAuxChange(p,'Entrega actualizada'))
-      .on('postgres_changes',{event:'*',schema:'public',table:'orden_pagos'},p=>handleLiveAuxChange(p,'Pago actualizado'))
-      .on('postgres_changes',{event:'*',schema:'public',table:'cxc_cobros'},p=>{state.cxcLoadedAt=0;handleLiveAuxChange(p,'Cobro CXC actualizado');})
-      .on('postgres_changes',{event:'*',schema:'public',table:'cxc_cobro_aplicaciones'},p=>{state.cxcLoadedAt=0;handleLiveAuxChange(p,'Aplicación CXC actualizada');})
-      .on('postgres_changes',{event:'*',schema:'public',table:'orden_estados_historial'},p=>handleLiveAuxChange(p,'Historial actualizado'))
-      .on('postgres_changes',{event:'*',schema:'public',table:'sistema_configuracion'},()=>refreshSystemConfigV9390())
-      .subscribe(status=>{
+    let channel=sb.channel('pc_v942_'+state.user.id+'_'+simpleHash(liveSubscribedSignature));
+    tables.forEach(table=>{
+      const callback=table==='ordenes' ? handleLiveOrderChange
+        : table==='sistema_configuracion' ? ()=>refreshSystemConfigV9390()
+        : payload=>handleLiveAuxChange(payload,table);
+      channel=channel.on('postgres_changes',{event:'*',schema:'public',table},callback);
+    });
+    liveChannel=channel.subscribe(status=>{
         if(status==='SUBSCRIBED') state.liveStatus='en vivo';
         else if(['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(status)) state.liveStatus='polling';
         else state.liveStatus='conectando';
@@ -550,15 +553,24 @@ function setupLiveUpdates(){
 }
 function teardownLiveUpdates(){
   if(liveChannel){ try{ sb.removeChannel(liveChannel); }catch(e){} liveChannel=null; }
-  if(livePollTimer){ clearInterval(livePollTimer); livePollTimer=null; }
+  if(livePollTimer){ clearTimeout(livePollTimer); livePollTimer=null; }
   if(liveRefreshTimer){ clearTimeout(liveRefreshTimer); liveRefreshTimer=null; }
+  liveChangedOrderIds.clear();
+  liveSubscribedSignature='';
   state.liveStatus='inactivo';
 }
 function startLivePolling(){
-  if(livePollTimer) clearInterval(livePollTimer);
-  livePollTimer=setInterval(()=>{
-    if(shouldRunFallbackPolling({hasUser:Boolean(state.user),liveStatus:state.liveStatus})) refreshLiveData('Revisión automática',false);
-  },pollSeconds()*1000);
+  if(livePollTimer) clearTimeout(livePollTimer);
+  const schedule=()=>{
+    const jitter=.85+(Math.random()*.30);
+    livePollTimer=setTimeout(async()=>{
+      if(document.visibilityState!=='hidden' && shouldRunFallbackPolling({hasUser:Boolean(state.user),liveStatus:state.liveStatus})){
+        await refreshLiveData('Revisión automática',false);
+      }
+      if(state.user) schedule();
+    },Math.round(pollSeconds()*1000*jitter));
+  };
+  schedule();
 }
 function handleLiveOrderChange(payload){
   const row=payload.new || payload.old || {};
@@ -579,16 +591,60 @@ function handleLiveOrderChange(payload){
     msg = liveOrderLabel(row)+' · '+oldState+' → '+newState;
   }else if(event==='DELETE'){
     title='Orden eliminada/anulada'; msg=liveOrderLabel(row);
+    state.ordenes=removeRowByIdV942(state.ordenes,row.id);
   }
   pushLiveNotice(title,msg,target);
-  scheduleLiveRefresh('Realtime: '+title);
+  if(event!=='DELETE') scheduleLiveOrderRefreshV942(row.id);
+  else if(!document.querySelector('.modal')) render();
 }
-function handleLiveAuxChange(payload,msg){
-  scheduleLiveRefresh(msg);
+function handleLiveAuxChange(payload,table){
+  const event=payload.eventType||'';
+  const row=payload.new||payload.old||{};
+  const map={orden_pesos:'pesos',orden_entregas:'entregas',orden_pagos:'pagos',orden_estados_historial:'historialEstados',cxc_cobros:'cxcCobros',cxc_cobro_aplicaciones:'cxcAplicaciones'};
+  const stateKey=map[table];
+  if(stateKey){
+    state[stateKey]=event==='DELETE'
+      ? removeRowByIdV942(state[stateKey],row.id)
+      : upsertRowByIdV942(state[stateKey],row);
+    const limits={pesos:1500,entregas:1500,pagos:1500,historialEstados:2000,cxcCobros:1000,cxcAplicaciones:5000};
+    state[stateKey]=state[stateKey].slice(0,limits[stateKey]||2000);
+  }
+  if(table==='cxc_cobros'||table==='cxc_cobro_aplicaciones'){
+    state.cxcLoadedAt=0;
+    if(state.page==='liquidacion'&&['cxc','cxc_historial'].includes(state.liquidacionTab)){
+      loadCxcDataV940(true).then(()=>{
+        if(state.page==='liquidacion'&&['cxc','cxc_historial'].includes(state.liquidacionTab)&&!document.querySelector('.modal')) render();
+      });
+    }
+  }
+  const orderId=changedOrderIdV942(table,payload,state.ordenes);
+  if(orderId) scheduleLiveOrderRefreshV942(orderId);
+  else if(!document.querySelector('.modal')) render();
 }
-function scheduleLiveRefresh(reason='Actualización en vivo'){
+function scheduleLiveOrderRefreshV942(orderId){
+  const ids=boundedOrderIdsV942([orderId]);
+  ids.forEach(id=>liveChangedOrderIds.add(id));
+  if(!ids.length) return;
   if(liveRefreshTimer) clearTimeout(liveRefreshTimer);
-  liveRefreshTimer=setTimeout(()=>refreshLiveData(reason,true),2200);
+  liveRefreshTimer=setTimeout(flushLiveOrderRefreshV942,450);
+}
+async function flushLiveOrderRefreshV942(){
+  liveRefreshTimer=null;
+  if(!state.user || state.liveLoading) return;
+  const ids=boundedOrderIdsV942([...liveChangedOrderIds]);
+  liveChangedOrderIds.clear();
+  if(!ids.length) return;
+  state.liveLoading=true;
+  try{
+    const result=await loadOrdersSnapshotV942(state.page,ids);
+    const requested=new Set(ids.map(String));
+    const unchanged=(state.ordenes||[]).filter(row=>!requested.has(String(row?.id)));
+    state.ordenes=[...(result.data||[]),...unchanged].sort((a,b)=>Number(b?.id||0)-Number(a?.id||0));
+    state.liveLastRefresh=new Date().toISOString();
+    if(!document.querySelector('.modal')) render(); else updateLiveDom();
+  }catch(e){
+    state.liveStatus='polling'; updateLiveDom();
+  }finally{state.liveLoading=false;}
 }
 async function refreshLiveData(reason='Actualización',fromRealtime=false){
   if(!state.user || state.liveLoading) return;
@@ -650,67 +706,96 @@ async function fetchPendingOrdersV9380(orderSelect){
   }
   return {data:rows,error:new Error('La consulta de órdenes operativas pendientes superó 20,000 filas.')};
 }
-async function loadAll(){
-  state.errors=[];
-  const uid = state.user.id;
-  const prof = await safe(sb.from('perfiles').select('*').eq('id',uid).maybeSingle(),'perfil');
-  state.profile=prof.data || {id:uid,nombre:state.user.email,rol:'Sin perfil',vendedor:null,activo:false};
-  const orderSelect='*, cliente:clientes(id,codigo,negocio,contacto,telefono,sector,direccion,referencia,tipo,vendedor,estado,ultimo_pedido,credito,limite_credito), items:orden_detalle(*)';
-  const [mods,perms,ums,cats,items,pls,clientes,llamadas,productos,ordenes,ordenesPendientes,cobranza,usuarios,deliverys,empleados,pesos,entregas,pagos,historialEstados,sistemaCfg,entregaLotes,entregaLoteDetalle,entregaDocumentosHistorial,liquidacionesLotes,liquidacionLoteDetalle,casosHistorial,deliveryLotCorrections,liquidacionLotEvents,deliveryTransfers] = await Promise.all([
+const SYSTEM_CONFIG_KEYS_V942=['control_peso','empresa','menu','alertas','impresion','recibos','respaldo','atajos','facturacion','seguridad','incentivos','whatsapp','flujos'];
+const ORDER_SELECT_V942='*, cliente:clientes(id,codigo,negocio,contacto,telefono,sector,direccion,referencia,tipo,vendedor,estado,ultimo_pedido,credito,limite_credito), items:orden_detalle(*)';
+function scopeFreshV942(name,maxAge=60000){ return Date.now()-Number(state.loadedScopes?.[name]||0)<maxAge; }
+function markScopeV942(name){ state.loadedScopes=state.loadedScopes||{}; state.loadedScopes[name]=Date.now(); }
+function applySystemConfigRowsV942(rows=[]){
+  if(!rows.length) return;
+  const byKey=Object.fromEntries(rows.map(r=>[r.clave,r.valor]));
+  if(byKey.control_peso) state.weightConfig=normalizeWeightConfig(byKey.control_peso);
+  const patch={};
+  SYSTEM_CONFIG_KEYS_V942.filter(k=>k!=='control_peso').forEach(k=>{if(byKey[k]!==undefined&&byKey[k]!==null) patch[k]=byKey[k];});
+  state.systemConfig=normalizeSystemConfig(patch);
+  saveWeightConfigLocal(state.weightConfig); saveSystemConfigLocal(state.systemConfig);
+  if(state.systemConfig.alertas?.sonidoDefault===true && localStorage.getItem('pc_live_sound_v61')===null) state.liveSound=true;
+}
+async function loadOrdersSnapshotV942(page=state.page,ids=null){
+  const cleanIds=boundedOrderIdsV942(ids||[]);
+  const rpc=await sb.rpc('cargar_ordenes_v942',{
+    p_modulo:page,
+    p_ids:cleanIds.length?cleanIds:null,
+    p_limite_recientes:250
+  });
+  if(!rpc.error) return {data:Array.isArray(rpc.data)?rpc.data:[],error:null};
+  if(!['PGRST202','42883'].includes(String(rpc.error.code||''))) return {data:[],error:rpc.error};
+  if(cleanIds.length){
+    return sb.from('ordenes').select(ORDER_SELECT_V942).in('id',cleanIds).eq('archivada',false).order('id',{ascending:false});
+  }
+  const [recent,pending]=await Promise.all([
+    sb.from('ordenes').select(ORDER_SELECT_V942).eq('archivada',false).order('id',{ascending:false}).limit(500),
+    fetchPendingOrdersV9380(ORDER_SELECT_V942)
+  ]);
+  return {data:mergeRecentAndPendingOrders(recent.data||[],pending.data||[]),error:recent.error||pending.error||null};
+}
+async function loadCoreAccessV942(force=false){
+  if(!force&&scopeFreshV942('core')) return;
+  const [mods,perms,ums,deliverys,empleados,config]=await Promise.all([
     safe(sb.from('modulos_sistema').select('*').order('orden'),'módulos'),
     safe(sb.from('roles_permisos').select('*'),'permisos'),
     safe(sb.from('usuario_modulos').select('*'),'permisos usuario'),
-    safe(sb.from('catalogos').select('*').eq('activo',true).order('orden'),'catálogos'),
-    safe(sb.from('catalogo_items').select('*').eq('activo',true).order('orden'),'items catálogo'),
-    safe(sb.from('plantillas_whatsapp').select('*').order('orden'),'plantillas'),
-    safe(sb.from('clientes').select('*').eq('archivado',false).order('codigo',{ascending:true}).limit(2000),'clientes'),
-    safe(sb.from('llamadas').select('*, cliente:clientes(id,codigo,negocio,contacto,telefono,sector,tipo,vendedor)').order('id',{ascending:false}).limit(1000),'llamadas'),
-    safe(sb.from('productos_despacho').select('*').order('nombre').limit(1000),'productos'),
-    safe(sb.from('ordenes').select(orderSelect).eq('archivada',false).order('id',{ascending:false}).limit(500),'órdenes'),
-    safe(fetchPendingOrdersV9380(orderSelect),'órdenes pendientes históricas'),
-    safe(sb.from('cobranza').select('*').order('id',{ascending:false}).limit(1000),'cobranza'),
-    safe(sb.from('perfiles').select('*').order('nombre'),'usuarios'),
     safe(sb.from('deliverys_config').select('*').order('nombre'),'deliverys'),
     safe(sb.from('empleados_operativos').select('*').order('area').order('nombre'),'empleados operativos'),
-    safe(sb.from('orden_pesos').select('*').order('creado_en',{ascending:false}).limit(1500),'pesos'),
-    safe(sb.from('orden_entregas').select('*').order('creado_en',{ascending:false}).limit(1500),'entregas'),
-    safe(sb.from('orden_pagos').select('*').order('creado_en',{ascending:false}).limit(1500),'pagos'),
-    safe(sb.from('orden_estados_historial').select('*').order('creado_en',{ascending:false}).limit(2000),'historial de estados'),
-    safe(sb.from('sistema_configuracion').select('*').in('clave',['control_peso','empresa','menu','alertas','impresion','recibos','respaldo','atajos','facturacion','seguridad','incentivos','whatsapp','flujos']),'configuración sistema'),
-    optionalSafe(sb.from('entrega_lotes').select('*').order('creado_en',{ascending:false}).limit(500),'entrega_lotes'),
-    optionalSafe(sb.from('entrega_lote_detalle').select('*').order('id',{ascending:false}).limit(2000),'entrega_lote_detalle'),
-    optionalSafe(sb.from('entrega_documentos_historial').select('*').order('fecha_evento',{ascending:false}).limit(2000),'entrega_documentos_historial'),
-    optionalSafe(sb.from('liquidaciones_lotes').select('*').order('fecha_liquidacion',{ascending:false}).limit(500),'liquidaciones_lotes'),
-    optionalSafe(sb.from('liquidacion_lote_detalle').select('*').order('id',{ascending:false}).limit(3000),'liquidacion_lote_detalle'),
-    optionalSafe(sb.from('orden_casos_historial').select('*').order('creado_en',{ascending:false}).limit(2000),'orden_casos_historial'),
-    optionalSafe(sb.from('entrega_lote_correcciones').select('*').order('fecha_evento',{ascending:false}).limit(1000),'entrega_lote_correcciones'),
-    optionalSafe(sb.from('liquidacion_lote_eventos').select('*').order('creado_en',{ascending:false}).limit(1500),'liquidacion_lote_eventos'),
-    optionalSafe(sb.from('entrega_pedido_transferencias').select('*').order('creado_en',{ascending:false}).limit(1500),'entrega_pedido_transferencias')
+    safe(sb.from('sistema_configuracion').select('*').in('clave',SYSTEM_CONFIG_KEYS_V942),'configuración sistema')
   ]);
-  state.modulos=mods.data; state.permisos=perms.data; state.usuarioModulos=ums.data; state.plantillas=pls.data; state.clientes=clientes.data; state.llamadas=llamadas.data; state.productos=productos.data; state.ordenes=mergeRecentAndPendingOrders(ordenes.data||[],ordenesPendientes.data||[]); state.cobranza=cobranza.data; state.usuarios=usuarios.data; state.deliverys=deliverys.data; state.empleados=empleados.data; state.pesos=pesos.data; state.entregas=entregas.data; state.pagos=pagos.data; state.historialEstados=historialEstados.data; state.entregaLotes=entregaLotes.data; state.entregaLoteDetalle=entregaLoteDetalle.data; state.entregaDocumentosHistorial=entregaDocumentosHistorial.data||[]; state.liquidacionesLotes=liquidacionesLotes.data; state.liquidacionLoteDetalle=liquidacionLoteDetalle.data; state.casosHistorial=casosHistorial.data||[]; state.deliveryLotCorrections=deliveryLotCorrections.data||[]; state.liquidacionLotEvents=liquidacionLotEvents.data||[]; state.deliveryTransfers=deliveryTransfers.data||[]; state.liquidacionSchemaOk=!entregaLotes.error && !liquidacionesLotes.error; state.validacionR5SchemaOk=!entregaLotes.error && !entregaDocumentosHistorial.error; state.v936SchemaOk=!deliveryLotCorrections.error; state.v937SchemaOk=!liquidacionLotEvents.error; state.v9371SchemaOk=!deliveryTransfers.error;
-  state.catalogos={}; cats.data.forEach(c=>state.catalogos[c.id]=[]); items.data.forEach(i=>{ if(!state.catalogos[i.catalogo_id]) state.catalogos[i.catalogo_id]=[]; state.catalogos[i.catalogo_id].push(i); });
-  if(isAuditAdministrator(state.profile?.rol)){
-    const exceptionRows=await optionalSafe(
-      sb.from('auditoria_excepciones').select('*').order('creado_en',{ascending:false}).limit(2000),
-      'auditoria_excepciones'
-    );
-    state.auditExceptions=exceptionRows.data||[];
-    state.auditExceptionsSchemaOk=!exceptionRows.error;
-  }else{
-    state.auditExceptions=[];
-    state.auditExceptionsSchemaOk=false;
-  }
-  if(sistemaCfg?.data?.length){
-    const byKey=Object.fromEntries(sistemaCfg.data.map(r=>[r.clave,r.valor]));
-    if(byKey.control_peso){ state.weightConfig=normalizeWeightConfig(byKey.control_peso); saveWeightConfigLocal(state.weightConfig); }
-    const cfgPatch={}; ['empresa','menu','alertas','impresion','recibos','respaldo','atajos','facturacion','seguridad','incentivos','whatsapp','flujos'].forEach(k=>{ if(byKey[k]!==undefined && byKey[k]!==null) cfgPatch[k]=byKey[k]; });
-    const sys=normalizeSystemConfig(cfgPatch);
-    state.systemConfig=sys; saveSystemConfigLocal(sys);
-    if(sys.alertas?.sonidoDefault===true && localStorage.getItem('pc_live_sound_v61')===null) state.liveSound=true;
-  }
-  if(!(await flushPendingOrderHistory())){
-    state.errors.push('Hay registros de historial pendientes en este equipo. El sistema volverá a intentarlo automáticamente.');
-  }
+  state.modulos=mods.data; state.permisos=perms.data; state.usuarioModulos=ums.data;
+  state.deliverys=deliverys.data; state.empleados=empleados.data;
+  applySystemConfigRowsV942(config.data||[]); markScopeV942('core');
+}
+async function loadReferenceDataV942(force=false){
+  if(!force&&scopeFreshV942('references')) return;
+  const [clientes,llamadas,productos]=await Promise.all([
+    safe(sb.from('clientes').select('*').eq('archivado',false).order('codigo',{ascending:true}).limit(2000),'clientes'),
+    safe(sb.from('llamadas').select('*, cliente:clientes(id,codigo,negocio,contacto,telefono,sector,tipo,vendedor)').order('id',{ascending:false}).limit(1000),'llamadas'),
+    safe(sb.from('productos_despacho').select('*').order('nombre').limit(1000),'productos')
+  ]);
+  state.clientes=clientes.data; state.llamadas=llamadas.data; state.productos=productos.data;
+  markScopeV942('references');
+}
+async function loadCatalogDataV942(force=false){
+  if(!force&&scopeFreshV942('catalogs',300000)) return;
+  const [cats,items,plantillas]=await Promise.all([
+    safe(sb.from('catalogos').select('*').eq('activo',true).order('orden'),'catálogos'),
+    safe(sb.from('catalogo_items').select('*').eq('activo',true).order('orden'),'items catálogo'),
+    safe(sb.from('plantillas_whatsapp').select('*').order('orden'),'plantillas')
+  ]);
+  state.plantillas=plantillas.data; state.catalogos={};
+  cats.data.forEach(c=>state.catalogos[c.id]=[]);
+  items.data.forEach(i=>{if(!state.catalogos[i.catalogo_id]) state.catalogos[i.catalogo_id]=[];state.catalogos[i.catalogo_id].push(i);});
+  markScopeV942('catalogs');
+}
+async function loadAdminDataV942(force=false){
+  if(!force&&scopeFreshV942('admin')) return;
+  const [usuarios,cobranza]=await Promise.all([
+    safe(sb.from('perfiles').select('*').order('nombre'),'usuarios'),
+    safe(sb.from('cobranza').select('*').order('id',{ascending:false}).limit(1000),'cobranza')
+  ]);
+  state.usuarios=usuarios.data; state.cobranza=cobranza.data; markScopeV942('admin');
+}
+async function loadAuditDataV942(force=false){
+  if(!isAuditAdministrator(state.profile?.rol)){state.auditExceptions=[];state.auditExceptionsSchemaOk=false;return;}
+  if(!force&&scopeFreshV942('audit')) return;
+  const rows=await optionalSafe(sb.from('auditoria_excepciones').select('*').order('creado_en',{ascending:false}).limit(2000),'auditoria_excepciones');
+  state.auditExceptions=rows.data||[]; state.auditExceptionsSchemaOk=!rows.error; markScopeV942('audit');
+}
+async function loadAll(){
+  state.errors=[]; state.loadedScopes={};
+  const uid=state.user.id;
+  const prof=await safe(sb.from('perfiles').select('*').eq('id',uid).maybeSingle(),'perfil');
+  state.profile=prof.data||{id:uid,nombre:state.user.email,rol:'Sin perfil',vendedor:null,activo:false};
+  await loadCoreAccessV942(true);
+  if(!puede(state.page)) state.page=firstAllowedPage()||'inicio';
+  await loadModuleDataV942(state.page,true);
 }
 async function refreshSystemConfigV9390(){
   if(!state.user) return;
@@ -727,25 +812,20 @@ async function refreshSystemConfigV9390(){
   if(!document.querySelector('.modal')) render();
   else toast('Configuración global actualizada');
 }
-const operationalPagesV9384=new Set(['inicio','ordenes','carniceria','facturacion','validacion','delivery','liquidacion','alertas','kanban']);
 async function loadOperationalDataV9384(page=state.page){
-  const orderSelect='*, cliente:clientes(id,codigo,negocio,contacto,telefono,sector,direccion,referencia,tipo,vendedor,estado,ultimo_pedido,credito,limite_credito), items:orden_detalle(*)';
-  const includeLots=['validacion','delivery','liquidacion'].includes(page);
-  const includeCases=['ordenes','alertas','kanban'].includes(page);
+  const includeLots=['validacion','delivery','liquidacion','auditoria'].includes(page);
+  const includeCases=['ordenes','alertas','kanban','auditoria'].includes(page);
   const started=performance.now();
-  const [ordenes,pendientes,pesos,entregas,pagos,historial]=await Promise.all([
-    safe(sb.from('ordenes').select(orderSelect).eq('archivada',false).order('id',{ascending:false}).limit(500),'órdenes'),
-    safe(fetchPendingOrdersV9380(orderSelect),'órdenes pendientes históricas'),
-    safe(sb.from('orden_pesos').select('*').order('creado_en',{ascending:false}).limit(1500),'pesos'),
-    safe(sb.from('orden_entregas').select('*').order('creado_en',{ascending:false}).limit(1500),'entregas'),
-    safe(sb.from('orden_pagos').select('*').order('creado_en',{ascending:false}).limit(1500),'pagos'),
-    safe(sb.from('orden_estados_historial').select('*').order('creado_en',{ascending:false}).limit(2000),'historial de estados')
-  ]);
-  state.ordenes=mergeRecentAndPendingOrders(ordenes.data||[],pendientes.data||[]);
-  state.pesos=pesos.data||[];
-  state.entregas=entregas.data||[];
-  state.pagos=pagos.data||[];
-  state.historialEstados=historial.data||[];
+  const aux=auxTablesForPageV942(page).filter(t=>t!=='orden_detalle');
+  const jobs=[safe(loadOrdersSnapshotV942(page),'órdenes V9.4.2 R2')];
+  aux.forEach(table=>{
+    const limits={orden_pesos:1500,orden_entregas:1500,orden_pagos:1500,orden_estados_historial:2000};
+    jobs.push(safe(sb.from(table).select('*').order('creado_en',{ascending:false}).limit(limits[table]||1500),table));
+  });
+  const [ordenes,...auxResults]=await Promise.all(jobs);
+  state.ordenes=ordenes.data||[];
+  const map={orden_pesos:'pesos',orden_entregas:'entregas',orden_pagos:'pagos',orden_estados_historial:'historialEstados'};
+  aux.forEach((table,index)=>{state[map[table]]=auxResults[index]?.data||[];});
 
   if(includeLots){
     const [lotes,detalle,documentos,liquidaciones,liqDetalle,correcciones,eventos,transferencias]=await Promise.all([
@@ -764,8 +844,11 @@ async function loadOperationalDataV9384(page=state.page){
     state.liquidacionesLotes=liquidaciones.data||[];
     state.liquidacionLoteDetalle=liqDetalle.data||[];
     state.deliveryLotCorrections=correcciones.data||[];
+    state.v936SchemaOk=!correcciones.error;
     state.liquidacionLotEvents=eventos.data||[];
+    state.v937SchemaOk=!eventos.error;
     state.deliveryTransfers=transferencias.data||[];
+    state.v9371SchemaOk=!transferencias.error;
     state.liquidacionSchemaOk=!lotes.error&&!liquidaciones.error;
     state.validacionR5SchemaOk=!lotes.error&&!documentos.error;
   }
@@ -778,21 +861,37 @@ async function loadOperationalDataV9384(page=state.page){
   }
   state.performanceV9384={
     scope:includeLots?'operación + lotes':includeCases?'operación + casos':'operación',
-    requests:6+(includeLots?8:0)+(includeCases?1:0),
+    requests:1+aux.length+(includeLots?8:0)+(includeCases?1:0),
     elapsedMs:Math.round(performance.now()-started),
     refreshedAt:new Date().toISOString()
   };
-  if(!(await flushPendingOrderHistory())){
-    state.errors.push('Hay registros de historial pendientes en este equipo. El sistema volverá a intentarlo automáticamente.');
-  }
+}
+async function loadModuleDataV942(page=state.page,force=false){
+  const key=`module:${page}`;
+  const needsReferences=['inicio','control','clientes','ordenes','carniceria','facturacion','validacion','delivery','liquidacion','alertas','kanban','productos','productividad','reportes','config'].includes(page);
+  const needsCatalogs=['inicio','control','clientes','ordenes','productos','config'].includes(page);
+  const needsOperation=isOperationalPageV942(page)||['control','clientes','productividad','reportes','auditoria'].includes(page);
+  if(!force&&!needsOperation&&scopeFreshV942(key,45000)) return;
+  const jobs=[];
+  if(needsReferences) jobs.push(loadReferenceDataV942(force));
+  if(needsCatalogs) jobs.push(loadCatalogDataV942(force));
+  if(needsOperation) jobs.push(loadOperationalDataV9384(page));
+  if(['productividad','reportes','config'].includes(page)) jobs.push(loadAdminDataV942(force));
+  if(page==='auditoria') jobs.push(loadAuditDataV942(force));
+  await Promise.all(jobs); markScopeV942(key);
 }
 async function refreshVisibleModuleV9384(forceFull=false){
-  if(forceFull||!operationalPagesV9384.has(state.page)){
-    await loadAll();
-    state.performanceV9384={scope:'completa',requests:28,refreshedAt:new Date().toISOString()};
-    return;
-  }
-  await loadOperationalDataV9384(state.page);
+  await loadModuleDataV942(state.page,true);
+}
+async function navigateToPageV942(page){
+  const target=String(page||'');
+  if(!puede(target)) return;
+  if(!target||target===state.page){render();return;}
+  state.page=target;
+  setupLiveUpdates();
+  render();
+  try{await loadModuleDataV942(target,false);}catch(e){state.errors.push('Carga de '+target+': '+(e?.message||e));}
+  render();
 }
 function renderLogin(message=''){
   root.innerHTML = `<div class="login"><div class="login-card"><div class="logo">PC</div><h2 style="text-align:center;margin:0 0 6px">Sistema Productos César</h2><p style="text-align:center;color:var(--muted);margin:0 0 22px">Entrada por empleado · permisos por módulo</p><div id="loginError">${message?`<div class="success">${esc(message)}</div>`:''}</div><div class="form"><div class="field"><label>Correo del empleado</label><input id="email" placeholder="empleado@correo.com" autocomplete="username"></div><div class="field"><label>Contraseña</label><input id="pass" type="password" autocomplete="current-password" placeholder="Contraseña asignada"></div><button class="btn" id="loginBtn">Entrar al sistema</button><button class="btn gray" id="forgotBtn" type="button">Recuperar contraseña</button><div class="hint" style="text-align:center">El correo y contraseña se crean en Supabase Auth. Los módulos se asignan en Configuración → Usuarios y módulos.<br><span style="font-size:11px">Proyecto conectado: ${esc(SUPABASE_PROJECT_REF)}</span></div></div></div></div>`;
@@ -855,7 +954,7 @@ function render(){
   root.innerHTML = `<div class="shell${sidebarCollapsed?' sidebar-collapsed':''}"><aside id="appSidebar" class="sidebar" aria-hidden="${sidebarCollapsed?'true':'false'}"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.4.0 PWA · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.4.0 PWA</b><br>CXC, cobros posteriores y recibos numerados.</div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" data-collapsed="${sidebarCollapsed?'1':'0'}" aria-controls="appSidebar" aria-expanded="${sidebarCollapsed?'false':'true'}" aria-label="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}" title="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}"><span aria-hidden="true">${sidebarCollapsed?'›':'‹'}</span></button><main class="main"><div class="top"><div class="mobile-brand-mini"><span>${esc(appCfg('empresa.logoTexto','PC'))}</span></div><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray" aria-label="Mi acceso">Mi acceso</button><button id="refreshBtn" aria-label="Actualizar">Actualizar</button><button id="logoutBtn" class="dark" aria-label="Salir">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
   setupKeyboardShortcuts();
   bindSidebarToggle();
-  $$('[data-page]').forEach(b=>b.onclick=()=>{state.page=b.dataset.page; render();});
+  $$('[data-page]').forEach(b=>b.onclick=()=>navigateToPageV942(b.dataset.page));
   const moreBtn=$('[data-mobile-more]'); if(moreBtn) moreBtn.onclick=()=>openMobileMoreMenu(visibleNav);
   $('#myAccessBtn').onclick=()=>openMyAccess();
   $('#logoutBtn').onclick=async()=>{await sb.auth.signOut(); teardownLiveUpdates(); state.session=null; state.user=null; renderLogin();};
@@ -892,7 +991,7 @@ function renderPage(){
     console.error('Error renderizando módulo', state.page, err);
     c.innerHTML=`<div class="panel"><div class="empty"><b>No se pudo cargar este módulo.</b><br>${esc(err?.message||err)}<br><br><button class="btn" id="recoverModuleBtn">Reintentar</button> <button class="btn gray" id="goOrdersFallback">Ir a órdenes</button></div></div>`;
     const retry=$('#recoverModuleBtn'); if(retry) retry.onclick=()=>renderPage();
-    const go=$('#goOrdersFallback'); if(go) go.onclick=()=>{state.page='ordenes'; render();};
+    const go=$('#goOrdersFallback'); if(go) go.onclick=()=>navigateToPageV942('ordenes');
   }
 }
 function lastCall(clienteId){return state.llamadas.find(l=>Number(l.cliente_id)===Number(clienteId));}
@@ -1825,20 +1924,6 @@ function orderHasProgress(o){
   if(state.pagos.some(p=>Number(p.orden_id)===Number(o.id))) return true;
   return !!((o.preparado_por&&orderPreparationFinalized(o))||o.facturado_por||o.validado_por||o.recibido_por||o.factura_no||o.delivery_nombre||o.peso_preparado||o.peso_facturado||o.peso_validado||o.cantidad_impresiones);
 }
-async function cleanupPedidosForCall(callId){
-  if(!callId) return {error:null};
-  try{
-    const r=await sb.from('pedidos').delete().eq('llamada_id',callId);
-    if(r.error && !/does not exist|relation .*pedidos/i.test(r.error.message||'')) return r;
-  }catch(e){ return {error:e}; }
-  return {error:null};
-}
-async function clearOrderCallLinks(o){
-  if(!o?.id) return {error:null};
-  const patch={llamada_id:null};
-  if(Object.prototype.hasOwnProperty.call(o,'pedido_crm_id')) patch.pedido_crm_id=null;
-  return await sb.from('ordenes').update(patch).eq('id',o.id);
-}
 async function archiveOrderSafely(o,reason=''){
   if(!o) return {error:new Error('Orden no encontrada.')};
   const r=await sb.rpc('cancelar_orden_v9383',{
@@ -1913,32 +1998,12 @@ async function revertCall(call){
     if(!ok) return false;
   }
 
-  // Preferimos una función segura de Supabase para revertir todo en una sola operación.
-  // Si el SQL V6.3 aún no fue ejecutado, usamos el respaldo desde el navegador.
   const rpc=await sb.rpc('revertir_gestion_segura',{p_llamada_id:call.id,p_motivo:reason});
-  if(!rpc.error){
-    await refreshVisibleModuleV9384(); render(); toast('Gestión revertida de forma segura.');
-    return true;
-  }
-  if(!/revertir_gestion_segura/i.test(rpc.error.message||'')){
-    alert(rpc.error.message);
+  if(rpc.error){
+    alert('No se revirtió la gestión. La operación fue detenida para proteger órdenes e historial.\n\n'+rpc.error.message+'\n\nVerifica que la migración V9.4.2 R1 esté aplicada.');
     return false;
   }
-
-  if(linked){
-    const advanced=orderHasProgress(linked);
-    const cancelled=await cancelOrder(linked,{fromRevert:true,skipConfirm:true,reason});
-    if(!cancelled) return false;
-    if(advanced){
-      const clear=await clearOrderCallLinks(linked);
-      if(clear.error){ alert(clear.error.message); return false; }
-    }
-  }
-  const clean=await cleanupPedidosForCall(call.id);
-  if(clean.error){ alert(clean.error.message); return false; }
-  const r=await sb.from('llamadas').delete().eq('id',call.id);
-  if(r.error){ alert(r.error.message); return false; }
-  await refreshVisibleModuleV9384(); render(); toast('Gestión revertida. El cliente vuelve a pendientes.');
+  await refreshVisibleModuleV9384(); render(); toast('Gestión revertida de forma segura.');
   return true;
 }
 
@@ -3105,35 +3170,10 @@ function renderConfigUsuarios(c){
     openUserPerms(u);
   });
 }
-async function saveUserPermissionsDirect(u,profilePatch,overrides){
-  const oldProfile={nombre:u.nombre||'',rol:u.rol||'Sin perfil',activo:u.activo!==false,vendedor:u.vendedor||null,empleado_id:u.empleado_id||null,tipo_cuenta:accountTypeOf(u)};
-  const oldOverrides=(state.usuarioModulos||[]).filter(x=>sameUserId(x.usuario_id,u.id)).map(x=>({usuario_id:u.id,modulo:x.modulo,nivel:x.nivel,actualizado_en:x.actualizado_en||new Date().toISOString()}));
-  const upd=await sb.from('perfiles').update(profilePatch).eq('id',u.id);
-  if(upd.error) throw upd.error;
-  const del=await sb.from('usuario_modulos').delete().eq('usuario_id',u.id);
-  if(del.error){
-    await sb.from('perfiles').update(oldProfile).eq('id',u.id);
-    throw del.error;
-  }
-  if(overrides.length){
-    const ins=await sb.from('usuario_modulos').insert(overrides.map(x=>({usuario_id:u.id,modulo:x.modulo,nivel:x.nivel,actualizado_en:new Date().toISOString()})));
-    if(ins.error){
-      await sb.from('perfiles').update(oldProfile).eq('id',u.id);
-      await sb.from('usuario_modulos').delete().eq('usuario_id',u.id);
-      if(oldOverrides.length) await sb.from('usuario_modulos').insert(oldOverrides);
-      throw ins.error;
-    }
-  }
-  return {fallback:true};
-}
 async function saveUserPermissions(u,profilePatch,overrides){
   const args={p_usuario_id:u.id,p_nombre:profilePatch.nombre,p_rol:profilePatch.rol,p_activo:profilePatch.activo,p_vendedor:profilePatch.vendedor||null,p_empleado_id:profilePatch.empleado_id||null,p_tipo_cuenta:profilePatch.tipo_cuenta||'empleado',p_modulos:overrides};
   const rpc=await sb.rpc('actualizar_usuario_permisos_v930r9',args);
   if(!rpc.error) return rpc.data;
-  const msg=String(rpc.error.message||rpc.error.details||'');
-  if(/Could not find the function|function .* does not exist|PGRST202|schema cache/i.test(msg)){
-    return await saveUserPermissionsDirect(u,profilePatch,overrides);
-  }
   throw rpc.error;
 }
 function employeeSelectOptionsForUser(u,selectedId=''){
@@ -3426,9 +3466,11 @@ function buildOrderWhatsAppMessage(o,kind='confirmacion',templateOverride=null){
   return template.replace(/\{([a-zA-Z0-9_áéíóúÁÉÍÓÚñÑ]+)\}/g,(m,k)=>Object.prototype.hasOwnProperty.call(map,k)?map[k]:m).replace(/\n{3,}/g,'\n\n').trim();
 }
 async function logOrderWhatsAppPrepared(o,kind,phone){
-  try{
-    await sb.from('orden_estados_historial').insert({orden_id:o.id,estado_anterior:o.estado||null,estado_nuevo:o.estado||'Pedido recibido',comentario:`WhatsApp preparado · ${kind} · teléfono ${phone}`,usuario:state.user?.id});
-  }catch(e){ console.warn('No se pudo registrar auditoría de WhatsApp:',e?.message||e); }
+  const {error}=await sb.rpc('registrar_evento_orden_v942',{
+    p_orden_id:o.id,
+    p_comentario:`WhatsApp preparado · ${kind} · teléfono ${phone}`
+  });
+  if(error) console.warn('No se pudo registrar auditoría de WhatsApp:',error.message);
 }
 async function openOrderWhatsApp(o,kind='confirmacion'){
   if(!o) return;
@@ -5007,6 +5049,7 @@ function bindCxcNavigation(c){
   $$('[data-liqtab]',c).forEach(b=>b.onclick=async()=>{
     state.liquidacionTab=b.dataset.liqtab;
     if(['cxc','cxc_historial'].includes(state.liquidacionTab)) await ensureCxcDataV940();
+    setupLiveUpdates();
     renderLiquidacion($('#content'));
   });
 }
@@ -5165,7 +5208,7 @@ function renderLiquidacionHistorial(c, filter){
 function wireLiquidacionCommon(c, rows){
   const sel=$('#liquidDelivery',c); if(sel) sel.onchange=e=>{state.liquidacionDeliveryFilter=e.target.value; renderLiquidacion($('#content'));};
   const search=$('#liquidacionSearch',c); if(search) search.oninput=e=>{ const pos=e.target.selectionStart||e.target.value.length; state.liquidacionSearch=e.target.value; renderLiquidacion($('#content')); focusAfterRender('liquidacionSearch',pos); };
-  $$('[data-liqtab]',c).forEach(b=>b.onclick=async()=>{state.liquidacionTab=b.dataset.liqtab;if(['cxc','cxc_historial'].includes(state.liquidacionTab)) await ensureCxcDataV940();renderLiquidacion($('#content'));});
+  $$('[data-liqtab]',c).forEach(b=>b.onclick=async()=>{state.liquidacionTab=b.dataset.liqtab;if(['cxc','cxc_historial'].includes(state.liquidacionTab)) await ensureCxcDataV940();setupLiveUpdates();renderLiquidacion($('#content'));});
   $$('[data-liq-delivery-panel]',c).forEach(b=>b.onclick=()=>{state.liquidacionDeliveryFilter=b.dataset.liqDeliveryPanel||'';renderLiquidacion($('#content'));});
   try{ bindDynamic(); }catch(err){ console.error('bindDynamic/liquidacion',err); }
 }
@@ -5226,46 +5269,6 @@ function renderLiquidacion(c){
   $('[data-liq-pending-collapse-all]',c)?.addEventListener('click',()=>{setOperationalKeysOpen('liquidacionPending',liqKeys,false);renderLiquidacion(c);});
   try{ wireLiquidacionCommon(c, groups); }catch(err){ console.error('wireLiquidacionCommon',err); }
   bindLiquidacionActionButtons(c, filter, orders, groups);
-}
-const PENDING_HISTORY_KEY_V9380='pc_pending_order_history_v9380';
-function pendingOrderHistoryRows(){
-  try{
-    const rows=JSON.parse(localStorage.getItem(PENDING_HISTORY_KEY_V9380)||'[]');
-    return Array.isArray(rows)?rows:[];
-  }catch(e){ return []; }
-}
-function queuePendingOrderHistory(row,error){
-  const rows=pendingOrderHistoryRows();
-  rows.push({...row,pendiente_desde:new Date().toISOString(),error_local:String(error?.message||error||'Error desconocido')});
-  localStorage.setItem(PENDING_HISTORY_KEY_V9380,JSON.stringify(rows.slice(-100)));
-}
-async function flushPendingOrderHistory(){
-  const rows=pendingOrderHistoryRows();
-  if(!rows.length || !state.user) return true;
-  const remaining=[];
-  for(const saved of rows){
-    const {pendiente_desde,error_local,...row}=saved;
-    const {error}=await sb.from('orden_estados_historial').insert(row);
-    if(error) remaining.push(saved);
-  }
-  if(remaining.length) localStorage.setItem(PENDING_HISTORY_KEY_V9380,JSON.stringify(remaining));
-  else localStorage.removeItem(PENDING_HISTORY_KEY_V9380);
-  return remaining.length===0;
-}
-async function logOrderState(order, oldState, newState, comentario=''){
-  const row={orden_id:order.id,estado_anterior:oldState||null,estado_nuevo:newState,comentario,usuario:state.user?.id};
-  let result=await sb.from('orden_estados_historial').insert(row);
-  if(result.error){
-    await new Promise(resolve=>setTimeout(resolve,250));
-    result=await sb.from('orden_estados_historial').insert(row);
-  }
-  if(!result.error) return true;
-  queuePendingOrderHistory(row,result.error);
-  const msg=`No se pudo registrar ahora el historial de ${order.codigo||'la orden'}. Quedó pendiente para reintento automático.`;
-  state.errors.push(msg);
-  console.error('Historial de orden pendiente',result.error);
-  toast(msg);
-  return false;
 }
 async function setOrderState(o, estado, extra={}){
   if(!o) return false;
@@ -5645,10 +5648,11 @@ async function printPreparationTicket(o){
     .live-bar{background:#fff;border:1px solid var(--line);border-radius:18px;padding:12px 14px;margin:-6px 0 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;box-shadow:var(--shadow2);flex-wrap:wrap}.live-left{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.live-dot{width:10px;height:10px;border-radius:999px;background:#94a3b8;box-shadow:0 0 0 4px rgba(148,163,184,.15)}.live-dot.on{background:#10b981;box-shadow:0 0 0 4px rgba(16,185,129,.15)}.live-dot.warn{background:#f59e0b;box-shadow:0 0 0 4px rgba(245,158,11,.15)}.live-dot.bad{background:#ef4444;box-shadow:0 0 0 4px rgba(239,68,68,.15)}.live-title{font-weight:950}.live-sub{font-size:12px;color:var(--muted);font-weight:700}.live-notice{border:1px solid #bfdbfe;background:#eff6ff;border-radius:14px;padding:9px 11px;font-size:12px;color:#1e40af;font-weight:800}.live-notice b{display:block;color:#111827;margin-bottom:2px}.live-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   </style></head><body><div class="center"><h2>PRODUCTOS CÉSAR</h2><div class="b">ORDEN DE PREPARACIÓN</div><div>${esc(o.codigo||'')}</div></div>${pickupAlert}<div class="line"></div><div>Fecha orden: ${shortDate(o.fecha)}</div><div>Fecha despacho: ${shortDate(dispatchDateOf(o))} ${o.hora_despacho?esc(String(o.hora_despacho).slice(0,5)):''}</div><div>Impreso: ${businessDateTime(now)}</div>${isFutureDispatch(o)?'<div class="b">NO DESPACHAR HOY</div>':''}<div class="line"></div><div class="b">CLIENTE</div><div>${esc(orderClientName(o))}</div><div>Tel: ${esc(orderClientPhone(o))}</div><div>Sector: ${esc(orderClientSector(o))}</div>${occasionalPrintBlock(o)}<div class="line"></div><div>Tomado por: ${esc(workerDisplayName(o.tomado_por||o.preparado_por)||'________________')}</div><div>Hora tomada: ${o.tomado_en?businessDateTime(o.tomado_en):'________________'}</div><div class="line"></div><div class="b">DETALLE SIN PRECIOS</div><table>${lines}</table><div class="line"></div>${o.notas?`<div>Notas: ${esc(o.notas)}</div>`:''}${o.nota_programacion?`<div>Programación: ${esc(o.nota_programacion)}</div>`:''}<div class="sign">Peso final</div><div class="sign">Paquetes</div><div class="sign">Firma despacho</div><button onclick="window.print()">Imprimir</button><script>setTimeout(()=>window.print(),400)<\/script></body></html>`;
   const w=window.open('','_blank','width=420,height=720'); if(!w) return alert('El navegador bloqueó la ventana de impresión. Permite popups para esta página.'); w.document.open(); w.document.write(html); w.document.close();
-  const count=(+o.impresiones_preparacion||0)+1;
-  const {error}=await sb.from('ordenes').update({impresiones_preparacion:count,ultima_impresion_preparacion:new Date().toISOString(),impreso_preparacion_por:state.user.id}).eq('id',o.id);
-  if(error) console.warn(error.message);
-  await logOrderState(o,o.estado,o.estado,'Impresión de orden de preparación 80 mm');
+  const {error}=await sb.rpc('registrar_impresion_preparacion_v942',{
+    p_orden_id:o.id,
+    p_estado_esperado:o.estado
+  });
+  if(error) appAlert('El volante se abrió, pero no se pudo registrar la impresión de forma segura.\n\n'+error.message,'Impresión no auditada');
   await refreshVisibleModuleV9384(); render();
 }
 function shortageFollowupDialog(o,lines){
@@ -5953,10 +5957,6 @@ function specialCaseEmployeeOptions(selected=''){
   const sel=String(selected||'').trim();
   return `<option value="">Sin asignar</option>${names.map(n=>`<option ${norm(n)===norm(sel)?'selected':''}>${esc(n)}</option>`).join('')}<option value="__manual__">Otro / manual</option>`;
 }
-async function logSpecialCase(o, estado, comentario){
-  try{ await sb.from('orden_casos_historial').insert({orden_id:o.id,estado_caso:estado,comentario,usuario:state.user?.id||null}); }catch(e){ console.warn('Historial caso no disponible:',e.message||e); }
-  try{ await logOrderState(o,o.estado,o.estado,`Caso especial: ${estado}. ${comentario||''}`); }catch(e){}
-}
 function specialCasePatchFromModal(m,o){
   const type=$('#caseType',m)?.value||orderType(o);
   const rule=orderTypeRule(type);
@@ -5964,21 +5964,19 @@ function specialCasePatchFromModal(m,o){
   const status=$('#caseStatus',m)?.value||'Abierto';
   const resp=$('#caseResp',m)?.value==='__manual__'?($('#caseRespManual',m)?.value||'').trim():($('#caseResp',m)?.value||'');
   const notas=[`Tipo caso: ${type}`,`Estado caso: ${status}`,`Responsable: ${resp||'Sin asignar'}`,$('#caseAction',m)?.value?`Acción: ${$('#caseAction',m).value}`:'',$('#casePick',m)?.value?`Recoger: ${$('#casePick',m).value}`:'',$('#caseGive',m)?.value?`Entregar/cambiar: ${$('#caseGive',m).value}`:'',$('#caseResolution',m)?.value?`Resolución: ${$('#caseResolution',m).value}`:''].filter(Boolean).join('\n');
-  const patch={tipo_orden:type,requiere_preparacion:!!rule.prep,requiere_facturacion:!!rule.invoice,requiere_delivery:!!reqDelivery,modalidad_entrega:reqDelivery?'Delivery':'No aplica',delivery_nombre:reqDelivery?(o?.delivery_nombre||null):null,estado_caso_especial:status,responsable_caso:resp||null,accion_caso:$('#caseAction',m)?.value||null,producto_recoger:$('#casePick',m)?.value||null,producto_entregar:$('#caseGive',m)?.value||null,monto_ajuste:Number($('#caseAmount',m)?.value||0),fecha_compromiso:$('#caseDue',m)?.value||null,requiere_nota_credito:!!$('#caseCredit',m)?.checked,resolucion_caso:$('#caseResolution',m)?.value||null,caso_resuelto_por:['Resuelto','Cerrado'].includes(status)?currentWorkerName():(o?.caso_resuelto_por||null),caso_resuelto_en:['Resuelto','Cerrado'].includes(status)?(o?.caso_resuelto_en||new Date().toISOString()):null,notas:[o?.notas||'',`[${businessDateTime(new Date())}] ${notas}`].filter(Boolean).join('\n')};
+  const patch={tipo_orden:type,requiere_preparacion:!!rule.prep,requiere_facturacion:!!rule.invoice,requiere_delivery:!!reqDelivery,modalidad_entrega:reqDelivery?'Delivery':'No aplica',delivery_nombre:reqDelivery?(o?.delivery_nombre||null):null,estado_caso_especial:status,responsable_caso:resp||null,accion_caso:$('#caseAction',m)?.value||null,producto_recoger:$('#casePick',m)?.value||null,producto_entregar:$('#caseGive',m)?.value||null,monto_ajuste:Number($('#caseAmount',m)?.value||0),fecha_compromiso:$('#caseDue',m)?.value||null,requiere_nota_credito:!!$('#caseCredit',m)?.checked,resolucion_caso:$('#caseResolution',m)?.value||null,notas:[o?.notas||'',`[${businessDateTime(new Date())}] ${notas}`].filter(Boolean).join('\n')};
   if(reqDelivery && ['Abierto','En revisión','Asignado a delivery'].includes(status) && !['Asignada a delivery','En ruta','Cobrado','Entregado a crédito','No entregado','Devuelto parcial','Anulado'].includes(o?.estado||'')) patch.estado='Validada para delivery';
   if(['Resuelto','Cerrado'].includes(status)) patch.estado=o?.estado==='Anulado'?'Anulado':(o?.estado||'Pedido recibido');
   return patch;
 }
-async function saveSpecialCasePatch(o,patch){
-  const {estado,...cols}=patch;
-  let r=await sb.from('ordenes').update(patch).eq('id',o.id);
-  if(r.error && /estado_caso_especial|responsable_caso|accion_caso|producto_recoger|producto_entregar|monto_ajuste|fecha_compromiso|requiere_nota_credito|resolucion_caso|caso_resuelto/i.test(r.error.message||'')){
-    const fallback={tipo_orden:cols.tipo_orden,requiere_preparacion:cols.requiere_preparacion,requiere_facturacion:cols.requiere_facturacion,requiere_delivery:cols.requiere_delivery,notas:cols.notas};
-    if(estado) fallback.estado=estado;
-    r=await sb.from('ordenes').update(fallback).eq('id',o.id);
-    if(!r.error) alert('Se guardó el caso en notas, pero para historial estructurado ejecuta el SQL V9.1.');
-  }
-  return r;
+async function saveSpecialCasePatch(o,patch,comentario){
+  return await sb.rpc('actualizar_caso_especial_v942',{
+    p_orden_id:o.id,
+    p_estado_esperado:o.estado,
+    p_actualizado_en_esperado:o.actualizado_en||null,
+    p_cambios:patch,
+    p_comentario:comentario||'Seguimiento actualizado'
+  });
 }
 function openSpecialCaseQuickModal(){
   const rows=state.clientes.filter(c=>c.archivado!==true).slice(0,2000);
@@ -6018,9 +6016,9 @@ function openSpecialCaseModal(o){
   wireManual(m,'caseResp','caseRespManual');
   $('#saveSpecialCase',m).onclick=async()=>{
     const patch=specialCasePatchFromModal(m,o);
-    const r=await saveSpecialCasePatch(o,patch);
+    const comentario=$('#caseResolution',m).value||$('#caseAction',m).value||'Seguimiento actualizado';
+    const r=await saveSpecialCasePatch(o,patch,comentario);
     if(r.error) return alert(r.error.message);
-    await logSpecialCase(o,patch.estado_caso_especial||'Actualizado',$('#caseResolution',m).value||$('#caseAction',m).value||'Seguimiento actualizado');
     m.remove(); await refreshVisibleModuleV9384(); render(); toast('Caso actualizado');
   };
 }
@@ -6781,7 +6779,45 @@ function downloadClienteTemplate(){ sheetExport('plantilla_clientes_productos_ce
 function downloadProductoTemplate(){ sheetExport('plantilla_productos_productos_cesar.xlsx',[{codigo:'PR-999',nombre:'Longaniza ejemplo',categoria:'Carnes',unidad:'lb',precio:100,tipo_despacho_peso:'Por libra',peso_estandar_lb:'',requiere_pesaje:true,suma_peso_final:true,tolerancia_lb:0.25,permitir_ajustar_peso:true,permite_fraccion:true,activo:true,observaciones:''},{codigo:'PR-998',nombre:'Salami ejemplo',categoria:'Embutidos',unidad:'unidad',precio:300,tipo_despacho_peso:'Unidad peso fijo',peso_estandar_lb:3.5,requiere_pesaje:false,suma_peso_final:true,tolerancia_lb:0.25,permitir_ajustar_peso:false,permite_fraccion:false,activo:true,observaciones:'1 unidad = 3.5 lb; no se vende al granel'}]); }
 function exportClientes(rows){ sheetExport('clientes_productos_cesar.xlsx', rows.map(c=>({codigo:c.codigo,negocio:c.negocio,contacto:c.contacto,tipo:c.tipo,sector:c.sector,telefono:c.telefono,vendedor:c.vendedor,dias_contacto:contactDaysText(c),frecuencia_automatica:freqFromDays(contactDaysOf(c)),estado:c.estado,whatsapp:c.whatsapp,credito:c.credito,limite_credito:c.limite_credito,observaciones:c.observaciones}))); }
 function exportProductos(rows){ sheetExport('productos_productos_cesar.xlsx', rows.map(p=>({codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,unidad:p.unidad,precio:p.precio_defecto,tipo_despacho_peso:productWeightTypeFromProduct(p),peso_estandar_lb:p.peso_estandar_lb,requiere_pesaje:p.requiere_pesaje!==false,suma_peso_final:p.suma_peso_final!==false,tolerancia_lb:p.tolerancia_lb||0.25,permitir_ajustar_peso:p.permitir_ajustar_peso!==false,permite_fraccion:productAllowsFraction(p),activo:p.activo,observaciones:p.observaciones}))); }
-async function readXlsx(file){ if(!file) return []; const data=await file.arrayBuffer(); const wb=XLSX.read(data); return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''}); }
+const MAX_XLSX_IMPORT_BYTES=2*1024*1024;
+const MAX_XLSX_IMPORT_ROWS=5000;
+const MAX_XLSX_IMPORT_COLUMNS=50;
+const FORBIDDEN_XLSX_HEADERS=new Set(['__proto__','prototype','constructor']);
+function safeXlsxCell(value){
+  return typeof value==='string' ? value.slice(0,2000) : value;
+}
+async function readXlsx(file){
+  if(!file) return [];
+  try{
+    const name=String(file.name||'').toLowerCase();
+    if(!/\.(xlsx|xls)$/.test(name)) throw new Error('Solo se permiten archivos .xlsx o .xls.');
+    if(Number(file.size||0)>MAX_XLSX_IMPORT_BYTES) throw new Error('El archivo supera el límite de 2 MB.');
+    const data=await file.arrayBuffer();
+    const wb=XLSX.read(data,{
+      type:'array',dense:true,cellFormula:false,cellHTML:false,cellNF:false,
+      cellStyles:false,bookVBA:false,sheetRows:MAX_XLSX_IMPORT_ROWS+2
+    });
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    if(!ws) throw new Error('El archivo no contiene una hoja válida.');
+    const range=XLSX.utils.decode_range(ws['!ref']||'A1:A1');
+    if(range.e.c+1>MAX_XLSX_IMPORT_COLUMNS) throw new Error('El archivo supera el límite de 50 columnas.');
+    const matrix=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true,blankrows:false});
+    if(matrix.length>MAX_XLSX_IMPORT_ROWS+1) throw new Error('El archivo supera el límite de 5,000 filas.');
+    if(!matrix.length) return [];
+    const headers=matrix[0].slice(0,MAX_XLSX_IMPORT_COLUMNS).map(x=>String(x??'').trim().slice(0,100));
+    return matrix.slice(1).map(cells=>{
+      const row=Object.create(null);
+      headers.forEach((header,index)=>{
+        if(header && !FORBIDDEN_XLSX_HEADERS.has(header.toLowerCase())) row[header]=safeXlsxCell(cells[index]);
+      });
+      return row;
+    });
+  }catch(error){
+    console.error('Importación Excel rechazada:',error);
+    alert(error?.message||'No se pudo leer el archivo Excel de forma segura.');
+    return [];
+  }
+}
 function val(row,names){ const keys=Object.keys(row); for(const n of names){ const k=keys.find(k=>norm(k)===norm(n)); if(k) return row[k]; } return ''; }
 async function importClientes(file){ const rows=await readXlsx(file); if(!rows.length) return; const payload=rows.map(r=>({codigo:String(val(r,['codigo','código'])).trim(),negocio:String(val(r,['negocio','cliente'])).trim(),contacto:String(val(r,['contacto'])).trim(),tipo:String(val(r,['tipo','tipo_negocio'])).trim()||'Otro',sector:String(val(r,['sector','zona'])).trim(),telefono:String(val(r,['telefono','teléfono'])).trim(),vendedor:String(val(r,['vendedor'])).trim()||state.profile.vendedor||'Cesar',dia_contacto:(String(val(r,['dias_contacto','días_contacto','dia_contacto','día','dia'])).trim()||'Lunes'),frecuencia:freqFromDays(splitContactDays(String(val(r,['dias_contacto','días_contacto','dia_contacto','día','dia'])).trim()||'Lunes')),estado:String(val(r,['estado'])).trim()||'Activo',whatsapp:String(val(r,['whatsapp'])).toLowerCase()!=='false',credito:String(val(r,['credito','crédito'])).toLowerCase()==='true',limite_credito:+val(r,['limite_credito','límite_credito'])||0,observaciones:String(val(r,['observaciones'])).trim(),archivado:false})).filter(x=>x.codigo&&x.negocio); if(!payload.length) return alert('No encontré filas válidas.'); const {error}=await sb.from('clientes').upsert(payload,{onConflict:'codigo'}); if(error) return alert(error.message); await sb.from('importaciones_log').insert({tipo:'clientes',archivo:file.name,importados:payload.length,detalle:{filas:rows.length},usuario:state.user.id}); await refreshVisibleModuleV9384(); render(); toast('Clientes importados/actualizados: '+payload.length); }
 async function importProductos(file){

@@ -4,8 +4,8 @@ const css=fs.readFileSync(new URL('../src/styles.css',import.meta.url),'utf8');
 const pwa=fs.readFileSync(new URL('../src/pwa.js',import.meta.url),'utf8');
 const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
 function ok(cond,msg){ if(!cond){console.error('FALLO - '+msg);process.exit(1);} console.log('OK - '+msg); }
-ok(/^(?:9\.3\.(?:[4-9]|[1-9]\d+)(?:\.\d+)?|9\.4\.0)$/.test(pkg.version),'package conserva V9.3.4 o superior');
-ok(/V(?:9\.3\.9\.[0-9]+|9\.4\.0) PWA/.test(main)&&/APP_VERSION = 'V(?:9\.3\.9\.[0-9]+|9\.4\.0) PWA'/.test(pwa),'versión V9.3.4 o superior visible');
+ok(/^(?:9\.3\.(?:[4-9]|[1-9]\d+)(?:\.\d+)?|9\.4\.[0-9]+)$/.test(pkg.version),'package conserva V9.3.4 o superior');
+ok(/V(?:9\.3\.9\.[0-9]+|9\.4\.[0-9]+) PWA/.test(main)&&/APP_VERSION = 'V(?:9\.3\.9\.[0-9]+|9\.4\.[0-9]+) PWA'/.test(pwa),'versión V9.3.4 o superior visible');
 ok(main.includes("BUSINESS_TIME_ZONE = 'America/Santo_Domingo'")&&main.includes('businessDateKey(dateStr)'),'filtros usan zona horaria dominicana');
 ok(main.includes("deliveryTab:'activos'")&&main.includes('data-delivery-tab="historial"'),'Delivery separa pedidos activos e historial');
 ok(main.includes('data-history-preset="hoy"')&&main.includes('data-history-preset="7dias"'),'filtros rápidos de fecha');

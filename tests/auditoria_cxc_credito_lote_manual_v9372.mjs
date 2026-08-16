@@ -11,7 +11,7 @@ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
 
 const checks=[
-  ['versión V9.3.7.2 conservada en la versión actual',/^(?:9\.3\.9\.[0-9]+|9\.4\.0)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)&&pwa.includes(`V${pkg.version} PWA`)&&html.includes(`V${pkg.version} PWA`)],
+  ['versión V9.3.7.2 conservada en la versión actual',/^(?:9\.3\.9\.[0-9]+|9\.4\.[0-9]+)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)&&pwa.includes(`V${pkg.version} PWA`)&&html.includes(`V${pkg.version} PWA`)],
   ['selector CXC usa normalizador de efectivo',/cashValueAfterCxcResultChange\(total,sel\.value,inp\.value\)/.test(main)],
   ['helper de crédito exportado',/export function cashValueAfterCxcResultChange/.test(helper)],
   ['SQL 31 ya no consulta clientes.direccion',!/c\.direccion/i.test(sql31)],

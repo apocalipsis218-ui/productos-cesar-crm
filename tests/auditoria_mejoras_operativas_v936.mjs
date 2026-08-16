@@ -6,13 +6,14 @@ const css=fs.readFileSync(new URL('../src/styles.css',import.meta.url),'utf8');
 const sql=fs.readFileSync(new URL('../supabase/28_actualizacion_v936_correccion_lotes.sql',import.meta.url),'utf8');
 const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
 const checks=[
- ['versión V9.3.6 o superior visible',/V(?:9\.3\.(?:6|7(?:\.[123456789])?|8(?:\.\d+)?|9(?:\.\d+)?)|9\.4\.0) PWA/.test(main)],
+ ['versión V9.3.6 o superior visible',/V(?:9\.3\.(?:6|7(?:\.[123456789])?|8(?:\.\d+)?|9(?:\.\d+)?)|9\.4\.[0-9]+) PWA/.test(main)],
  ['lotes plegables en Validación',/data-validation-lot-toggle/.test(main)&&/validationLots/.test(main)],
  ['lotes activos plegables en Delivery',/data-delivery-active-toggle/.test(main)&&/deliveryActive/.test(main)],
  ['lotes pendientes plegables en Liquidación',/data-liq-pending-toggle/.test(main)&&/liquidacionPending/.test(main)],
  ['corregir asignación visible',/Editar lote/.test(main)&&/openLotCorrectionModal/.test(main)],
  ['RPC de corrección integrada',/corregir_lote_entrega_v936/.test(main)&&/corregir_lote_entrega_v936/.test(sql)],
  ['auditoría inmutable de correcciones',/entrega_lote_correcciones/.test(sql)&&/revoke insert, update, delete/.test(sql)],
+ ["disponibilidad SQL 28 se sincroniza al cargar correcciones",/state\.v936SchemaOk=!correcciones\.error/.test(main)],
  ['estilos operativos V9.3.6',/V9\.3\.6 — LOTES OPERATIVOS/.test(css)],
  ['auditoría V9.3.6 integrada',pkg.scripts.test.includes('auditoria_mejoras_operativas_v936.mjs')]
 ];

@@ -6,7 +6,7 @@ const sql=fs.readFileSync(new URL('../supabase/sql/33_actualizacion_v9374_client
 const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
 
 const checks=[
-  ['versión V9.3.9.0 o superior visible',/^(?:9\.3\.9\.[0-9]+|9\.4\.0)$/.test(pkg.version)&&main.includes(`V${pkg.version}`)],
+  ['versión V9.3.9.0 o superior visible',/^(?:9\.3\.9\.[0-9]+|9\.4\.[0-9]+)$/.test(pkg.version)&&main.includes(`V${pkg.version}`)],
   ['cliente ocasional disponible',/Cliente ocasional \/ sin registrar/.test(main)&&/value="Ocasional"/.test(main)],
   ['delivery ocasional exige teléfono',/teléfono es obligatorio para enviar un cliente ocasional por delivery/i.test(main)],
   ['delivery ocasional exige dirección',/dirección completa es obligatoria para enviar un cliente ocasional por delivery/i.test(main)],

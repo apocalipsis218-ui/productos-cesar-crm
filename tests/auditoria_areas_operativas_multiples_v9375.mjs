@@ -7,7 +7,7 @@ const sql=fs.readFileSync(new URL('../supabase/sql/34_actualizacion_v9375_areas_
 const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
 
 const checks=[
-  ['versión V9.3.9.0 o superior sincronizada',/^(?:9\.3\.9\.[0-9]+|9\.4\.0)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
+  ['versión V9.3.9.0 o superior sincronizada',/^(?:9\.3\.9\.[0-9]+|9\.4\.[0-9]+)$/.test(pkg.version)&&main.includes(`V${pkg.version} PWA`)],
   ['área principal conservada',/Área principal/.test(main)&&/area:primary/.test(main)],
   ['múltiples áreas adicionales editables',/Áreas operativas adicionales/.test(main)&&/data-emp-extra-area/.test(main)],
   ['rol y permisos no se modifican',/no cambian su rol ni sus permisos/i.test(main)],

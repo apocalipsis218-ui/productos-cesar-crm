@@ -9,7 +9,7 @@ const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),
 const wrangler=JSON.parse(fs.readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8'));
 
 const checks=[
-  ['versión V9.3.7.3 o superior sincronizada',/^(?:9\.3\.9\.[0-9]+|9\.4\.0)$/.test(pkg.version)&&main.includes(`V${pkg.version}`)&&pwa.includes(`APP_VERSION = 'V${pkg.version} PWA'`)&&html.includes(`V${pkg.version} PWA`)],
+  ['versión V9.3.7.3 o superior sincronizada',/^(?:9\.3\.9\.[0-9]+|9\.4\.[0-9]+)$/.test(pkg.version)&&main.includes(`V${pkg.version}`)&&pwa.includes(`APP_VERSION = 'V${pkg.version} PWA'`)&&html.includes(`V${pkg.version} PWA`)],
   ['Wrangler conserva publicación SPA',wrangler.name==='crm-productoscesar'&&wrangler.assets?.directory==='./dist'&&wrangler.assets?.not_found_handling==='single-page-application'],
   ['Wrangler actualizado',wrangler.compatibility_date==='2026-07-24'],
   ['paginación limita 25 órdenes',main.includes('const pageSize=25')&&main.includes('pageRows=rows.slice')&&main.includes('orderPrev')&&main.includes('orderNext')],

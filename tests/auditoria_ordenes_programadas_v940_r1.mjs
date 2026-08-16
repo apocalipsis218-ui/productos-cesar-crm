@@ -26,7 +26,7 @@ const pkg=JSON.parse(
 
 const checks=[
   ['base V9.4.0 R1 identificada',
-    pkg.version==='9.4.0' &&
+    /^9\.4\.\d+$/.test(pkg.version) &&
     main.includes('V9.4.0 R1 · Toma segura de órdenes programadas')],
   ['SQL 51 corregido queda integrado',
     /v_triggers_activos/.test(sql51) &&
@@ -58,7 +58,7 @@ const checks=[
   ['interfaz oculta programadas futuras',
     /function canShowInCarniceria\(o\)[\s\S]*if\(isFutureDispatch\(o\)\) return false/.test(main)],
   ['interfaz orienta al SQL correcto',
-    /verifica que aplicaste el SQL 52 de la V9\.4\.0 R1/.test(main) ||
+    /verifica que aplicaste el SQL 52 de la V9\.4\.[0-9]+ R1/.test(main) ||
     /La autorización se valida con el empleado activo, su área principal y sus áreas adicionales/.test(main)],
   ['migración no altera órdenes existentes',
     !/\b(update|delete from|truncate table)\s+public\.ordenes\b/i.test(sql) &&
