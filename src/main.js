@@ -24,6 +24,7 @@ import { auxTablesForPageV942, boundedOrderIdsV942, changedOrderIdV942, isOperat
 // V9.4.0 R3 · Guardado atómico desde llamadas y programación protegida.
 // V9.4.2 PWA · R1: escrituras críticas cerradas y trazabilidad atómica en servidor.
 // V9.4.2 PWA · R2: carga por módulo, RLS eficiente y Realtime incremental.
+// V9.4.3 PWA · R1: progreso mensual confiable y cola por empleado en Carnicería.
 // Conserva factura, pesaje e historial del intento fallido.
 // Control conservado: Pulsa “Detallar artículos” para registrar producto, cantidad y peso.
 // V9.3.9.1 · Faltantes con seguimiento y liquidación segura de clientes ocasionales.
@@ -155,7 +156,7 @@ function printFooterHtml(){ const rec=normalizeSystemConfig(state.systemConfig||
 function signatureHtml(label){ return `<div class="sign">${esc(label||'Firma')}</div>`; }
 function exportBackup(){
   const cfg=normalizeSystemConfig(state.systemConfig||{});
-  const payload={fecha:new Date().toISOString(),version:'V9.4.0 PWA',empresa:cfg.empresa,configuracion:cfg,clientes:state.clientes||[],ordenes:(state.ordenes||[]).map(o=>({codigo:o.codigo,fecha:o.fecha,estado:o.estado,cliente:orderClientName(o),total:o.total_factura||o.total_estimado,delivery:o.delivery_nombre,lote:o.lote_codigo})),productos:state.productos||[],empleados:state.empleadosOperativos||[],usuarios:state.usuarios||[],liquidaciones:state.liquidacionesLotes||[],cxc:state.cxcSaldos||[],cobrosCxc:state.cxcCobros||[]};
+  const payload={fecha:new Date().toISOString(),version:'V9.4.3 PWA',empresa:cfg.empresa,configuracion:cfg,clientes:state.clientes||[],ordenes:(state.ordenes||[]).map(o=>({codigo:o.codigo,fecha:o.fecha,estado:o.estado,cliente:orderClientName(o),total:o.total_factura||o.total_estimado,delivery:o.delivery_nombre,lote:o.lote_codigo})),productos:state.productos||[],empleados:state.empleadosOperativos||[],usuarios:state.usuarios||[],liquidaciones:state.liquidacionesLotes||[],cxc:state.cxcSaldos||[],cobrosCxc:state.cxcCobros||[]};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`backup-productos-cesar-${today()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); toast('Copia de seguridad descargada');
 }
@@ -249,7 +250,7 @@ function saveBatchRowDraft(row){
 }
 function clearValidationBatchDraft(){ state.validationBatchDraft=emptyValidationBatchDraft(); saveValidationBatchDraftLocal(); }
 
-const state = {session:null,user:null,profile:null,page:'inicio',clientes:[],llamadas:[],productos:[],ordenes:[],cobranza:[],plantillas:[],catalogos:{},deliverys:[],empleados:[],pesos:[],entregas:[],pagos:[],historialEstados:[],auditExceptions:[],auditExceptionsSchemaOk:false,entregaLotes:[],entregaLoteDetalle:[],entregaDocumentosHistorial:[],liquidacionesLotes:[],liquidacionLoteDetalle:[],casosHistorial:[],deliveryLotCorrections:[],liquidacionLotEvents:[],deliveryTransfers:[],liquidacionSchemaOk:false,validacionR5SchemaOk:false,v936SchemaOk:false,v937SchemaOk:false,v9371SchemaOk:false,cxcSaldos:[],cxcCobros:[],cxcAplicaciones:[],cxcSchemaOk:false,cxcLoadedAt:0,cxcLoading:null,cxcSearch:'',cxcStatusFilter:'Pendientes',cxcAgingFilter:'Todas',cxcHistorySearch:'',cxcHistoryLimit:20,specialSearch:'',specialStatusFilter:'Todos',specialTypeFilter:'Todos',modulos:[],permisos:[],usuarios:[],usuarioModulos:[],errors:[],loadedScopes:{},moduleLoading:null,filter:'Todos',clientSearch:'',productSearch:'',productFilter:'Todos',productCategoryFilter:'Todas',productUnitFilter:'Todas',productWeightFilter:'Todos',modal:null,configTab:'general',controlTab:'gestiones',controlDate:today(),agendaDate:today(),callSearch:'',followPage:0,followSize:8,deliveryFiltro:'',orderSearch:'',carniceriaSearch:'',facturacionSearch:'',facturacionTab:'pendientes',facturacionHistorySearch:'',facturacionHistoryFrom:today().slice(0,8)+'01',facturacionHistoryTo:today(),facturacionHistoryStatus:'Todos',facturacionHistoryWorker:'Todos',validacionSearch:'',validacionTab:'pendientes',validationHistoryFrom:today(),validationHistoryTo:today(),validationHistoryDelivery:'',validationHistorySearch:'',pickupSearch:'',pickupHistorySearch:'',deliverySearch:'',deliveryTab:'activos',deliveryHistorySearch:'',deliveryHistoryLimit:10,liquidacionDeliveryFilter:'',liquidacionSearch:'',liqHistorySearch:'',liquidacionHistoryLimit:10,liquidacionTab:'pendientes',liqHistFrom:today(),liqHistTo:today(),deliveryHistoryFrom:today(),deliveryHistoryTo:today(),historyUi:loadHistoryUi(),orderView:'recientes',carniceriaTab:'libres',ui:loadUi(),weightConfig:loadWeightConfigLocal(),systemConfig:loadSystemConfigLocal(),liveStatus:'inactivo',liveLastRefresh:null,liveNotices:[],liveUnread:0,liveSound:localStorage.getItem('pc_live_sound_v61')==='1',liveLoading:false,liveFlashOrders:{},reportTab:'resumen',reportPreset:'mes',reportFrom:today().slice(0,8)+'01',reportTo:today(),reportStatus:'Todos',reportSeller:'Todos',reportZone:'Todas',reportClient:'Todos',reportProduct:'Todos',reportPayment:'Todas',prodMonth:String(new Date().getMonth()+1),prodYear:String(new Date().getFullYear()),prodRole:'Todos',auditSearch:'',auditType:'todos',auditExceptionSearch:'',auditExceptionStatus:'Todos',auditExceptionSeverity:'Todas',auditExceptionFrom:today().slice(0,8)+'01',auditExceptionTo:today(),alertSearch:'',alertLevel:'todos',kanbanSearch:'',kanbanClosedLimit:10,kanbanClosedHidden:false,kanbanHistorySearch:'',kanbanHistoryPeriod:'todos',kanbanHistoryStatus:'Todos',kanbanHistoryFrom:'',kanbanHistoryTo:'',kanbanHistoryPage:0,kanbanHistoryPageSize:25,userSearch:'',userRoleFilter:'Todos',userStatusFilter:'Todos',userLinkFilter:'Todos',kanbanMobileStage:'recibido',mobileMoreOpen:false,validationBatchDraft:loadValidationBatchDraftLocal()};
+const state = {session:null,user:null,profile:null,page:'inicio',clientes:[],llamadas:[],productos:[],ordenes:[],cobranza:[],plantillas:[],catalogos:{},deliverys:[],empleados:[],pesos:[],entregas:[],pagos:[],historialEstados:[],auditExceptions:[],auditExceptionsSchemaOk:false,entregaLotes:[],entregaLoteDetalle:[],entregaDocumentosHistorial:[],liquidacionesLotes:[],liquidacionLoteDetalle:[],casosHistorial:[],deliveryLotCorrections:[],liquidacionLotEvents:[],deliveryTransfers:[],liquidacionSchemaOk:false,validacionR5SchemaOk:false,v936SchemaOk:false,v937SchemaOk:false,v9371SchemaOk:false,cxcSaldos:[],cxcCobros:[],cxcAplicaciones:[],cxcSchemaOk:false,cxcLoadedAt:0,cxcLoading:null,cxcSearch:'',cxcStatusFilter:'Pendientes',cxcAgingFilter:'Todas',cxcHistorySearch:'',cxcHistoryLimit:20,specialSearch:'',specialStatusFilter:'Todos',specialTypeFilter:'Todos',modulos:[],permisos:[],usuarios:[],usuarioModulos:[],errors:[],loadedScopes:{},moduleLoading:null,filter:'Todos',clientSearch:'',productSearch:'',productFilter:'Todos',productCategoryFilter:'Todas',productUnitFilter:'Todas',productWeightFilter:'Todos',modal:null,configTab:'general',controlTab:'gestiones',controlDate:today(),agendaDate:today(),callSearch:'',followPage:0,followSize:8,deliveryFiltro:'',orderSearch:'',carniceriaSearch:'',carniceriaProgress:null,carniceriaProgressEmployeeId:null,carniceriaProgressLoading:false,carniceriaProgressError:'',carniceriaProgressSchemaOk:false,carniceriaProgressLoadedAt:0,facturacionSearch:'',facturacionTab:'pendientes',facturacionHistorySearch:'',facturacionHistoryFrom:today().slice(0,8)+'01',facturacionHistoryTo:today(),facturacionHistoryStatus:'Todos',facturacionHistoryWorker:'Todos',validacionSearch:'',validacionTab:'pendientes',validationHistoryFrom:today(),validationHistoryTo:today(),validationHistoryDelivery:'',validationHistorySearch:'',pickupSearch:'',pickupHistorySearch:'',deliverySearch:'',deliveryTab:'activos',deliveryHistorySearch:'',deliveryHistoryLimit:10,liquidacionDeliveryFilter:'',liquidacionSearch:'',liqHistorySearch:'',liquidacionHistoryLimit:10,liquidacionTab:'pendientes',liqHistFrom:today(),liqHistTo:today(),deliveryHistoryFrom:today(),deliveryHistoryTo:today(),historyUi:loadHistoryUi(),orderView:'recientes',carniceriaTab:'libres',ui:loadUi(),weightConfig:loadWeightConfigLocal(),systemConfig:loadSystemConfigLocal(),liveStatus:'inactivo',liveLastRefresh:null,liveNotices:[],liveUnread:0,liveSound:localStorage.getItem('pc_live_sound_v61')==='1',liveLoading:false,liveFlashOrders:{},reportTab:'resumen',reportPreset:'mes',reportFrom:today().slice(0,8)+'01',reportTo:today(),reportStatus:'Todos',reportSeller:'Todos',reportZone:'Todas',reportClient:'Todos',reportProduct:'Todos',reportPayment:'Todas',prodMonth:String(new Date().getMonth()+1),prodYear:String(new Date().getFullYear()),prodRole:'Todos',auditSearch:'',auditType:'todos',auditExceptionSearch:'',auditExceptionStatus:'Todos',auditExceptionSeverity:'Todas',auditExceptionFrom:today().slice(0,8)+'01',auditExceptionTo:today(),alertSearch:'',alertLevel:'todos',kanbanSearch:'',kanbanClosedLimit:10,kanbanClosedHidden:false,kanbanHistorySearch:'',kanbanHistoryPeriod:'todos',kanbanHistoryStatus:'Todos',kanbanHistoryFrom:'',kanbanHistoryTo:'',kanbanHistoryPage:0,kanbanHistoryPageSize:25,userSearch:'',userRoleFilter:'Todos',userStatusFilter:'Todos',userLinkFilter:'Todos',kanbanMobileStage:'recibido',mobileMoreOpen:false,validationBatchDraft:loadValidationBatchDraftLocal()};
 const navItems = [
   ['inicio','Inicio','Resumen general'],['control','Control','Llamadas y gestiones'],['clientes','Clientes','Ficha y WhatsApp'],['ordenes','Órdenes','Panel completo'],
   ['carniceria','Carnicería','Preparar y pesar'],['facturacion','Facturación','Imprimir y facturar'],['validacion','Validación','Asignar responsables'],['delivery','Delivery','Mis pedidos'],['liquidacion','Liquidación','Cobros y CXC'],['alertas','Alertas','Centro operativo'],['kanban','Kanban','Tablero de órdenes'],
@@ -866,6 +867,37 @@ async function loadOperationalDataV9384(page=state.page){
     refreshedAt:new Date().toISOString()
   };
 }
+function carniceriaProgressDefaultEmployeeIdV943(){
+  const linked=linkedEmployeeForUser(state.profile);
+  if(linked && employeeHasArea(linked,'Carnicería')) return Number(linked.id);
+  if(isStationAccount()){
+    const chosen=activeEmployees('Carnicería').find(e=>Number(e.id)===Number(state.carniceriaProgressEmployeeId));
+    return Number(chosen?.id||activeEmployees('Carnicería')[0]?.id)||null;
+  }
+  return state.carniceriaProgressEmployeeId===null ? null : Number(state.carniceriaProgressEmployeeId)||null;
+}
+async function loadCarniceriaProgressV943(force=false){
+  if(!state.user) return;
+  const employeeId=carniceriaProgressDefaultEmployeeIdV943();
+  if(isStationAccount() && employeeId) state.carniceriaProgressEmployeeId=employeeId;
+  if(!force && state.carniceriaProgressLoadedAt && Date.now()-state.carniceriaProgressLoadedAt<30000) return;
+  state.carniceriaProgressLoading=true;
+  state.carniceriaProgressError='';
+  const {data,error}=await sb.rpc('resumen_carniceria_mensual_v943',{
+    p_empleado_id:employeeId,
+    p_mes:null
+  });
+  state.carniceriaProgressLoading=false;
+  if(error){
+    state.carniceriaProgress=null;
+    state.carniceriaProgressSchemaOk=false;
+    state.carniceriaProgressError=error.message||'No se pudo cargar el progreso mensual.';
+    return;
+  }
+  state.carniceriaProgress=data||null;
+  state.carniceriaProgressSchemaOk=true;
+  state.carniceriaProgressLoadedAt=Date.now();
+}
 async function loadModuleDataV942(page=state.page,force=false){
   const key=`module:${page}`;
   const needsReferences=['inicio','control','clientes','ordenes','carniceria','facturacion','validacion','delivery','liquidacion','alertas','kanban','productos','productividad','reportes','config'].includes(page);
@@ -878,7 +910,9 @@ async function loadModuleDataV942(page=state.page,force=false){
   if(needsOperation) jobs.push(loadOperationalDataV9384(page));
   if(['productividad','reportes','config'].includes(page)) jobs.push(loadAdminDataV942(force));
   if(page==='auditoria') jobs.push(loadAuditDataV942(force));
-  await Promise.all(jobs); markScopeV942(key);
+  await Promise.all(jobs);
+  if(page==='carniceria') await loadCarniceriaProgressV943(force);
+  markScopeV942(key);
 }
 async function refreshVisibleModuleV9384(forceFull=false){
   await loadModuleDataV942(state.page,true);
@@ -951,7 +985,7 @@ function render(){
   }
   if(!puede(state.page)) state.page = visibleNav[0][0];
   const sidebarCollapsed=loadSidebarCollapsed();
-  root.innerHTML = `<div class="shell${sidebarCollapsed?' sidebar-collapsed':''}"><aside id="appSidebar" class="sidebar" aria-hidden="${sidebarCollapsed?'true':'false'}"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.4.0 PWA · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.4.0 PWA</b><br>CXC, cobros posteriores y recibos numerados.</div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" data-collapsed="${sidebarCollapsed?'1':'0'}" aria-controls="appSidebar" aria-expanded="${sidebarCollapsed?'false':'true'}" aria-label="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}" title="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}"><span aria-hidden="true">${sidebarCollapsed?'›':'‹'}</span></button><main class="main"><div class="top"><div class="mobile-brand-mini"><span>${esc(appCfg('empresa.logoTexto','PC'))}</span></div><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray" aria-label="Mi acceso">Mi acceso</button><button id="refreshBtn" aria-label="Actualizar">Actualizar</button><button id="logoutBtn" class="dark" aria-label="Salir">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
+  root.innerHTML = `<div class="shell${sidebarCollapsed?' sidebar-collapsed':''}"><aside id="appSidebar" class="sidebar" aria-hidden="${sidebarCollapsed?'true':'false'}"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.4.3 PWA · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.4.3 PWA</b><br>Progreso mensual confiable en Carnicería.</div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" data-collapsed="${sidebarCollapsed?'1':'0'}" aria-controls="appSidebar" aria-expanded="${sidebarCollapsed?'false':'true'}" aria-label="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}" title="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}"><span aria-hidden="true">${sidebarCollapsed?'›':'‹'}</span></button><main class="main"><div class="top"><div class="mobile-brand-mini"><span>${esc(appCfg('empresa.logoTexto','PC'))}</span></div><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray" aria-label="Mi acceso">Mi acceso</button><button id="refreshBtn" aria-label="Actualizar">Actualizar</button><button id="logoutBtn" class="dark" aria-label="Salir">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
   setupKeyboardShortcuts();
   bindSidebarToggle();
   $$('[data-page]').forEach(b=>b.onclick=()=>navigateToPageV942(b.dataset.page));
@@ -4073,13 +4107,41 @@ function renderOperPanel(c, title, desc, orders, empty, buttonsFn, searchKey='')
   }
   bindDynamic();
 }
+function carniceriaProgressHtmlV943(){
+  const canChoose=isAdminRole()||isStationAccount();
+  const employees=activeEmployees('Carnicería');
+  const selected=state.carniceriaProgressEmployeeId===null?'':String(state.carniceriaProgressEmployeeId||carniceriaProgressDefaultEmployeeIdV943()||'');
+  const selector=canChoose?`<label class="carn-progress-filter"><span>Despachador</span><select id="carnProgressEmployee" ${state.carniceriaProgressLoading?'disabled':''}>${isAdminRole()?`<option value="" ${selected===''?'selected':''}>Equipo completo</option>`:''}${employees.map(e=>`<option value="${e.id}" ${String(e.id)===selected?'selected':''}>${esc(e.nombre)}</option>`).join('')}</select></label>`:'';
+  if(state.carniceriaProgressLoading && !state.carniceriaProgress){
+    return `<section class="panel carn-progress-panel" aria-live="polite"><div class="carn-progress-head"><div><span class="section-kicker">Progreso mensual</span><h3>Cargando indicadores…</h3><p>Calculando el mes completo directamente en el servidor.</p></div>${selector}</div><div class="carn-progress-skeleton"><i></i><i></i><i></i><i></i><i></i></div></section>`;
+  }
+  if(state.carniceriaProgressError){
+    return `<section class="panel carn-progress-panel" aria-live="polite"><div class="carn-progress-head"><div><span class="section-kicker">Progreso mensual</span><h3>Indicadores temporalmente no disponibles</h3><p>La cola de Carnicería continúa funcionando normalmente.</p></div>${selector}</div><div class="lock-alert"><b>No se pudo consultar el resumen:</b> ${esc(state.carniceriaProgressError)}</div><button class="btn small gray" data-carn-progress-refresh>Reintentar</button></section>`;
+  }
+  const p=state.carniceriaProgress||{};
+  const label=p.mes_inicio?new Date(String(p.mes_inicio)+'T12:00:00').toLocaleDateString('es-DO',{month:'long',year:'numeric'}):'mes actual';
+  const number=(v,digits=0)=>Number(v||0).toLocaleString('es-DO',{minimumFractionDigits:0,maximumFractionDigits:digits});
+  const days=Math.max(0,Number(p.dias_transcurridos||0)), totalDays=Math.max(1,Number(p.dias_mes||1));
+  const calendarPct=Math.min(100,Math.round((days/totalDays)*100));
+  const anomalous=Math.max(0,Number(p.duraciones_atipicas||0));
+  const timeNote=anomalous
+    ?`${number(anomalous)} ${anomalous===1?'duración atípica excluida':'duraciones atípicas excluidas'}`
+    :'Desde tomar hasta finalizar';
+  return `<section class="panel carn-progress-panel" aria-live="polite"><div class="carn-progress-head"><div><span class="section-kicker">Progreso mensual · ${esc(label)}</span><h3>${esc(p.empleado_nombre||'Mi progreso')}</h3><p>Clientes únicos y trabajo finalizado; un cliente con varios pedidos se cuenta una sola vez.</p></div><div class="carn-progress-actions">${selector}<button class="btn small gray" data-carn-progress-refresh ${state.carniceriaProgressLoading?'disabled':''}>${state.carniceriaProgressLoading?'Actualizando…':'Actualizar'}</button></div></div><div class="exec-kpi-grid carn-progress-kpis"><div class="exec-kpi primary"><span>Clientes despachados</span><strong>${number(p.clientes_unicos)}</strong><small>Clientes únicos del mes</small></div><div class="exec-kpi"><span>Pedidos preparados</span><strong>${number(p.pedidos_preparados)}</strong><small>Preparaciones finalizadas</small></div><div class="exec-kpi"><span>Libras preparadas</span><strong>${number(p.libras_preparadas,2)} lb</strong><small>Peso real registrado</small></div><div class="exec-kpi"><span>Tiempo promedio</span><strong>${number(p.tiempo_promedio_minutos,1)} min</strong><small>${esc(timeNote)}</small></div><div class="exec-kpi"><span>Preparados hoy</span><strong>${number(p.preparados_hoy)}</strong><small>Fecha de Santo Domingo</small></div></div><div class="carn-month-track"><div><b>Avance del calendario</b><span>Día ${days} de ${totalDays}</span></div><div class="carn-month-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${calendarPct}"><i style="width:${calendarPct}%"></i></div></div></section>`;
+}
 function renderCarniceria(c){
   const tabs=[['libres','Libres'],['preparacion','En preparación'],['mias','Mis pedidos'],['listas','Listas'],['todas','Todas']];
   const allowed=tabs.map(x=>x[0]);
   const tab=allowed.includes(state.carniceriaTab) ? state.carniceriaTab : 'libres';
   state.carniceriaTab=tab;
   const all=state.ordenes.filter(o=>canShowInCarniceria(o));
-  const myQueue=all.filter(o=>isActiveCarnOrder(o) && (isCurrentWorker(o.tomado_por) || isCurrentWorker(o.preparado_por) || isCurrentWorker(o.tomado_por_user)));
+  const queueEmployeeId=isStationAccount()?carniceriaProgressDefaultEmployeeIdV943():Number(linkedEmployeeForUser(state.profile)?.id)||null;
+  const myQueue=all.filter(o=>isActiveCarnOrder(o) && (
+    (queueEmployeeId && Number(o.tomado_por_empleado_id)===Number(queueEmployeeId))
+    || (!o.tomado_por_empleado_id && (isCurrentWorker(o.tomado_por) || isCurrentWorker(o.preparado_por) || isCurrentWorker(o.tomado_por_user)))
+  ));
+  const queueEmployee=activeEmployees('Carnicería').find(e=>Number(e.id)===Number(queueEmployeeId));
+  const queueTitle=isStationAccount()&&queueEmployee?`Cola de ${queueEmployee.nombre}`:'Mi cola de trabajo';
   let base=all;
   if(tab==='libres') base=all.filter(o=>['Pedido recibido','Programada'].includes(o.estado) && !o.tomado_por);
   if(tab==='preparacion') base=all.filter(o=>o.estado==='En preparación');
@@ -4088,7 +4150,23 @@ function renderCarniceria(c){
   const q=state.carniceriaSearch||'';
   const rows=q?base.filter(o=>matchOrder(o,q)):base;
   const queueWarn=myQueue.length>=3 ? '<span class="badge bad">Límite alcanzado</span>' : '<span class="badge ok">Disponible</span>';
-  c.innerHTML=`<div class="panel"><div class="panel-head"><div><h3>Órdenes para carnicería</h3><p>Multi-despachador: inicia en <b>Libres</b>. Las órdenes tomadas siguen visibles, pero quedan bloqueadas para los demás.</p></div><span class="badge info">${rows.length} de ${base.length} orden(es)</span></div><div class="queue-box"><div><b>Mi cola de trabajo: ${myQueue.length}/3</b><div class="limit">Puedes tomar hasta 3 pedidos al mismo tiempo. Para tomar otro, marca uno como listo o usa “Soltar”.</div></div>${queueWarn}</div><div class="tabs">${tabs.map(([id,n])=>`<button class="tab ${tab===id?'active':''}" data-carn-tab="${id}">${n}</button>`).join('')}</div><div class="searchbar"><input id="search_carniceriaSearch" value="${esc(q)}" placeholder="Buscar nombre del cliente..."></div><div class="list">${rows.map(carniceriaCard).join('')||'<div class="empty">No hay órdenes en esta vista.</div>'}</div></div>`;
+  c.innerHTML=`${carniceriaProgressHtmlV943()}<div class="panel"><div class="panel-head"><div><h3>Órdenes para carnicería</h3><p>Multi-despachador: inicia en <b>Libres</b>. Las órdenes tomadas siguen visibles, pero quedan bloqueadas para los demás.</p></div><span class="badge info">${rows.length} de ${base.length} orden(es)</span></div><div class="queue-box"><div><b>${esc(queueTitle)}: ${myQueue.length}/3</b><div class="limit">Puedes tomar hasta 3 pedidos al mismo tiempo. Para tomar otro, marca uno como listo o usa “Soltar”.</div></div>${queueWarn}</div><div class="tabs">${tabs.map(([id,n])=>`<button class="tab ${tab===id?'active':''}" data-carn-tab="${id}">${n}</button>`).join('')}</div><div class="searchbar"><input id="search_carniceriaSearch" value="${esc(q)}" placeholder="Buscar nombre del cliente..."></div><div class="list">${rows.map(carniceriaCard).join('')||'<div class="empty">No hay órdenes en esta vista.</div>'}</div></div>`;
+  $('#carnProgressEmployee')?.addEventListener('change',async e=>{
+    state.carniceriaProgressEmployeeId=e.target.value===''?null:Number(e.target.value);
+    state.carniceriaProgressLoadedAt=0;
+    state.carniceriaProgress=null;
+    state.carniceriaProgressLoading=true;
+    renderCarniceria(c);
+    await loadCarniceriaProgressV943(true);
+    renderCarniceria(c);
+  });
+  $('[data-carn-progress-refresh]')?.addEventListener('click',async()=>{
+    state.carniceriaProgressLoadedAt=0;
+    state.carniceriaProgressLoading=true;
+    renderCarniceria(c);
+    await loadCarniceriaProgressV943(true);
+    renderCarniceria(c);
+  });
   $$('[data-carn-tab]').forEach(b=>b.onclick=()=>{state.carniceriaTab=b.dataset.carnTab; renderCarniceria($('#content'));});
   const inp=$('#search_carniceriaSearch'); if(inp) inp.oninput=e=>{ const pos=e.target.selectionStart||e.target.value.length; state.carniceriaSearch=e.target.value; renderCarniceria($('#content')); focusAfterRender('search_carniceriaSearch',pos); };
   bindDynamic();
