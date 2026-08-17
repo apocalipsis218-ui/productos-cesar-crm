@@ -868,13 +868,21 @@ async function loadOperationalDataV9384(page=state.page){
   };
 }
 function carniceriaProgressDefaultEmployeeIdV943(){
+  // Gerencia debe poder consultar el equipo completo (null) o el empleado
+  // seleccionado. No se debe imponer el empleado vinculado a su perfil.
+  if(isAdminRole()){
+    return state.carniceriaProgressEmployeeId===null
+      ? null
+      : Number(state.carniceriaProgressEmployeeId)||null;
+  }
+  if(isStationAccount()){
+    const employees=activeEmployees('Carnicería');
+    const chosen=employees.find(e=>Number(e.id)===Number(state.carniceriaProgressEmployeeId));
+    return Number(chosen?.id||employees[0]?.id)||null;
+  }
   const linked=linkedEmployeeForUser(state.profile);
   if(linked && employeeHasArea(linked,'Carnicería')) return Number(linked.id);
-  if(isStationAccount()){
-    const chosen=activeEmployees('Carnicería').find(e=>Number(e.id)===Number(state.carniceriaProgressEmployeeId));
-    return Number(chosen?.id||activeEmployees('Carnicería')[0]?.id)||null;
-  }
-  return state.carniceriaProgressEmployeeId===null ? null : Number(state.carniceriaProgressEmployeeId)||null;
+  return null;
 }
 async function loadCarniceriaProgressV943(force=false){
   if(!state.user) return;
