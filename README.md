@@ -1,4 +1,31 @@
-# Productos César CRM V9.4.3 PWA
+# Productos César CRM V9.4.4 PWA
+
+## V9.4.4 R2 — Incentivos por despacho de cliente
+
+- conserva clientes únicos como indicador analítico;
+- cuenta cada preparación finalizada de Carnicería como una unidad de incentivo;
+- cuenta cada orden entregada válidamente por Delivery como una unidad;
+- reconoce dos pedidos del mismo cliente como dos despachos separados;
+- excluye órdenes anuladas, canceladas, pendientes y no entregadas según el rol;
+- muestra operaciones, unidades de incentivo y clientes únicos sin mezclarlos;
+- mantiene Delivery y los demás módulos conectados mediante la RPC mensual.
+
+R2 reemplaza únicamente la RPC de Productividad creada por R1 y no modifica
+filas operativas. Debe aprobarse en staging antes de cualquier uso en producción.
+
+## V9.4.4 R1 — Productividad integral por empleado y rol
+
+- calcula el mes completo en Supabase y deja de depender del subconjunto cargado en el navegador;
+- separa la actividad de un mismo empleado por rol productivo;
+- conecta Carnicería, Delivery, Ventas, Facturación, Validación, Liquidación y Control;
+- cuenta clientes únicos sin confundirlos con la cantidad de órdenes;
+- atribuye facturación y cobros al mes de su fecha real y excluye pagos reversados;
+- conserva empleados históricos inactivos y señala actividades sin identidad vinculada;
+- aplica las reglas configuradas de incentivos en una RPC protegida;
+- evita pagar devoluciones parciales salvo que la regla se active explícitamente.
+
+La migración debe validarse primero en staging. Producción no debe modificarse
+hasta aprobar las simulaciones, los permisos y la conciliación por módulo.
 
 ## V9.4.3 R2 — Progreso mensual de Carnicería
 

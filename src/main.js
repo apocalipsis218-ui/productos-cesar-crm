@@ -24,7 +24,7 @@ import { auxTablesForPageV942, boundedOrderIdsV942, changedOrderIdV942, isOperat
 // V9.4.0 R3 · Guardado atómico desde llamadas y programación protegida.
 // V9.4.2 PWA · R1: escrituras críticas cerradas y trazabilidad atómica en servidor.
 // V9.4.2 PWA · R2: carga por módulo, RLS eficiente y Realtime incremental.
-// V9.4.3 PWA · R1: progreso mensual confiable y cola por empleado en Carnicería.
+// V9.4.4 PWA · R2: incentivos por cada despacho de cliente finalizado.
 // Conserva factura, pesaje e historial del intento fallido.
 // Control conservado: Pulsa “Detallar artículos” para registrar producto, cantidad y peso.
 // V9.3.9.1 · Faltantes con seguimiento y liquidación segura de clientes ocasionales.
@@ -156,7 +156,7 @@ function printFooterHtml(){ const rec=normalizeSystemConfig(state.systemConfig||
 function signatureHtml(label){ return `<div class="sign">${esc(label||'Firma')}</div>`; }
 function exportBackup(){
   const cfg=normalizeSystemConfig(state.systemConfig||{});
-  const payload={fecha:new Date().toISOString(),version:'V9.4.3 PWA',empresa:cfg.empresa,configuracion:cfg,clientes:state.clientes||[],ordenes:(state.ordenes||[]).map(o=>({codigo:o.codigo,fecha:o.fecha,estado:o.estado,cliente:orderClientName(o),total:o.total_factura||o.total_estimado,delivery:o.delivery_nombre,lote:o.lote_codigo})),productos:state.productos||[],empleados:state.empleadosOperativos||[],usuarios:state.usuarios||[],liquidaciones:state.liquidacionesLotes||[],cxc:state.cxcSaldos||[],cobrosCxc:state.cxcCobros||[]};
+  const payload={fecha:new Date().toISOString(),version:'V9.4.4 PWA',empresa:cfg.empresa,configuracion:cfg,clientes:state.clientes||[],ordenes:(state.ordenes||[]).map(o=>({codigo:o.codigo,fecha:o.fecha,estado:o.estado,cliente:orderClientName(o),total:o.total_factura||o.total_estimado,delivery:o.delivery_nombre,lote:o.lote_codigo})),productos:state.productos||[],empleados:state.empleadosOperativos||[],usuarios:state.usuarios||[],liquidaciones:state.liquidacionesLotes||[],cxc:state.cxcSaldos||[],cobrosCxc:state.cxcCobros||[]};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`backup-productos-cesar-${today()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); toast('Copia de seguridad descargada');
 }
@@ -250,7 +250,7 @@ function saveBatchRowDraft(row){
 }
 function clearValidationBatchDraft(){ state.validationBatchDraft=emptyValidationBatchDraft(); saveValidationBatchDraftLocal(); }
 
-const state = {session:null,user:null,profile:null,page:'inicio',clientes:[],llamadas:[],productos:[],ordenes:[],cobranza:[],plantillas:[],catalogos:{},deliverys:[],empleados:[],pesos:[],entregas:[],pagos:[],historialEstados:[],auditExceptions:[],auditExceptionsSchemaOk:false,entregaLotes:[],entregaLoteDetalle:[],entregaDocumentosHistorial:[],liquidacionesLotes:[],liquidacionLoteDetalle:[],casosHistorial:[],deliveryLotCorrections:[],liquidacionLotEvents:[],deliveryTransfers:[],liquidacionSchemaOk:false,validacionR5SchemaOk:false,v936SchemaOk:false,v937SchemaOk:false,v9371SchemaOk:false,cxcSaldos:[],cxcCobros:[],cxcAplicaciones:[],cxcSchemaOk:false,cxcLoadedAt:0,cxcLoading:null,cxcSearch:'',cxcStatusFilter:'Pendientes',cxcAgingFilter:'Todas',cxcHistorySearch:'',cxcHistoryLimit:20,specialSearch:'',specialStatusFilter:'Todos',specialTypeFilter:'Todos',modulos:[],permisos:[],usuarios:[],usuarioModulos:[],errors:[],loadedScopes:{},moduleLoading:null,filter:'Todos',clientSearch:'',productSearch:'',productFilter:'Todos',productCategoryFilter:'Todas',productUnitFilter:'Todas',productWeightFilter:'Todos',modal:null,configTab:'general',controlTab:'gestiones',controlDate:today(),agendaDate:today(),callSearch:'',followPage:0,followSize:8,deliveryFiltro:'',orderSearch:'',carniceriaSearch:'',carniceriaProgress:null,carniceriaProgressEmployeeId:null,carniceriaProgressLoading:false,carniceriaProgressError:'',carniceriaProgressSchemaOk:false,carniceriaProgressLoadedAt:0,facturacionSearch:'',facturacionTab:'pendientes',facturacionHistorySearch:'',facturacionHistoryFrom:today().slice(0,8)+'01',facturacionHistoryTo:today(),facturacionHistoryStatus:'Todos',facturacionHistoryWorker:'Todos',validacionSearch:'',validacionTab:'pendientes',validationHistoryFrom:today(),validationHistoryTo:today(),validationHistoryDelivery:'',validationHistorySearch:'',pickupSearch:'',pickupHistorySearch:'',deliverySearch:'',deliveryTab:'activos',deliveryHistorySearch:'',deliveryHistoryLimit:10,liquidacionDeliveryFilter:'',liquidacionSearch:'',liqHistorySearch:'',liquidacionHistoryLimit:10,liquidacionTab:'pendientes',liqHistFrom:today(),liqHistTo:today(),deliveryHistoryFrom:today(),deliveryHistoryTo:today(),historyUi:loadHistoryUi(),orderView:'recientes',carniceriaTab:'libres',ui:loadUi(),weightConfig:loadWeightConfigLocal(),systemConfig:loadSystemConfigLocal(),liveStatus:'inactivo',liveLastRefresh:null,liveNotices:[],liveUnread:0,liveSound:localStorage.getItem('pc_live_sound_v61')==='1',liveLoading:false,liveFlashOrders:{},reportTab:'resumen',reportPreset:'mes',reportFrom:today().slice(0,8)+'01',reportTo:today(),reportStatus:'Todos',reportSeller:'Todos',reportZone:'Todas',reportClient:'Todos',reportProduct:'Todos',reportPayment:'Todas',prodMonth:String(new Date().getMonth()+1),prodYear:String(new Date().getFullYear()),prodRole:'Todos',auditSearch:'',auditType:'todos',auditExceptionSearch:'',auditExceptionStatus:'Todos',auditExceptionSeverity:'Todas',auditExceptionFrom:today().slice(0,8)+'01',auditExceptionTo:today(),alertSearch:'',alertLevel:'todos',kanbanSearch:'',kanbanClosedLimit:10,kanbanClosedHidden:false,kanbanHistorySearch:'',kanbanHistoryPeriod:'todos',kanbanHistoryStatus:'Todos',kanbanHistoryFrom:'',kanbanHistoryTo:'',kanbanHistoryPage:0,kanbanHistoryPageSize:25,userSearch:'',userRoleFilter:'Todos',userStatusFilter:'Todos',userLinkFilter:'Todos',kanbanMobileStage:'recibido',mobileMoreOpen:false,validationBatchDraft:loadValidationBatchDraftLocal()};
+const state = {session:null,user:null,profile:null,page:'inicio',clientes:[],llamadas:[],productos:[],ordenes:[],cobranza:[],plantillas:[],catalogos:{},deliverys:[],empleados:[],pesos:[],entregas:[],pagos:[],historialEstados:[],auditExceptions:[],auditExceptionsSchemaOk:false,entregaLotes:[],entregaLoteDetalle:[],entregaDocumentosHistorial:[],liquidacionesLotes:[],liquidacionLoteDetalle:[],casosHistorial:[],deliveryLotCorrections:[],liquidacionLotEvents:[],deliveryTransfers:[],liquidacionSchemaOk:false,validacionR5SchemaOk:false,v936SchemaOk:false,v937SchemaOk:false,v9371SchemaOk:false,cxcSaldos:[],cxcCobros:[],cxcAplicaciones:[],cxcSchemaOk:false,cxcLoadedAt:0,cxcLoading:null,cxcSearch:'',cxcStatusFilter:'Pendientes',cxcAgingFilter:'Todas',cxcHistorySearch:'',cxcHistoryLimit:20,specialSearch:'',specialStatusFilter:'Todos',specialTypeFilter:'Todos',modulos:[],permisos:[],usuarios:[],usuarioModulos:[],errors:[],loadedScopes:{},moduleLoading:null,filter:'Todos',clientSearch:'',productSearch:'',productFilter:'Todos',productCategoryFilter:'Todas',productUnitFilter:'Todas',productWeightFilter:'Todos',modal:null,configTab:'general',controlTab:'gestiones',controlDate:today(),agendaDate:today(),callSearch:'',followPage:0,followSize:8,deliveryFiltro:'',orderSearch:'',carniceriaSearch:'',carniceriaProgress:null,carniceriaProgressEmployeeId:null,carniceriaProgressLoading:false,carniceriaProgressError:'',carniceriaProgressSchemaOk:false,carniceriaProgressLoadedAt:0,facturacionSearch:'',facturacionTab:'pendientes',facturacionHistorySearch:'',facturacionHistoryFrom:today().slice(0,8)+'01',facturacionHistoryTo:today(),facturacionHistoryStatus:'Todos',facturacionHistoryWorker:'Todos',validacionSearch:'',validacionTab:'pendientes',validationHistoryFrom:today(),validationHistoryTo:today(),validationHistoryDelivery:'',validationHistorySearch:'',pickupSearch:'',pickupHistorySearch:'',deliverySearch:'',deliveryTab:'activos',deliveryHistorySearch:'',deliveryHistoryLimit:10,liquidacionDeliveryFilter:'',liquidacionSearch:'',liqHistorySearch:'',liquidacionHistoryLimit:10,liquidacionTab:'pendientes',liqHistFrom:today(),liqHistTo:today(),deliveryHistoryFrom:today(),deliveryHistoryTo:today(),historyUi:loadHistoryUi(),orderView:'recientes',carniceriaTab:'libres',ui:loadUi(),weightConfig:loadWeightConfigLocal(),systemConfig:loadSystemConfigLocal(),liveStatus:'inactivo',liveLastRefresh:null,liveNotices:[],liveUnread:0,liveSound:localStorage.getItem('pc_live_sound_v61')==='1',liveLoading:false,liveFlashOrders:{},reportTab:'resumen',reportPreset:'mes',reportFrom:today().slice(0,8)+'01',reportTo:today(),reportStatus:'Todos',reportSeller:'Todos',reportZone:'Todas',reportClient:'Todos',reportProduct:'Todos',reportPayment:'Todas',prodMonth:String(new Date().getMonth()+1),prodYear:String(new Date().getFullYear()),prodRole:'Todos',productivitySummary:null,productivityLoading:false,productivityError:'',productivitySchemaOk:false,productivityLoadedKey:'',productivityLoadedAt:0,auditSearch:'',auditType:'todos',auditExceptionSearch:'',auditExceptionStatus:'Todos',auditExceptionSeverity:'Todas',auditExceptionFrom:today().slice(0,8)+'01',auditExceptionTo:today(),alertSearch:'',alertLevel:'todos',kanbanSearch:'',kanbanClosedLimit:10,kanbanClosedHidden:false,kanbanHistorySearch:'',kanbanHistoryPeriod:'todos',kanbanHistoryStatus:'Todos',kanbanHistoryFrom:'',kanbanHistoryTo:'',kanbanHistoryPage:0,kanbanHistoryPageSize:25,userSearch:'',userRoleFilter:'Todos',userStatusFilter:'Todos',userLinkFilter:'Todos',kanbanMobileStage:'recibido',mobileMoreOpen:false,validationBatchDraft:loadValidationBatchDraftLocal()};
 const navItems = [
   ['inicio','Inicio','Resumen general'],['control','Control','Llamadas y gestiones'],['clientes','Clientes','Ficha y WhatsApp'],['ordenes','Órdenes','Panel completo'],
   ['carniceria','Carnicería','Preparar y pesar'],['facturacion','Facturación','Imprimir y facturar'],['validacion','Validación','Asignar responsables'],['delivery','Delivery','Mis pedidos'],['liquidacion','Liquidación','Cobros y CXC'],['alertas','Alertas','Centro operativo'],['kanban','Kanban','Tablero de órdenes'],
@@ -906,20 +906,45 @@ async function loadCarniceriaProgressV943(force=false){
   state.carniceriaProgressSchemaOk=true;
   state.carniceriaProgressLoadedAt=Date.now();
 }
+function productivityMonthStartV944(){
+  const year=Math.max(2000,Number(state.prodYear)||new Date().getFullYear());
+  const month=Math.min(12,Math.max(1,Number(state.prodMonth)||new Date().getMonth()+1));
+  return `${year}-${String(month).padStart(2,'0')}-01`;
+}
+async function loadProductivityV944(force=false){
+  if(!state.user) return;
+  const monthStart=productivityMonthStartV944();
+  if(!force && state.productivityLoadedKey===monthStart && Date.now()-Number(state.productivityLoadedAt||0)<30000) return;
+  state.productivityLoading=true;
+  state.productivityError='';
+  const {data,error}=await sb.rpc('resumen_productividad_mensual_v944',{p_mes:monthStart});
+  state.productivityLoading=false;
+  if(error){
+    state.productivitySummary=null;
+    state.productivitySchemaOk=false;
+    state.productivityError=error.message||'No se pudo cargar la productividad mensual.';
+    return;
+  }
+  state.productivitySummary=data||null;
+  state.productivitySchemaOk=true;
+  state.productivityLoadedKey=monthStart;
+  state.productivityLoadedAt=Date.now();
+}
 async function loadModuleDataV942(page=state.page,force=false){
   const key=`module:${page}`;
-  const needsReferences=['inicio','control','clientes','ordenes','carniceria','facturacion','validacion','delivery','liquidacion','alertas','kanban','productos','productividad','reportes','config'].includes(page);
+  const needsReferences=['inicio','control','clientes','ordenes','carniceria','facturacion','validacion','delivery','liquidacion','alertas','kanban','productos','reportes','config'].includes(page);
   const needsCatalogs=['inicio','control','clientes','ordenes','productos','config'].includes(page);
-  const needsOperation=isOperationalPageV942(page)||['control','clientes','productividad','reportes','auditoria'].includes(page);
+  const needsOperation=isOperationalPageV942(page)||['control','clientes','reportes','auditoria'].includes(page);
   if(!force&&!needsOperation&&scopeFreshV942(key,45000)) return;
   const jobs=[];
   if(needsReferences) jobs.push(loadReferenceDataV942(force));
   if(needsCatalogs) jobs.push(loadCatalogDataV942(force));
   if(needsOperation) jobs.push(loadOperationalDataV9384(page));
-  if(['productividad','reportes','config'].includes(page)) jobs.push(loadAdminDataV942(force));
+  if(['reportes','config'].includes(page)) jobs.push(loadAdminDataV942(force));
   if(page==='auditoria') jobs.push(loadAuditDataV942(force));
   await Promise.all(jobs);
   if(page==='carniceria') await loadCarniceriaProgressV943(force);
+  if(page==='productividad') await loadProductivityV944(force);
   markScopeV942(key);
 }
 async function refreshVisibleModuleV9384(forceFull=false){
@@ -993,7 +1018,7 @@ function render(){
   }
   if(!puede(state.page)) state.page = visibleNav[0][0];
   const sidebarCollapsed=loadSidebarCollapsed();
-  root.innerHTML = `<div class="shell${sidebarCollapsed?' sidebar-collapsed':''}"><aside id="appSidebar" class="sidebar" aria-hidden="${sidebarCollapsed?'true':'false'}"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.4.3 PWA · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.4.3 PWA</b><br>Progreso mensual confiable en Carnicería.</div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" data-collapsed="${sidebarCollapsed?'1':'0'}" aria-controls="appSidebar" aria-expanded="${sidebarCollapsed?'false':'true'}" aria-label="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}" title="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}"><span aria-hidden="true">${sidebarCollapsed?'›':'‹'}</span></button><main class="main"><div class="top"><div class="mobile-brand-mini"><span>${esc(appCfg('empresa.logoTexto','PC'))}</span></div><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray" aria-label="Mi acceso">Mi acceso</button><button id="refreshBtn" aria-label="Actualizar">Actualizar</button><button id="logoutBtn" class="dark" aria-label="Salir">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
+  root.innerHTML = `<div class="shell${sidebarCollapsed?' sidebar-collapsed':''}"><aside id="appSidebar" class="sidebar" aria-hidden="${sidebarCollapsed?'true':'false'}"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.4.4 PWA · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.4.4 PWA</b><br>Productividad mensual por empleado y rol.</div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" data-collapsed="${sidebarCollapsed?'1':'0'}" aria-controls="appSidebar" aria-expanded="${sidebarCollapsed?'false':'true'}" aria-label="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}" title="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}"><span aria-hidden="true">${sidebarCollapsed?'›':'‹'}</span></button><main class="main"><div class="top"><div class="mobile-brand-mini"><span>${esc(appCfg('empresa.logoTexto','PC'))}</span></div><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray" aria-label="Mi acceso">Mi acceso</button><button id="refreshBtn" aria-label="Actualizar">Actualizar</button><button id="logoutBtn" class="dark" aria-label="Salir">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
   setupKeyboardShortcuts();
   bindSidebarToggle();
   $$('[data-page]').forEach(b=>b.onclick=()=>navigateToPageV942(b.dataset.page));
@@ -2426,7 +2451,7 @@ function normalizeLegacyVendorInRows(){
 function defaultIncentiveConfig(){
   return {
     delivery:{activo:true,tipo:'monto_fijo',base:'cliente_entregado',valor:3,cuentaCredito:true,cuentaDevueltoParcial:false},
-    despachador:{activo:true,tipo:'monto_fijo',base:'cliente_despachado',valor:3,cuentaSoloValidadas:true},
+    despachador:{activo:true,tipo:'monto_fijo',base:'cliente_despachado',valor:3},
     vendedor:{activo:true,tipo:'porcentaje',base:'ventas_cobradas',valor:1,cuentaCredito:false},
     extras:{mostrarAlertas:true,redondear:'normal'}
   };
@@ -2442,89 +2467,77 @@ function incentiveConfig(){
   };
 }
 function monthOptions(){return ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];}
-function productDateInMonth(v, month, year){ const d=safeDateObj(v||today()); return d && (d.getMonth()+1)===Number(month) && d.getFullYear()===Number(year); }
-function incentiveBaseLabel(base){ return ({cliente_entregado:'Cliente entregado',cliente_despachado:'Cliente despachado',lote_viaje:'Lote / viaje',orden:'Orden',ventas_facturadas:'Ventas facturadas',ventas_cobradas:'Ventas cobradas'}[base]||base); }
+function incentiveBaseLabel(base){ return ({cliente_entregado:'Entrega válida de cliente',cliente_despachado:'Despacho de cliente finalizado',lote_viaje:'Lote / viaje',orden:'Orden válida',ventas_facturadas:'Ventas facturadas',ventas_cobradas:'Ventas cobradas'}[base]||base); }
 function incentiveTypeLabel(tipo){ return tipo==='porcentaje'?'Porcentaje':'Monto fijo'; }
-function calcIncentiveValue(cfg, qty, amount){
-  const val=Number(cfg.valor||0);
-  if(cfg.tipo==='porcentaje') return (Number(amount||0)*val)/100;
-  return Number(qty||0)*val;
-}
-function employeeRoleOfName(name){
-  const n=norm(name||'');
-  const e=(state.empleados||[]).find(x=>norm(x.nombre)===n || norm(x.correo||x.email||x.usuario||'')===n);
-  return e?.area || e?.rol || e?.cargo || '';
-}
-function pushProd(map, key, patch){
-  if(!key) key='Sin responsable';
-  if(!map[key]) map[key]={empleado:key,rol:patch.rol||employeeRoleOfName(key)||'Operativo',clientes:0,lotes:0,ordenes:0,montoFacturado:0,montoCobrado:0,credito:0,noEntregado:0,diferencias:0,baseTexto:'',valorBase:0,incentivo:0,alertas:[]};
-  const r=map[key]; Object.keys(patch).forEach(k=>{ if(k==='alertas') r.alertas.push(...patch[k]); else if(typeof patch[k]==='number') r[k]=(Number(r[k]||0)+patch[k]); else if(patch[k]!==undefined && patch[k]!==null) r[k]=patch[k]; });
-  return r;
-}
 function productivityRows(month=state.prodMonth, year=state.prodYear){
-  const cfg=incentiveConfig();
-  const by={};
-  const deliveredOk=['Cobrado','Entregado','Entregado a crédito'];
-  if(cfg.delivery.cuentaDevueltoParcial) deliveredOk.push('Devuelto parcial');
-  const lotes=(state.entregaLotes||[]).filter(l=>String(l.estado||'').toLowerCase()!=='revertido' && productDateInMonth(l.fecha_entrega||l.creado_en,month,year));
-  const lotesByCode=Object.fromEntries(lotes.map(l=>[String(l.codigo_lote||''),l]));
-  const employeesIndex=Object.fromEntries(activeEmployees('').map(e=>[norm(e.nombre),e]));
-  (state.entregaLoteDetalle||[]).forEach(d=>{
-    const lot=lotesByCode[String(d.codigo_lote||'')]; if(!lot) return;
-    const delivery=canonicalEmployeeName(lot.delivery_nombre||d.delivery_nombre,'Delivery');
-    if(!delivery) return;
-    const res=d.resultado_entrega || d.estado_liquidacion || '';
-    const entregado=deliveredOk.includes(res) || (cfg.delivery.cuentaCredito && res==='Entregado a crédito');
-    const cob=Number(d.monto_cobrado||0), cred=Number(d.monto_credito||0), mf=Number(d.monto_factura||0);
-    pushProd(by,delivery,{rol:'Delivery',clientes:entregado?1:0,ordenes:1,montoFacturado:mf,montoCobrado:cob,credito:cred,noEntregado:res==='No entregado'?mf:0,alertas:res==='No entregado'?[`No entregado: ${d.codigo_orden||''}`]:[]});
-  });
-  lotes.forEach(l=>{ const delivery=canonicalEmployeeName(l.delivery_nombre,'Delivery'); if(delivery) pushProd(by,delivery,{rol:'Delivery',lotes:1}); });
-  const orders=(state.ordenes||[]).filter(o=>o.estado!=='Anulado' && productDateInMonth(o.fecha_despacho||o.fecha||o.creado_en,month,year));
-  orders.forEach(o=>{
-    const prep=canonicalEmployeeName(preparedByDisplay(o),'Carnicería') || canonicalEmployeeName(preparedByDisplay(o),'Despachador');
-    const validated=!!(o.validado_por || ['Validada para delivery','Asignada a delivery','En ruta','Cobrado','Entregado a crédito','No entregado','Devuelto parcial','Cerrado','Entregado'].includes(effectiveOrderState(o)||o.estado||''));
-    if(prep && orderPreparationFinalized(o) && (!cfg.despachador.cuentaSoloValidadas || validated)) pushProd(by,prep,{rol:'Despachador',clientes:1,ordenes:1,montoFacturado:orderAmount(o)});
-    const vendRaw=o.vendedor||o.vendedor_nombre||'';
-    const vend=canonicalEmployeeName(vendRaw,'Vendedor');
-    if(vend){
-      const paid=['Cobrado','Entregado'].includes(effectiveOrderState(o)||o.estado||'');
-      const amountFact=orderAmount(o);
-      const cobros=(state.pagos||[]).filter(p=>Number(p.orden_id)===Number(o.id)).reduce((s,p)=>s+Number(p.monto||p.monto_cobrado||0),0);
-      const amountCob=cfg.vendedor.base==='ventas_cobradas' ? (paid?amountFact:cobros) : amountFact;
-      if(amountCob>0) pushProd(by,vend,{rol:'Vendedor',ordenes:1,montoFacturado:amountFact,montoCobrado:amountCob});
-    }
-  });
-  Object.values(by).forEach(r=>{
-    let c=null, qty=0, amt=0;
-    if(r.rol==='Delivery'){ c=cfg.delivery; qty=c.base==='lote_viaje'?r.lotes:r.clientes; amt=r.montoCobrado; }
-    else if(r.rol==='Despachador'){ c=cfg.despachador; qty=c.base==='orden'?r.ordenes:r.clientes; amt=r.montoFacturado; }
-    else if(r.rol==='Vendedor'){ c=cfg.vendedor; qty=r.ordenes; amt=c.base==='ventas_facturadas'?r.montoFacturado:r.montoCobrado; }
-    else { c={activo:false,tipo:'monto_fijo',base:'',valor:0}; }
-    r.baseTexto=incentiveBaseLabel(c.base); r.valorBase=Number(c.valor||0); r.incentivo=c.activo?calcIncentiveValue(c,qty,amt):0;
-    r.medida=qty; r.baseMonto=amt; r.tipoIncentivo=incentiveTypeLabel(c.tipo);
-    const emp=employeesIndex[norm(r.empleado)];
-    r.areaEmpleado=emp?.area||'';
-  });
-  return Object.values(by).sort((a,b)=>(b.incentivo||0)-(a.incentivo||0));
+  const expected=`${Number(year)}-${String(Number(month)).padStart(2,'0')}-01`;
+  if(!state.productivitySchemaOk || state.productivityLoadedKey!==expected) return [];
+  return (state.productivitySummary?.filas||[]).map(r=>({
+    empleadoId:Number(r.empleado_id),
+    empleado:r.empleado_nombre||'Sin responsable',
+    empleadoActivo:r.empleado_activo!==false,
+    areaEmpleado:r.area||'',
+    rol:r.rol||'Operativo',
+    clientes:Number(r.clientes_unicos||0),
+    clientesValidos:Number(r.clientes_validos||0),
+    lotes:Number(r.viajes||0),
+    ordenes:Number(r.operaciones||0),
+    operacionesValidas:Number(r.operaciones_validas||0),
+    unidadesIncentivo:Number(r.medida_incentivo||0),
+    libras:Number(r.libras||0),
+    montoFacturado:Number(r.facturado||0),
+    montoCobrado:Number(r.cobrado||0),
+    credito:Number(r.credito||0),
+    tiempoPromedio:Number(r.tiempo_promedio_minutos||0),
+    baseTexto:r.base_clave?incentiveBaseLabel(r.base_clave):'Sin regla de incentivo',
+    valorBase:Number(r.valor_base||0),
+    tipoIncentivo:r.tipo_incentivo==='porcentaje'?'Porcentaje':r.tipo_incentivo==='sin_incentivo'?'Sin incentivo':'Monto fijo',
+    medida:Number(r.medida_incentivo||0),
+    baseMonto:Number(r.monto_base_incentivo||0),
+    incentivo:Number(r.incentivo||0),
+    alertas:Array.from({length:Number(r.incidencias||0)},(_,i)=>`Incidencia ${i+1}`),
+    detalle:r.detalle||{}
+  })).sort((a,b)=>(b.incentivo||0)-(a.incentivo||0)||a.empleado.localeCompare(b.empleado,'es'));
 }
 function renderProductividad(c){
-  const month=state.prodMonth||String(new Date().getMonth()+1), year=state.prodYear||String(new Date().getFullYear()), role=state.prodRole||'Todos';
+  const month=state.prodMonth||String(new Date().getMonth()+1), year=state.prodYear||String(new Date().getFullYear());
+  let role=state.prodRole||'Todos';
   const rowsAll=productivityRows(month,year);
+  const roles=['Todos',...Array.from(new Set(['Despachador','Delivery','Vendedor','Facturación','Validación','Liquidación','Control',...rowsAll.map(r=>r.rol)]))];
+  if(!roles.includes(role)) role=state.prodRole='Todos';
   const rows=rowsAll.filter(r=>role==='Todos'||r.rol===role);
   const totalIncentivo=rows.reduce((s,r)=>s+Number(r.incentivo||0),0);
-  const totalClientes=rows.reduce((s,r)=>s+Number(r.clientes||0),0);
-  const totalCobrado=rows.reduce((s,r)=>s+Number(r.montoCobrado||0),0);
-  const totalLotes=rows.reduce((s,r)=>s+Number(r.lotes||0),0);
-  const years=Array.from(new Set([new Date().getFullYear(),...((state.ordenes||[]).map(o=>safeDateObj(o.fecha_despacho||o.fecha||o.creado_en)?.getFullYear()).filter(Boolean)),...((state.entregaLotes||[]).map(l=>safeDateObj(l.fecha_entrega||l.creado_en)?.getFullYear()).filter(Boolean))])).sort((a,b)=>b-a);
-  c.innerHTML=`<div class="executive-hero productivity-hero"><div><div class="hero-eyebrow">V9.3.0 R3 · Productividad e incentivos</div><h3>Panel mensual por empleado activo</h3><p>Solo calcula empleados registrados en Configuración → Empleados. Los deliverys y vendedores también se crean desde esa misma sección.</p></div><div class="hero-actions"><button class="btn" data-go="config" data-config-go="incentivos">Configurar</button><button class="btn gray" data-go="config" data-config-go="empleados">Empleados</button><button class="btn gray" id="refreshProd">Actualizar</button><button class="btn dark" id="printProd">Imprimir</button></div></div>
-  <div class="panel productivity-filter-panel"><div class="prod-filters"><div class="field"><label>Mes</label><select id="prodMonth">${monthOptions().map((m,i)=>`<option value="${i+1}" ${Number(month)===i+1?'selected':''}>${m}</option>`).join('')}</select></div><div class="field"><label>Año</label><select id="prodYear">${years.map(y=>`<option value="${y}" ${Number(year)===Number(y)?'selected':''}>${y}</option>`).join('')}</select></div><div class="field"><label>Rol productivo</label><select id="prodRole">${['Todos','Delivery','Despachador','Vendedor'].map(x=>`<option ${x===role?'selected':''}>${x}</option>`).join('')}</select></div></div></div>
-  <div class="exec-kpi-grid productivity-kpis"><div class="exec-kpi primary"><span>Incentivo estimado</span><strong>${money(totalIncentivo)}</strong><small>${rows.length} empleado(s)</small></div><div class="exec-kpi"><span>Clientes contados</span><strong>${totalClientes}</strong><small>Entregados/despachados</small></div><div class="exec-kpi"><span>Viajes/lotes</span><strong>${totalLotes}</strong><small>Entregas creadas</small></div><div class="exec-kpi"><span>Cobrado vinculado</span><strong>${money(totalCobrado)}</strong><small>Según liquidación/pagos</small></div></div>
-  <div class="panel panel-clean productivity-ranking-panel"><div class="panel-head"><div><h3>Ranking de productividad</h3><p>Resumen para validar antes de pagar incentivos.</p></div></div><div class="productivity-mobile-list">${rows.map(r=>`<article class="productivity-mobile-card"><div class="productivity-mobile-head"><div><h4>${esc(r.empleado)}</h4><p>${esc(r.areaEmpleado||employeeRoleOfName(r.empleado)||'Empleado activo')}</p></div><span class="badge info">${esc(r.rol)}</span></div><div class="productivity-mobile-metrics"><div><span>Base</span><b>${esc(r.baseTexto)}</b><small>${esc(r.tipoIncentivo)} · ${r.tipoIncentivo==='Porcentaje'?Number(r.valorBase||0)+'%':money(r.valorBase)}</small></div><div><span>Clientes</span><b>${r.clientes||0}</b><small>${r.lotes||0} viajes</small></div><div><span>Cobrado</span><b>${money(r.montoCobrado||0)}</b><small>Facturado ${money(r.montoFacturado||0)}</small></div><div class="primary"><span>Incentivo</span><b>${money(r.incentivo||0)}</b><small>${r.alertas?.length?r.alertas.length+' alertas':'Sin alertas'}</small></div></div></article>`).join('')||'<div class="empty">No hay productividad registrada para este período.</div>'}</div><div class="table-wrap productivity-table-wrap"><table class="table productivity-table"><thead><tr><th>Empleado</th><th>Rol productivo</th><th>Base</th><th>Clientes</th><th>Viajes</th><th>Facturado</th><th>Cobrado</th><th>Incentivo</th><th>Alertas</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.empleado)}</b><div class="hint">${esc(r.areaEmpleado||employeeRoleOfName(r.empleado)||'Empleado activo')}</div></td><td><span class="badge info">${esc(r.rol)}</span></td><td><b>${esc(r.baseTexto)}</b><div class="hint">${esc(r.tipoIncentivo)} · ${r.tipoIncentivo==='Porcentaje'?Number(r.valorBase||0)+'%':money(r.valorBase)}</div></td><td>${r.clientes||0}</td><td>${r.lotes||0}</td><td>${money(r.montoFacturado||0)}</td><td>${money(r.montoCobrado||0)}</td><td><b>${money(r.incentivo||0)}</b></td><td>${r.alertas?.length?`<span class="badge warn">${r.alertas.length}</span>`:'<span class="badge ok">OK</span>'}</td></tr>`).join('')||'<tr><td colspan="9">No hay productividad registrada para este período con empleados activos.</td></tr>'}</tbody></table></div></div>
-  <div class="report-grid"><div class="panel panel-clean"><div class="panel-head"><div><h3>Detalle por rol</h3><p>Resumen operativo para validar antes de pagar incentivo.</p></div></div><div class="stage-report-grid">${['Delivery','Despachador','Vendedor'].map(r=>{const part=rowsAll.filter(x=>x.rol===r); return `<div class="stage-report"><b>${r}</b><strong>${money(part.reduce((s,x)=>s+Number(x.incentivo||0),0))}</strong><small>${part.length} empleado(s) · ${part.reduce((s,x)=>s+Number(x.clientes||0),0)} cliente(s)</small></div>`}).join('')}</div></div><div class="panel panel-clean"><div class="panel-head"><div><h3>Reglas activas</h3><p>Se toman de Configuración → Incentivos.</p></div></div>${productivityRulesHtml()}</div></div>`;
-  $('#prodMonth').onchange=e=>{state.prodMonth=e.target.value; renderProductividad($('#content'));};
-  $('#prodYear').onchange=e=>{state.prodYear=e.target.value; renderProductividad($('#content'));};
+  const summary=state.productivitySummary?.resumen||{};
+  const quality=state.productivitySummary?.calidad||{};
+  const missingIdentity=Object.entries(quality).filter(([k])=>k!=='pagos_reversados').reduce((s,[,v])=>s+Number(v||0),0);
+  const totalClientes=role==='Todos'?Number(summary.clientes_unicos_equipo||0):rows.reduce((s,r)=>s+Number(r.clientes||0),0);
+  const totalCobrado=role==='Todos'?Number(summary.cobrado_mes||0):rows.reduce((s,r)=>s+Number(r.montoCobrado||0),0);
+  const employeeCount=role==='Todos'?Number(summary.empleados_con_actividad||0):new Set(rows.map(r=>r.empleadoId)).size;
+  const operations=rows.reduce((s,r)=>s+Number(r.ordenes||0),0);
+  const nowYear=new Date().getFullYear();
+  const years=Array.from(new Set([Number(year),nowYear,nowYear-1,nowYear-2,nowYear-3,nowYear-4])).sort((a,b)=>b-a);
+  const waiting=state.productivityLoading||(!state.productivitySchemaOk&&!state.productivityError);
+  const statusPanel=waiting
+    ? '<div class="panel"><div class="empty"><b>Calculando productividad mensual…</b><br>Consultando el período completo en Supabase.</div></div>'
+    : state.productivityError
+      ? `<div class="panel"><div class="error"><b>Indicadores temporalmente no disponibles.</b><br>${esc(state.productivityError)}<br><small>La operación diaria continúa funcionando normalmente.</small></div></div>`
+      : '';
+  const qualityPanel=state.productivitySchemaOk&&missingIdentity>0
+    ? `<div class="panel"><div class="error"><b>${missingIdentity} incidencia(s) de identidad requieren revisión.</b><br>Revísalas antes de aprobar incentivos. Viajes sin empleado: ${Number(quality.viajes_sin_empleado||0)} · Cobros sin vendedor: ${Number(quality.ventas_cobradas_sin_empleado||0)} · Ventas facturadas sin vendedor: ${Number(quality.ventas_facturadas_sin_empleado||0)} · Facturas sin responsable: ${Number(quality.facturas_sin_empleado||0)} · Nombres de empleado duplicados: ${Number(quality.empleados_con_nombre_duplicado||0)}.</div></div>`
+    : '';
+  const noActivity=state.productivitySummary?.empleados_sin_actividad||[];
+  const baseHint=r=>r.tipoIncentivo==='Porcentaje'?`${Number(r.valorBase||0)}%`:r.tipoIncentivo==='Sin incentivo'?'Solo indicador':money(r.valorBase);
+  c.innerHTML=`<div class="executive-hero productivity-hero"><div><div class="hero-eyebrow">V9.4.4 R2 · Productividad integral</div><h3>Panel mensual por empleado y rol</h3><p>Clientes únicos para análisis y cada despacho finalizado como unidad independiente de incentivo.</p></div><div class="hero-actions"><button class="btn" data-go="config" data-config-go="incentivos">Configurar</button><button class="btn gray" data-go="config" data-config-go="empleados">Empleados</button><button class="btn gray" id="refreshProd">Actualizar</button><button class="btn dark" id="printProd">Imprimir</button></div></div>
+  <div class="panel productivity-filter-panel"><div class="prod-filters"><div class="field"><label>Mes</label><select id="prodMonth">${monthOptions().map((m,i)=>`<option value="${i+1}" ${Number(month)===i+1?'selected':''}>${m}</option>`).join('')}</select></div><div class="field"><label>Año</label><select id="prodYear">${years.map(y=>`<option value="${y}" ${Number(year)===Number(y)?'selected':''}>${y}</option>`).join('')}</select></div><div class="field"><label>Rol productivo</label><select id="prodRole">${roles.map(x=>`<option ${x===role?'selected':''}>${x}</option>`).join('')}</select></div></div></div>
+  ${statusPanel}${qualityPanel}
+  <div class="exec-kpi-grid productivity-kpis"><div class="exec-kpi primary"><span>Incentivo estimado</span><strong>${money(totalIncentivo)}</strong><small>Solo roles con regla activa</small></div><div class="exec-kpi"><span>Clientes únicos</span><strong>${totalClientes}</strong><small>${role==='Todos'?'Sin duplicar en el equipo':'Únicos por empleado'}</small></div><div class="exec-kpi"><span>Operaciones realizadas</span><strong>${operations}</strong><small>Un cliente puede generar varias</small></div><div class="exec-kpi"><span>Empleados con actividad</span><strong>${employeeCount}</strong><small>Separados por función productiva</small></div><div class="exec-kpi"><span>Cobrado en el mes</span><strong>${money(totalCobrado)}</strong><small>${role==='Todos'?'Pagos reales no reversados':'Atribuido al rol'}</small></div></div>
+  <div class="panel panel-clean productivity-ranking-panel"><div class="panel-head"><div><h3>Productividad por empleado y rol</h3><p>Clientes únicos para análisis; cada despacho válido cuenta por separado para el incentivo.</p></div><span class="badge info">${rows.length} fila(s)</span></div><div class="productivity-mobile-list">${rows.map(r=>`<article class="productivity-mobile-card"><div class="productivity-mobile-head"><div><h4>${esc(r.empleado)}</h4><p>${esc(r.areaEmpleado||'Empleado operativo')}${r.empleadoActivo?'':' · Inactivo actualmente'}</p></div><span class="badge info">${esc(r.rol)}</span></div><div class="productivity-mobile-metrics"><div><span>Base</span><b>${esc(r.baseTexto)}</b><small>${r.unidadesIncentivo} unidad(es) · ${baseHint(r)}</small></div><div><span>Actividad</span><b>${r.clientes} cliente(s) único(s)</b><small>${r.ordenes} operaciones · ${r.lotes} viajes</small></div><div><span>Montos</span><b>${money(r.montoCobrado)}</b><small>Facturado ${money(r.montoFacturado)}</small></div><div class="primary"><span>Incentivo</span><b>${money(r.incentivo)}</b><small>${r.alertas.length?r.alertas.length+' incidencia(s)':'Sin incidencias'}</small></div></div></article>`).join('')||'<div class="empty">No hay actividad registrada para este filtro.</div>'}</div><div class="table-wrap productivity-table-wrap"><table class="table productivity-table"><thead><tr><th>Empleado</th><th>Rol</th><th>Base</th><th>Clientes únicos</th><th>Operaciones</th><th>Unidades incentivo</th><th>Viajes</th><th>Facturado</th><th>Cobrado</th><th>Incentivo</th><th>Alertas</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.empleado)}</b><div class="hint">${esc(r.areaEmpleado||'Empleado operativo')}${r.empleadoActivo?'':' · Inactivo'}</div></td><td><span class="badge info">${esc(r.rol)}</span></td><td><b>${esc(r.baseTexto)}</b><div class="hint">${esc(r.tipoIncentivo)} · ${baseHint(r)}</div></td><td>${r.clientes}<div class="hint">${r.clientesValidos} con actividad válida</div></td><td>${r.ordenes}<div class="hint">${r.operacionesValidas} válidas</div></td><td><b>${r.unidadesIncentivo}</b><div class="hint">No deduplica repeticiones</div></td><td>${r.lotes}</td><td>${money(r.montoFacturado)}</td><td>${money(r.montoCobrado)}</td><td><b>${money(r.incentivo)}</b></td><td>${r.alertas.length?`<span class="badge warn">${r.alertas.length}</span>`:'<span class="badge ok">OK</span>'}</td></tr>`).join('')||'<tr><td colspan="11">No hay productividad registrada para este período.</td></tr>'}</tbody></table></div></div>
+  <div class="report-grid"><div class="panel panel-clean"><div class="panel-head"><div><h3>Detalle por rol</h3><p>Actividad mensual sin mezclar funciones.</p></div></div><div class="stage-report-grid">${roles.filter(x=>x!=='Todos').map(roleName=>{const part=rowsAll.filter(x=>x.rol===roleName);return `<div class="stage-report"><b>${esc(roleName)}</b><strong>${part.reduce((s,x)=>s+x.ordenes,0)} operaciones</strong><small>${part.length} empleado(s) · ${part.reduce((s,x)=>s+x.clientes,0)} cliente(s) únicos por empleado · ${money(part.reduce((s,x)=>s+x.incentivo,0))}</small></div>`}).join('')}</div></div><div class="panel panel-clean"><div class="panel-head"><div><h3>Control del cálculo</h3><p>Reglas e integridad del período.</p></div></div>${productivityRulesHtml()}${noActivity.length?`<div class="section-title">Sin actividad registrada</div><div class="hint">${noActivity.map(e=>esc(e.empleado_nombre)).join(' · ')}</div>`:''}</div></div>`;
+  const reload=async()=>{state.productivityLoadedKey='';state.productivityLoading=true;renderProductividad($('#content'));await loadProductivityV944(true);renderProductividad($('#content'));};
+  $('#prodMonth').onchange=async e=>{state.prodMonth=e.target.value;await reload();};
+  $('#prodYear').onchange=async e=>{state.prodYear=e.target.value;await reload();};
   $('#prodRole').onchange=e=>{state.prodRole=e.target.value; renderProductividad($('#content'));};
-  $('#refreshProd').onclick=async()=>{ await refreshVisibleModuleV9384(); renderProductividad($('#content')); toast('Productividad actualizada'); };
+  $('#refreshProd').onclick=async()=>{await reload();toast('Productividad actualizada');};
   $('#printProd').onclick=()=>window.print();
   $$('[data-go="config"]').forEach(b=>b.onclick=()=>{state.page='config'; state.configTab=b.dataset.configGo||'incentivos'; render();});
 }
@@ -2535,12 +2548,12 @@ function productivityRulesHtml(){
 }
 function renderConfigIncentivos(c){
   const cfg=incentiveConfig();
-  c.innerHTML=`<div class="panel-head"><div><h3>Incentivos / Productividad</h3><p>Configura cómo se calcula el incentivo mensual. Delivery y despacho se miden por cliente; el lote queda como opción alternativa.</p></div><span class="badge info">V9.3.9.0 PWA</span></div>
-  <div class="config-incentive-grid"><div class="card incentive-card"><h3>Delivery</h3><div class="grid2"><div class="field"><label>Activo</label><select id="incDeliveryActivo"><option value="true" ${cfg.delivery.activo!==false?'selected':''}>Sí</option><option value="false" ${cfg.delivery.activo===false?'selected':''}>No</option></select></div><div class="field"><label>Tipo</label><select id="incDeliveryTipo"><option value="monto_fijo" ${cfg.delivery.tipo!=='porcentaje'?'selected':''}>Monto fijo</option><option value="porcentaje" ${cfg.delivery.tipo==='porcentaje'?'selected':''}>Porcentaje</option></select></div></div><div class="field"><label>Base de cálculo</label><select id="incDeliveryBase"><option value="cliente_entregado" ${cfg.delivery.base==='cliente_entregado'?'selected':''}>Por cliente entregado</option><option value="lote_viaje" ${cfg.delivery.base==='lote_viaje'?'selected':''}>Por lote / viaje</option><option value="orden" ${cfg.delivery.base==='orden'?'selected':''}>Por orden</option></select></div><div class="field"><label>Valor</label><input id="incDeliveryValor" type="number" step="0.01" value="${Number(cfg.delivery.valor||0)}"></div><label class="checkrow"><input id="incDeliveryCredito" type="checkbox" ${cfg.delivery.cuentaCredito!==false?'checked':''}> <b>Contar entregados a crédito</b><span>Cuenta el cliente como entregado aunque quede saldo pendiente.</span></label></div>
-  <div class="card incentive-card"><h3>Despachador</h3><div class="grid2"><div class="field"><label>Activo</label><select id="incDespActivo"><option value="true" ${cfg.despachador.activo!==false?'selected':''}>Sí</option><option value="false" ${cfg.despachador.activo===false?'selected':''}>No</option></select></div><div class="field"><label>Tipo</label><select id="incDespTipo"><option value="monto_fijo" ${cfg.despachador.tipo!=='porcentaje'?'selected':''}>Monto fijo</option><option value="porcentaje" ${cfg.despachador.tipo==='porcentaje'?'selected':''}>Porcentaje</option></select></div></div><div class="field"><label>Base de cálculo</label><select id="incDespBase"><option value="cliente_despachado" ${cfg.despachador.base==='cliente_despachado'?'selected':''}>Por cliente despachado</option><option value="orden" ${cfg.despachador.base==='orden'?'selected':''}>Por orden</option></select></div><div class="field"><label>Valor</label><input id="incDespValor" type="number" step="0.01" value="${Number(cfg.despachador.valor||0)}"></div><label class="checkrow"><input id="incDespValidadas" type="checkbox" ${cfg.despachador.cuentaSoloValidadas!==false?'checked':''}> <b>Solo órdenes validadas</b><span>Evita pagar por pedidos preparados que no salieron a entrega.</span></label></div>
+  c.innerHTML=`<div class="panel-head"><div><h3>Incentivos / Productividad</h3><p>Configura el valor mensual. Un mismo cliente genera otra unidad cuando realiza un pedido nuevo y el despacho correspondiente se completa.</p></div><span class="badge info">V9.4.4 R2 PWA</span></div>
+  <div class="config-incentive-grid"><div class="card incentive-card"><h3>Delivery</h3><div class="grid2"><div class="field"><label>Activo</label><select id="incDeliveryActivo"><option value="true" ${cfg.delivery.activo!==false?'selected':''}>Sí</option><option value="false" ${cfg.delivery.activo===false?'selected':''}>No</option></select></div><div class="field"><label>Tipo</label><select id="incDeliveryTipo"><option value="monto_fijo" ${cfg.delivery.tipo!=='porcentaje'?'selected':''}>Monto fijo</option><option value="porcentaje" ${cfg.delivery.tipo==='porcentaje'?'selected':''}>Porcentaje</option></select></div></div><div class="field"><label>Base de cálculo</label><select id="incDeliveryBase"><option value="cliente_entregado" ${cfg.delivery.base==='cliente_entregado'?'selected':''}>Por cada entrega válida de cliente</option><option value="lote_viaje" ${cfg.delivery.base==='lote_viaje'?'selected':''}>Por lote / viaje</option><option value="orden" ${cfg.delivery.base==='orden'?'selected':''}>Por cada orden entregada</option></select></div><div class="field"><label>Valor</label><input id="incDeliveryValor" type="number" step="0.01" value="${Number(cfg.delivery.valor||0)}"></div><div class="hint">Dos pedidos entregados al mismo cliente cuentan como dos unidades.</div><label class="checkrow"><input id="incDeliveryCredito" type="checkbox" ${cfg.delivery.cuentaCredito!==false?'checked':''}> <b>Contar entregados a crédito</b><span>Cuenta la entrega aunque quede saldo pendiente.</span></label><label class="checkrow"><input id="incDeliveryParcial" type="checkbox" ${cfg.delivery.cuentaDevueltoParcial===true?'checked':''}> <b>Contar devoluciones parciales</b><span>Actívalo sólo si una devolución parcial debe generar incentivo.</span></label></div>
+  <div class="card incentive-card"><h3>Despachador</h3><div class="grid2"><div class="field"><label>Activo</label><select id="incDespActivo"><option value="true" ${cfg.despachador.activo!==false?'selected':''}>Sí</option><option value="false" ${cfg.despachador.activo===false?'selected':''}>No</option></select></div><div class="field"><label>Tipo</label><select id="incDespTipo"><option value="monto_fijo" ${cfg.despachador.tipo!=='porcentaje'?'selected':''}>Monto fijo</option><option value="porcentaje" ${cfg.despachador.tipo==='porcentaje'?'selected':''}>Porcentaje</option></select></div></div><div class="field"><label>Base de cálculo</label><select id="incDespBase"><option value="cliente_despachado" ${cfg.despachador.base==='cliente_despachado'?'selected':''}>Por cada despacho de cliente finalizado</option><option value="orden" ${cfg.despachador.base==='orden'?'selected':''}>Por cada orden preparada</option></select></div><div class="field"><label>Valor</label><input id="incDespValor" type="number" step="0.01" value="${Number(cfg.despachador.valor||0)}"></div><div class="hint">Cada preparación finalizada cuenta, aunque el cliente haya realizado otros pedidos durante el día o el mes.</div></div>
   <div class="card incentive-card"><h3>Vendedor</h3><div class="grid2"><div class="field"><label>Activo</label><select id="incVendActivo"><option value="true" ${cfg.vendedor.activo!==false?'selected':''}>Sí</option><option value="false" ${cfg.vendedor.activo===false?'selected':''}>No</option></select></div><div class="field"><label>Tipo</label><select id="incVendTipo"><option value="porcentaje" ${cfg.vendedor.tipo==='porcentaje'?'selected':''}>Porcentaje</option><option value="monto_fijo" ${cfg.vendedor.tipo!=='porcentaje'?'selected':''}>Monto fijo</option></select></div></div><div class="field"><label>Base de cálculo</label><select id="incVendBase"><option value="ventas_cobradas" ${cfg.vendedor.base==='ventas_cobradas'?'selected':''}>Sobre ventas cobradas</option><option value="ventas_facturadas" ${cfg.vendedor.base==='ventas_facturadas'?'selected':''}>Sobre ventas facturadas</option></select></div><div class="field"><label>Valor</label><input id="incVendValor" type="number" step="0.01" value="${Number(cfg.vendedor.valor||0)}"></div><div class="hint">Recomendación: calcular vendedores sobre ventas cobradas para no pagar comisiones de dinero pendiente.</div></div></div>
   <div class="actions"><button class="btn" id="saveIncentivos">Guardar configuración</button><button class="btn gray" id="resetIncentivos">Restaurar sugerida</button><button class="btn dark" data-go="productividad">Ver panel</button></div>`;
-  const collect=()=>({delivery:{activo:$('#incDeliveryActivo').value==='true',tipo:$('#incDeliveryTipo').value,base:$('#incDeliveryBase').value,valor:+$('#incDeliveryValor').value||0,cuentaCredito:$('#incDeliveryCredito').checked},despachador:{activo:$('#incDespActivo').value==='true',tipo:$('#incDespTipo').value,base:$('#incDespBase').value,valor:+$('#incDespValor').value||0,cuentaSoloValidadas:$('#incDespValidadas').checked},vendedor:{activo:$('#incVendActivo').value==='true',tipo:$('#incVendTipo').value,base:$('#incVendBase').value,valor:+$('#incVendValor').value||0},extras:{mostrarAlertas:true,redondear:'normal'}});
+  const collect=()=>({delivery:{activo:$('#incDeliveryActivo').value==='true',tipo:$('#incDeliveryTipo').value,base:$('#incDeliveryBase').value,valor:+$('#incDeliveryValor').value||0,cuentaCredito:$('#incDeliveryCredito').checked,cuentaDevueltoParcial:$('#incDeliveryParcial').checked},despachador:{activo:$('#incDespActivo').value==='true',tipo:$('#incDespTipo').value,base:$('#incDespBase').value,valor:+$('#incDespValor').value||0},vendedor:{activo:$('#incVendActivo').value==='true',tipo:$('#incVendTipo').value,base:$('#incVendBase').value,valor:+$('#incVendValor').value||0},extras:{mostrarAlertas:true,redondear:'normal'}});
   $('#saveIncentivos').onclick=async()=>{ const val=collect(); if(await saveConfigKey('incentivos',val)) renderConfig($('#content')); };
   $('#resetIncentivos').onclick=async()=>{ const val=defaultIncentiveConfig(); if(await saveConfigKey('incentivos',val)){ toast('Configuración sugerida restaurada'); renderConfig($('#content')); } };
   $$('[data-go="productividad"]').forEach(b=>b.onclick=()=>{state.page='productividad'; render();});
