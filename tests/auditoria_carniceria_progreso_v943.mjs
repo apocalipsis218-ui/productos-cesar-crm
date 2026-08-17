@@ -6,6 +6,25 @@ const sqlR1=fs.readFileSync(new URL('../supabase/migrations/20260816214411_progr
 const sqlR2=fs.readFileSync(new URL('../supabase/migrations/20260816233308_filtrar_duraciones_atipicas_carniceria_v943_r2.sql',import.meta.url),'utf8');
 const sql=`${sqlR1}\n${sqlR2}`;
 const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
+const progressResolver=main.slice(
+  main.indexOf('function carniceriaProgressDefaultEmployeeIdV943(){'),
+  main.indexOf('async function loadCarniceriaProgressV943')
+);
+function simulateProgressEmployee({admin=false,station=false,selected=null,linkedId=null,employeeIds=[1,3,5]}){
+  const simulatedState={profile:{empleado_id:linkedId},carniceriaProgressEmployeeId:selected};
+  const resolver=Function(
+    'state','isAdminRole','isStationAccount','activeEmployees','linkedEmployeeForUser','employeeHasArea',
+    `${progressResolver}; return carniceriaProgressDefaultEmployeeIdV943;`
+  )(
+    simulatedState,
+    ()=>admin,
+    ()=>station,
+    ()=>employeeIds.map(id=>({id,nombre:`Empleado ${id}`})),
+    ()=>linkedId===null?null:{id:linkedId},
+    ()=>true
+  );
+  return resolver();
+}
 
 const checks=[
   ['versión V9.4.3 sincronizada',pkg.version==='9.4.3'&&/V9\.4\.3 PWA/.test(main)&&/V9\.4\.3 PWA/.test(fs.readFileSync(new URL('../src/pwa.js',import.meta.url),'utf8'))],
@@ -28,6 +47,23 @@ const checks=[
   ['panel explica cuántas duraciones atípicas fueron excluidas',/duraciones_atipicas/.test(main)&&/duración atípica excluida/.test(main)&&/duraciones atípicas excluidas/.test(main)],
   ['actualización de módulo refresca el resumen',/if\(page==='carniceria'\) await loadCarniceriaProgressV943\(force\)/.test(main)],
   ['selector respeta cuenta de estación y roles administrativos',/isAdminRole\(\)\|\|isStationAccount\(\)/.test(main)&&/carnProgressEmployee/.test(main)],
+  ['gerencia respeta equipo completo y empleado seleccionado',
+    /if\(isAdminRole\(\)\)/.test(progressResolver) &&
+    /carniceriaProgressEmployeeId===null[\s\S]*\? null[\s\S]*Number\(state\.carniceriaProgressEmployeeId\)/.test(progressResolver) &&
+    progressResolver.indexOf('if(isAdminRole())') < progressResolver.indexOf('linkedEmployeeForUser')
+  ],
+  ['cuenta de estación respeta su selector antes del empleado vinculado',
+    /if\(isStationAccount\(\)\)[\s\S]*employees\.find\(e=>Number\(e\.id\)===Number\(state\.carniceriaProgressEmployeeId\)\)/.test(progressResolver) &&
+    progressResolver.indexOf('if(isStationAccount())') < progressResolver.indexOf('linkedEmployeeForUser')
+  ],
+  ['empleado personal conserva únicamente su vínculo operativo',
+    /const linked=linkedEmployeeForUser\(state\.profile\);[\s\S]*return Number\(linked\.id\);[\s\S]*return null;/.test(progressResolver)
+  ],
+  ['simulación: gerente puede consultar equipo completo',simulateProgressEmployee({admin:true,selected:null,linkedId:1})===null],
+  ['simulación: gerente puede cambiar de Cesar a Dariel',simulateProgressEmployee({admin:true,selected:5,linkedId:1})===5],
+  ['simulación: estación conserva el despachador seleccionado',simulateProgressEmployee({station:true,selected:5,linkedId:1})===5],
+  ['simulación: estación sin selección inicia con el primer despachador',simulateProgressEmployee({station:true,selected:null,employeeIds:[3,5]})===3],
+  ['simulación: usuario personal ignora selecciones ajenas',simulateProgressEmployee({selected:5,linkedId:3})===3],
   ['cola de estación usa empleado seleccionado y no la cuenta compartida',/queueEmployeeId=isStationAccount\(\)\?carniceriaProgressDefaultEmployeeIdV943\(\)/.test(main)&&/o\.tomado_por_empleado_id/.test(main)],
   ['panel responsive integrado',/carn-progress-kpis/.test(css)&&/@media\(max-width:720px\)/.test(css)],
   ['auditoría V9.4.3 integrada en npm test',pkg.scripts.pretest.includes('auditoria_carniceria_progreso_v943.mjs')]
