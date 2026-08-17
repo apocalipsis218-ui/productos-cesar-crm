@@ -27,7 +27,10 @@ function simulateProgressEmployee({admin=false,station=false,selected=null,linke
 }
 
 const checks=[
-  ['versión V9.4.3 sincronizada',pkg.version==='9.4.3'&&/V9\.4\.3 PWA/.test(main)&&/V9\.4\.3 PWA/.test(fs.readFileSync(new URL('../src/pwa.js',import.meta.url),'utf8'))],
+  ['versión V9.4.3 o superior sincronizada',
+    pkg.version.localeCompare('9.4.3',undefined,{numeric:true,sensitivity:'base'})>=0 &&
+    main.includes(`V${pkg.version} PWA`) &&
+    fs.readFileSync(new URL('../src/pwa.js',import.meta.url),'utf8').includes(`V${pkg.version} PWA`)],
   ['RPC mensual calculada en servidor',/resumen_carniceria_mensual_v943/.test(sql)&&/sb\.rpc\('resumen_carniceria_mensual_v943'/.test(main)],
   ['mes usa zona horaria dominicana',/America\/Santo_Domingo/.test(sql)],
   ['cliente registrado se deduplica por id',/'cliente:' \|\| o\.cliente_id/.test(sql)&&/count\(distinct cliente_clave\)/.test(sql)],
