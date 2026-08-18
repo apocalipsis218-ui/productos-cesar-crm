@@ -7,6 +7,8 @@ const editSql=fs.readFileSync(new URL('../supabase/sql/38_actualizacion_v9379_ed
 const revertSql=fs.readFileSync(new URL('../supabase/sql/37_actualizacion_v9378_reversion_lotes_segura.sql',import.meta.url),'utf8');
 const productivitySql=fs.readFileSync(new URL('../supabase/migrations/20260817021459_productividad_despachos_repetidos_v944_r2.sql',import.meta.url),'utf8');
 const map=fs.readFileSync(new URL('../MAPEO_VALIDACION_REASIGNACION_V9442.md',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const pwa=fs.readFileSync(new URL('../src/pwa.js',import.meta.url),'utf8');
 const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
 
 const checks=[
@@ -23,7 +25,9 @@ const checks=[
   ['Productividad une detalle con lote responsable',/l\.responsable_empleado_id/.test(productivitySql)&&/d\.lote_id = l\.id/.test(productivitySql)],
   ['Productividad excluye lotes revertidos',/coalesce\(l\.estado, ''\) <> 'Revertido'/.test(productivitySql)],
   ['mapeo documenta transferencia y retorno',/Cómo atribuye Productividad/.test(map)&&/Quitar del lote/.test(map)],
-  ['auditoría disponible en npm',pkg.scripts['audit:validacion-reasignacion']==='node tests/auditoria_validacion_reasignacion_v9442.mjs']
+  ['versión V9.4.4.2 sincronizada',/V9\.4\.4\.2 PWA/.test(main)&&/V9\.4\.4\.2 PWA/.test(html)&&/V9\.4\.4\.2 PWA/.test(pwa)],
+  ['auditoría disponible en npm',pkg.scripts['audit:validacion-reasignacion']==='node tests/auditoria_validacion_reasignacion_v9442.mjs'],
+  ['auditoría integrada en npm test',pkg.scripts.pretest.includes('auditoria_validacion_reasignacion_v9442.mjs')]
 ];
 
 for(const [label,ok] of checks){assert.ok(ok,label);console.log('OK - '+label);}
