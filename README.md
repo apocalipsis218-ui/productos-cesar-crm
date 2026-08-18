@@ -1,4 +1,12 @@
-# Productos César CRM V9.4.4 PWA
+# Productos César CRM V9.4.4.1 PWA
+
+## V9.4.4.1 — Productividad simplificada
+
+- Consolida la vista principal en una sola fila por empleado.
+- Conserva el desglose exacto por función bajo demanda.
+- Separa las incidencias de identidad de la aprobación cotidiana.
+- Sustituye el total ambiguo de operaciones por unidades incentivables.
+- Aprovecha mejor el ancho disponible en pantallas administrativas.
 
 ## V9.4.4 R2 — Incentivos por despacho de cliente
 
