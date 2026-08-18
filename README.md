@@ -1,4 +1,13 @@
-# Productos César CRM V9.4.4.1 PWA
+# Productos César CRM V9.4.4.2 PWA
+
+## V9.4.4.2 — Reasignación segura desde Validación
+
+- agrupa las acciones del historial de Delivery en un menú de tres puntos;
+- permite transferir un cliente a otro delivery sin duplicar la orden;
+- permite quitarlo de un lote abierto y devolverlo a Lotes pendientes;
+- conserva la trazabilidad de correcciones y transferencias;
+- atribuye la productividad al delivery responsable del lote vigente;
+- no requiere una migración adicional de Supabase.
 
 ## V9.4.4.1 — Productividad simplificada
 

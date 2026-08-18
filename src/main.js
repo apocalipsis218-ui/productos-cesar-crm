@@ -26,6 +26,7 @@ import { auxTablesForPageV942, boundedOrderIdsV942, changedOrderIdV942, isOperat
 // V9.4.2 PWA · R2: carga por módulo, RLS eficiente y Realtime incremental.
 // V9.4.4 PWA · R2: cálculo base de incentivos por despacho finalizado conservado.
 // V9.4.4.1 PWA · panel de productividad simplificado por empleado.
+// V9.4.4.2 PWA · reasignación y retorno seguro de clientes desde Validación.
 // Conserva factura, pesaje e historial del intento fallido.
 // Control conservado: Pulsa “Detallar artículos” para registrar producto, cantidad y peso.
 // V9.3.9.1 · Faltantes con seguimiento y liquidación segura de clientes ocasionales.
@@ -157,7 +158,7 @@ function printFooterHtml(){ const rec=normalizeSystemConfig(state.systemConfig||
 function signatureHtml(label){ return `<div class="sign">${esc(label||'Firma')}</div>`; }
 function exportBackup(){
   const cfg=normalizeSystemConfig(state.systemConfig||{});
-  const payload={fecha:new Date().toISOString(),version:'V9.4.4.1 PWA',empresa:cfg.empresa,configuracion:cfg,clientes:state.clientes||[],ordenes:(state.ordenes||[]).map(o=>({codigo:o.codigo,fecha:o.fecha,estado:o.estado,cliente:orderClientName(o),total:o.total_factura||o.total_estimado,delivery:o.delivery_nombre,lote:o.lote_codigo})),productos:state.productos||[],empleados:state.empleadosOperativos||[],usuarios:state.usuarios||[],liquidaciones:state.liquidacionesLotes||[],cxc:state.cxcSaldos||[],cobrosCxc:state.cxcCobros||[]};
+  const payload={fecha:new Date().toISOString(),version:'V9.4.4.2 PWA',empresa:cfg.empresa,configuracion:cfg,clientes:state.clientes||[],ordenes:(state.ordenes||[]).map(o=>({codigo:o.codigo,fecha:o.fecha,estado:o.estado,cliente:orderClientName(o),total:o.total_factura||o.total_estimado,delivery:o.delivery_nombre,lote:o.lote_codigo})),productos:state.productos||[],empleados:state.empleadosOperativos||[],usuarios:state.usuarios||[],liquidaciones:state.liquidacionesLotes||[],cxc:state.cxcSaldos||[],cobrosCxc:state.cxcCobros||[]};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`backup-productos-cesar-${today()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); toast('Copia de seguridad descargada');
 }
@@ -1019,7 +1020,7 @@ function render(){
   }
   if(!puede(state.page)) state.page = visibleNav[0][0];
   const sidebarCollapsed=loadSidebarCollapsed();
-  root.innerHTML = `<div class="shell${sidebarCollapsed?' sidebar-collapsed':''}"><aside id="appSidebar" class="sidebar" aria-hidden="${sidebarCollapsed?'true':'false'}"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.4.4.1 PWA · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.4.4.1 PWA</b><br>Productividad mensual resumida por empleado.</div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" data-collapsed="${sidebarCollapsed?'1':'0'}" aria-controls="appSidebar" aria-expanded="${sidebarCollapsed?'false':'true'}" aria-label="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}" title="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}"><span aria-hidden="true">${sidebarCollapsed?'›':'‹'}</span></button><main class="main"><div class="top"><div class="mobile-brand-mini"><span>${esc(appCfg('empresa.logoTexto','PC'))}</span></div><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray" aria-label="Mi acceso">Mi acceso</button><button id="refreshBtn" aria-label="Actualizar">Actualizar</button><button id="logoutBtn" class="dark" aria-label="Salir">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
+  root.innerHTML = `<div class="shell${sidebarCollapsed?' sidebar-collapsed':''}"><aside id="appSidebar" class="sidebar" aria-hidden="${sidebarCollapsed?'true':'false'}"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.4.4.2 PWA · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.4.4.2 PWA</b><br>Reasignación segura desde Validación.</div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" data-collapsed="${sidebarCollapsed?'1':'0'}" aria-controls="appSidebar" aria-expanded="${sidebarCollapsed?'false':'true'}" aria-label="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}" title="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}"><span aria-hidden="true">${sidebarCollapsed?'›':'‹'}</span></button><main class="main"><div class="top"><div class="mobile-brand-mini"><span>${esc(appCfg('empresa.logoTexto','PC'))}</span></div><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray" aria-label="Mi acceso">Mi acceso</button><button id="refreshBtn" aria-label="Actualizar">Actualizar</button><button id="logoutBtn" class="dark" aria-label="Salir">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
   setupKeyboardShortcuts();
   bindSidebarToggle();
   $$('[data-page]').forEach(b=>b.onclick=()=>navigateToPageV942(b.dataset.page));
@@ -4647,6 +4648,60 @@ function openLotCorrectionModal(lot){
 function orderTransferInfo(lot,order){
   return canTransferOrder({lot,order,hasLiquidation:Boolean(validationBatchLiquidation(lot)),canEdit:Boolean(isAdminRole()||puede('validacion',true))});
 }
+function orderReturnToPendingInfo(lot,order){
+  const lotInfo=validationLotCorrectionInfo(lot);
+  const belongs=validationBatchRouteItems(lot).some(x=>String(x.o?.id)===String(order?.id));
+  if(!lotInfo.allowed) return {allowed:false,reason:lotInfo.reason||'Este lote ya no puede editarse.'};
+  if(!belongs) return {allowed:false,reason:'La orden no pertenece al lote indicado.'};
+  return {allowed:true,reason:'',single:validationBatchRouteItems(lot).length===1};
+}
+async function returnOrderToValidationPendingV9442(lot,o,reason,modal){
+  const info=orderReturnToPendingInfo(lot,o);
+  if(!info.allowed) return alert(info.reason);
+  reason=String(reason||'').trim();
+  if(reason.length<5) return alert('Escribe un motivo de al menos 5 caracteres.');
+  const btn=$('#confirmReturnOrderPending',modal);
+  if(btn){btn.disabled=true;btn.textContent='Quitando del lote...';}
+
+  let data,error;
+  if(info.single){
+    ({data,error}=await sb.rpc('corregir_lote_entrega_v936',{
+      p_lote_id:Number(lot.id),p_accion:'revertir_lote',p_nuevo_delivery:null,
+      p_motivo:reason,p_usuario_nombre:currentWorkerName()
+    }));
+  }else{
+    const finalItems=validationBatchRouteItems(lot).filter(x=>String(x.o?.id)!==String(o.id));
+    const snapshot=buildDeliveryRouteSnapshot(
+      lot.codigo_lote,
+      tripResponsibleName(lot)||lot.delivery_nombre||'',
+      finalItems,
+      lot.fecha_entrega||lot.creado_en||new Date().toISOString(),
+      lot.validado_por||currentWorkerName()
+    );
+    ({data,error}=await sb.rpc('editar_composicion_lote_v9379',{
+      p_lote_id:Number(lot.id),p_agregar_ordenes:[],p_retirar_ordenes:[Number(o.id)],
+      p_motivo:reason,p_usuario_nombre:currentWorkerName(),p_snapshot:snapshot
+    }));
+  }
+  if(error){
+    if(btn){btn.disabled=false;btn.textContent='Quitar y devolver a pendientes';}
+    return alert('No se pudo devolver el pedido a lotes pendientes: '+error.message);
+  }
+  modal?.remove();
+  state.validacionTab='pendientes';
+  await refreshVisibleModuleV9384();
+  renderValidacion($('#content'));
+  toast(`${o.codigo||'Pedido'} quedó pendiente de asignar a un delivery.`);
+  return data;
+}
+function openReturnOrderToPendingModal(lot,o){
+  const info=orderReturnToPendingInfo(lot,o);
+  if(!info.allowed) return alert(info.reason);
+  const current=tripResponsibleName(lot)||o.delivery_nombre||'—';
+  const body=`<div class="form return-order-pending-form"><div class="lock-alert warn"><b>${esc(o.codigo||'Orden')} · ${esc(orderClientName(o)||'Cliente')}</b><br>Lote actual: ${esc(lot.codigo_lote||'—')} · Responsable: ${esc(current)}</div><p>La orden volverá a <b>Validación → Pendientes</b>, sin delivery asignado. Después podrá incluirse en otro lote.</p>${info.single?'<div class="lock-alert info">Es la única orden del lote; el sistema revertirá el lote completo para conservar la trazabilidad.</div>':''}<div class="field"><label>Motivo obligatorio</label><textarea id="returnOrderPendingReason" maxlength="300" placeholder="Ej.: El cliente no saldrá en este viaje y será reasignado después"></textarea></div><button class="btn warn" id="confirmReturnOrderPending">Quitar y devolver a pendientes</button></div>`;
+  const m=openModal('Quitar pedido del lote',body,'Disponible antes de registrar resultados, recibir o liquidar.');
+  $('#confirmReturnOrderPending',m).onclick=()=>returnOrderToValidationPendingV9442(lot,o,$('#returnOrderPendingReason',m).value,m);
+}
 function openOrderTransferModal(lot,o){
   const info=orderTransferInfo(lot,o);
   if(!info.allowed) return alert(info.reason||'Esta orden no puede transferirse.');
@@ -4673,7 +4728,7 @@ function openOrderTransferModal(lot,o){
 function validationHistoryCard(l,index=0,forceOpen=false){
   const items=validationBatchRouteItems(l); const st=validationBatchCurrentState(l); const original=l.fecha_entrega||l.creado_en||''; const audits=validationBatchPrintAudit(l.codigo_lote); const reprints=Number(l.cantidad_reimpresiones||audits.filter(x=>x.tipo_evento==='Reimpresión').length||0);
   const key=lotUiKey('validation',l.codigo_lote,l.id||original); const open=operationalLotOpen('validationLots',key,index,forceOpen); const info=validationLotCorrectionInfo(l); const correction=lastLotCorrection(l);
-  const rows=items.map(x=>{ const transfer=orderTransferInfo(l,x.o); return `<div class="liq-order-row"><div><b>${esc(orderClientName(x.o)||'Cliente')}</b><small>${esc(x.o?.codigo||'')} · Factura ${esc(x.o?.factura_no||'—')} · ${money(x.amount||0)} · ${Number(x.peso||0).toFixed(2)} lb</small></div><div class="card-actions"><span class="badge info">${esc(x.o?.estado||'Registrada')}</span>${transfer.allowed?`<button class="btn small warn" data-transfer-lot="${esc(l.id)}" data-transfer-order="${esc(x.o.id)}">Transferir pedido</button>`:''}</div></div>`; }).join('');
+  const rows=items.map(x=>{ const transfer=orderTransferInfo(l,x.o); const pending=orderReturnToPendingInfo(l,x.o); const actions=(transfer.allowed||pending.allowed)?`<details class="order-more validation-order-more"><summary aria-label="Más acciones" title="Más acciones">•••</summary><div class="order-more-menu">${transfer.allowed?`<button class="btn small warn" data-transfer-lot="${esc(l.id)}" data-transfer-order="${esc(x.o.id)}">Transferir delivery</button>`:''}${pending.allowed?`<button class="btn small gray" data-return-pending-lot="${esc(l.id)}" data-return-pending-order="${esc(x.o.id)}">Quitar del lote</button>`:''}</div></details>`:''; return `<div class="liq-order-row"><div><b>${esc(orderClientName(x.o)||'Cliente')}</b><small>${esc(x.o?.codigo||'')} · Factura ${esc(x.o?.factura_no||'—')} · ${money(x.amount||0)} · ${Number(x.peso||0).toFixed(2)} lb</small></div><div class="card-actions"><span class="badge info">${esc(x.o?.estado||'Registrada')}</span>${actions}</div></div>`; }).join('');
   return `<article class="liq-batch-card validation-history-card operational-lot-card ${open?'is-open':'is-collapsed'}" data-validation-lot-key="${esc(key)}"><div class="liq-batch-head operational-lot-head"><button class="history-toggle-btn" type="button" data-validation-lot-toggle="${esc(key)}" aria-expanded="${open?'true':'false'}" title="${open?'Ocultar lote':'Mostrar lote'}"><span>${open?'⌄':'›'}</span></button><div class="history-batch-summary"><div class="client-title">${esc(l.codigo_lote||'SIN-LOTE')}</div><div class="client-sub">${original?businessDateTime(original):'—'} · Responsable: ${esc(tripResponsibleName(l)||'—')} · Validado por: ${esc(l.validado_por||normalizeRouteSnapshot(l.hoja_ruta_snapshot)?.validado_por||'—')}</div><div class="badges"><span class="badge info">${items.length||Number(l.cantidad_ordenes||0)} órdenes</span><span class="badge ok">${money(l.total_facturado||items.reduce((s,x)=>s+Number(x.amount||0),0))}</span><span class="badge">${Number(l.peso_entregado||items.reduce((s,x)=>s+Number(x.peso||0),0)).toFixed(2)} lb</span><span class="badge ${st==='Liquidado'?'ok':(st==='Revertido'?'bad':'warn')}">${esc(st)}</span>${l.es_transferencia?'<span class="badge info">Transferencia recibida</span>':''}${tripResponsibleBadge(l)}${correction?`<span class="badge warn">${correction.accion==='cambiar_delivery'?'Asignación corregida':'Lote revertido'}</span>`:''}${reprints?`<span class="badge warn">${reprints} reimp.</span>`:''}${l.hoja_ruta_snapshot?'<span class="badge ok">Datos congelados</span>':'<span class="badge warn">Reconstruido</span>'}</div></div><div class="card-actions history-card-actions"><button class="btn small gray" data-validation-lot-detail="${esc(l.codigo_lote)}">Ver detalle</button><button class="btn small dark" data-validation-reprint="${esc(l.codigo_lote)}">Reimprimir hoja</button><button class="btn small gray" data-validation-constancia="${esc(l.codigo_lote)}">Imprimir constancia</button>${info.allowed?`<button class="btn small warn" data-correct-validation-lot="${esc(l.id)}">Editar lote</button>`:''}</div></div>${open?`<div class="liq-batch-body operational-lot-body">${rows||'<div class="empty">No hay detalle disponible.</div>'}</div>`:''}</article>`;
 }
 function renderValidationHistory(c){
@@ -4690,6 +4745,7 @@ function renderValidationHistory(c){
   $$('[data-validation-constancia]',c).forEach(b=>b.onclick=()=>{ const l=rows.find(x=>String(x.codigo_lote)===String(b.dataset.validationConstancia)); if(l) printValidationDeliveryReceipt(l,true); });
   $$('[data-validation-lot-detail]',c).forEach(b=>b.onclick=()=>{ const l=rows.find(x=>String(x.codigo_lote)===String(b.dataset.validationLotDetail)); if(l) openValidationBatchDetail(l); });
   $$('[data-correct-validation-lot]',c).forEach(b=>b.onclick=()=>{const l=rows.find(x=>String(x.id)===String(b.dataset.correctValidationLot));if(l)openLotCorrectionModal(l);});
+  $$('[data-return-pending-order]',c).forEach(b=>b.onclick=()=>{const l=rows.find(x=>String(x.id)===String(b.dataset.returnPendingLot));const o=state.ordenes.find(x=>String(x.id)===String(b.dataset.returnPendingOrder));if(l&&o)openReturnOrderToPendingModal(l,o);});
   $$('[data-transfer-order]',c).forEach(b=>b.onclick=()=>{const l=rows.find(x=>String(x.id)===String(b.dataset.transferLot));const o=state.ordenes.find(x=>String(x.id)===String(b.dataset.transferOrder));if(l&&o)openOrderTransferModal(l,o);});
 }
 function renderValidationPending(c){
