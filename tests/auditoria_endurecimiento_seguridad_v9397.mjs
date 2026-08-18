@@ -8,11 +8,24 @@ const sql=fs.readFileSync(new URL('../supabase/sql/50_actualizacion_v9397_endure
 const installer=fs.readFileSync(new URL('../APLICAR_V9397.ps1',import.meta.url),'utf8');
 const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
 
+const versionAtLeast=(value,minimum)=>{
+  const current=String(value||'').split('.').map(Number);
+  const required=String(minimum||'').split('.').map(Number);
+  const length=Math.max(current.length,required.length);
+  for(let index=0;index<length;index+=1){
+    const left=current[index]||0;
+    const right=required[index]||0;
+    if(left!==right) return left>right;
+  }
+  return true;
+};
+const pwaVersion=pwa.match(/APP_VERSION = 'V([0-9.]+) PWA'/)?.[1];
+const htmlVersion=html.match(/Productos César CRM · V([0-9.]+) PWA/)?.[1];
+
 const checks=[
   ['versión V9.3.9.7 o superior sincronizada',
-    /^(?:9\.3\.9\.7|9\.4\.\d+)$/.test(pkg.version) && main.includes('V9.3.9.7') &&
-    /APP_VERSION = 'V(?:9\.3\.9\.7|9\.4\.[0-9]+) PWA'/.test(pwa) &&
-    /V(?:9\.3\.9\.7|9\.4\.[0-9]+) PWA/.test(html)],
+    versionAtLeast(pkg.version,'9.3.9.7') && main.includes('V9.3.9.7') &&
+    versionAtLeast(pwaVersion,'9.3.9.7') && versionAtLeast(htmlVersion,'9.3.9.7')],
   ['SQL 44–49 verificados',
     /guardar_preparacion_faltantes_v9391/.test(sql) &&
     /registrar_devolucion_parcial_v9392/.test(sql) &&
