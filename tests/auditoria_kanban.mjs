@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
-const source=fs.readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+const source=fs.readFileSync(new URL('../src/main.js',import.meta.url),'utf8').replace(/\r\n?/g,'\n');
 const css=fs.readFileSync(new URL('../src/styles.css',import.meta.url),'utf8');
 const section=(a,b)=>{const i=source.indexOf(a),j=source.indexOf(b,i+a.length);assert.ok(i>=0&&j>i,`No se encontró ${a}`);return source.slice(i,j);};
 const kanban=section('function kanbanStageOf(o){','\n\n\nfunction employeeAreas()');
