@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
-const source = fs.readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('../src/main.js', import.meta.url), 'utf8').replace(/\r\n?/g, '\n');
 const section = (a,b) => {
   const start=source.indexOf(a);
   const end=source.indexOf(b,start+a.length);
