@@ -53,6 +53,7 @@ assert.deepEqual(cashBreakdownNonZeroV945(cashBreakdownFromCountsV945({500:2,25:
 
 const checks=[
   ['versión V9.4.5 sincronizada',pkg.version==='9.4.5'&&/V9\.4\.5 PWA/.test(main)],
+  ['helpers usados por la interfaz están importados',/import \{[\s\S]*cashBreakdownFromCountsV945,[\s\S]*normalizeCashBreakdownV945,[\s\S]*reconcileCashBreakdownV945[\s\S]*\} from '\.\/cashBreakdownV945\.js';/.test(main)],
   ['ficha usa las diez denominaciones',/CASH_DENOMINATIONS_V945/.test(main)&&/data-cash-sheet-denomination/.test(main)],
   ['botón compacto se usa en lote e individual',(main.match(/cashBreakdownTriggerHtmlV945\(/g)||[]).length>=3&&/Desglose de efectivo/.test(main)],
   ['ficha vertical muestra cantidad por denominación y subtotal',/cash-sheet-row/.test(main)&&/×/.test(main)&&/data-cash-sheet-subtotal/.test(main)],

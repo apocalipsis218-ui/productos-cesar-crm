@@ -15,7 +15,13 @@ import { mergeRecentAndPendingOrders, shouldRunFallbackPolling } from './stabili
 import { calculatePartialReturn, deliveredQuantity, netDeliveredWeight, partialReturnMeasure, returnedWeightForMeasure } from './partialReturnsV9392.js';
 import { allocateCxcOldest, normalizeManualCxcApplications, cxcApplicationsTotal, groupCxcAccounts, cxcPortfolioSummary } from './cxcV940.js';
 import { auxTablesForPageV942, boundedOrderIdsV942, changedOrderIdV942, isOperationalPageV942, realtimeTablesForPageV942, removeRowByIdV942, upsertRowByIdV942 } from './runtimeDataV942.js';
-import { CASH_DENOMINATIONS_V945, cashBreakdownNonZeroV945, reconcileCashBreakdownV945 } from './cashBreakdownV945.js';
+import {
+  CASH_DENOMINATIONS_V945,
+  cashBreakdownFromCountsV945,
+  cashBreakdownNonZeroV945,
+  normalizeCashBreakdownV945,
+  reconcileCashBreakdownV945
+} from './cashBreakdownV945.js';
 // Compatibilidad de auditoría: V9.2.15 permanece integrada en la V9.3.0 Mobile First.
 // Compatibilidad histórica de auditorías: V9.2.14 · Operación y tiempos | V9.2.15 · Ventas, clientes, productos y CRM.
 // V9.3.9.7 · Endurecimiento de seguridad operativa.
