@@ -16,7 +16,7 @@ El desglose se exige en las dos rutas de recepción de CXC:
 4. `Enter` avanza por RD$1,000, RD$500, RD$200, RD$100, RD$50, RD$25, RD$10, RD$5 y RD$1 hasta **Aplicar desglose**.
 5. Cada fila presenta `cantidad × denominación = subtotal`.
 6. La ficha muestra efectivo esperado, contado, ajuste y diferencia.
-7. Solo se puede aplicar un desglose cuadrado.
+7. Un conteo exacto se aplica directamente; un sobrante se puede aplicar para su posterior autorización; un faltante no se puede aplicar.
 
 ## Flujo transaccional
 
@@ -24,9 +24,18 @@ El desglose se exige en las dos rutas de recepción de CXC:
 2. El panel determina el efectivo físico esperado para la recepción individual o suma el efectivo/abono esperado del lote.
 3. CXC registra cantidades de las diez denominaciones autorizadas.
 4. El navegador muestra contado, ajuste de fracción y diferencia.
-5. Una diferencia de RD$1 o más bloquea el cierre.
-6. `recibir_orden_cxc_v945` o `recibir_lote_cxc_v945` vuelve a calcular y validar todo en PostgreSQL.
-7. El cierre, el conteo, el evento de auditoría y el recibo quedan en una sola transacción.
+5. Cualquier diferencia negativa después del ajuste de fracción se clasifica como faltante y bloquea la recepción.
+6. Una diferencia positiva se clasifica como sobrante y muestra una confirmación explícita antes de continuar.
+7. `recibir_orden_cxc_v945_r2` o `recibir_lote_cxc_v945_r2` vuelve a calcular y validar todo en PostgreSQL.
+8. La RPC vuelve a bloquear el faltante aunque se manipule el navegador, y solo admite un sobrante cuando recibe la autorización explícita.
+9. El cierre, el conteo, la autorización, el evento de auditoría y el recibo quedan en una sola transacción.
+
+## Regla de sobrantes y faltantes
+
+- **Exacto:** continúa sin autorización adicional.
+- **Sobrante:** muestra el monto, pregunta si se desea continuar y exige confirmación. Si se autoriza, conserva `sobrante_monto`, usuario autenticado y fecha.
+- **Faltante:** siempre bloqueado; no existe parámetro ni permiso que lo pueda autorizar.
+- La persona indicada en **Recibido por** se conserva como dato operativo, pero la identidad de autorización se obtiene de `auth.uid()` para evitar suplantación desde el navegador.
 
 ## Denominaciones
 
@@ -43,8 +52,9 @@ Ejemplo: esperado RD$19,394.50, contado RD$19,395.00, ajuste RD$-0.50, conciliad
 ## Persistencia y seguridad
 
 - Tabla: `public.liquidacion_efectivo_conteos_v945`.
-- RPC por lote: `public.recibir_lote_cxc_v945`.
-- RPC individual: `public.recibir_orden_cxc_v945`.
+- RPC R1 exacta por lote: `public.recibir_lote_cxc_v945`.
+- RPC R2 por lote con autorización controlada: `public.recibir_lote_cxc_v945_r2`.
+- RPC R2 individual con autorización controlada: `public.recibir_orden_cxc_v945_r2`.
 - La tabla admite lectura autenticada con permiso de Liquidación, pero no escritura directa.
 - Ambas RPC exigen sesión y permiso `liquidacion/editar`, no se exponen a `anon` y fijan el `search_path`.
 - La RPC vigente V9.3.9.3 permanece como núcleo de recepción y se ejecuta dentro de la misma transacción.
@@ -62,7 +72,9 @@ Ejemplo: esperado RD$19,394.50, contado RD$19,395.00, ajuste RD$-0.50, conciliad
 - Varios conteos individuales enlazados al cierre del lote.
 - Lote sin efectivo, completamente a crédito.
 - Ajuste positivo y negativo menor de RD$1.
-- Faltante o sobrante de RD$1 o más.
+- Sobrante con confirmación aceptada y cancelada.
+- Sobrante enviado a la RPC sin autorización, que debe ser rechazado.
+- Faltante en lote e individual, siempre bloqueado tanto en interfaz como en PostgreSQL.
 - Cantidad negativa o decimal.
 - Denominación inválida, ausente o repetida.
 - Manipulación del total enviado desde el navegador.

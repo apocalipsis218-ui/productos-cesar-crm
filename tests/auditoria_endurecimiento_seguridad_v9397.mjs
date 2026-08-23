@@ -66,7 +66,7 @@ const checks=[
     !main.includes("sb.rpc('recibir_lote_cxc_v937'")],
   ['rutas vigentes de CXC conservadas',
     main.includes("sb.rpc('recibir_orden_cxc_v9393'") &&
-    /sb\.rpc\('recibir_lote_cxc_(?:v9393|v945)'/.test(main)],
+    /sb\.rpc\('recibir_lote_cxc_(?:v9393|v945(?:_r2)?)'/.test(main)],
   ['instalador evita paquete duplicado',
     /El hotfix esta duplicado dentro de si mismo/.test(installer)],
   ['instalador exige SQL 45–50',

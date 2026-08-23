@@ -29,6 +29,9 @@ export function reconcileCashBreakdownV945(rows=[],expectedValue=0){
   const adjustment=counted===targetCounted ? roundMoney(expected-counted) : 0;
   const reconciled=roundMoney(counted+adjustment);
   const difference=roundMoney(reconciled-expected);
+  const exact=Math.abs(difference)<0.01;
+  const hasSurplus=difference>0.009;
+  const hasShortage=difference< -0.009;
   return {
     breakdown,
     expected,
@@ -38,8 +41,12 @@ export function reconcileCashBreakdownV945(rows=[],expectedValue=0){
     reconciled,
     difference,
     rawDifference,
-    exact:Math.abs(difference)<0.01,
-    canClose:Math.abs(difference)<0.01
+    exact,
+    hasSurplus,
+    hasShortage,
+    requiresAuthorization:hasSurplus,
+    canApply:exact||hasSurplus,
+    canClose:exact
   };
 }
 
