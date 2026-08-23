@@ -16,7 +16,8 @@ El desglose se exige en las dos rutas de recepción de CXC:
 4. `Enter` avanza por RD$1,000, RD$500, RD$200, RD$100, RD$50, RD$25, RD$10, RD$5 y RD$1 hasta **Aplicar desglose**.
 5. Cada fila presenta `cantidad × denominación = subtotal`.
 6. La ficha muestra efectivo esperado, contado, ajuste y diferencia.
-7. Un conteo exacto se aplica directamente; un sobrante se puede aplicar para su posterior autorización; un faltante no se puede aplicar.
+7. Un conteo exacto se aplica directamente; al pulsar **Aplicar desglose** con sobrante, la ficha muestra el monto y exige autorización antes de cerrarse; un faltante no se puede aplicar.
+8. La autorización queda ligada al efectivo esperado, contado, ajuste y diferencia. Si cambia cualquiera de esos valores, se invalida y debe confirmarse otra vez.
 
 ## Flujo transaccional
 
@@ -61,6 +62,13 @@ Ejemplo: esperado RD$19,394.50, contado RD$19,395.00, ajuste RD$-0.50, conciliad
 - La devolución parcial individual conserva sus líneas y el conteo dentro de la misma transacción.
 - El desglose se vincula con la orden, el lote y, cuando existe, la liquidación; una consolidación histórica no borra los registros físicos.
 - La consulta frontend solicita las columnas de R2 explícitamente. Si R2 no está aplicada, el módulo se marca como no disponible en vez de intentar una recepción incompleta.
+
+## Consulta administrativa
+
+- En **Liquidación → Historial de liquidaciones**, los cierres con conteo guardado muestran la insignia **Desglose registrado** y el botón **Ver efectivo**.
+- La vista presenta las cantidades por denominación, subtotales, esperado, contado, ajuste, diferencia, sobrante, usuario autorizador y fecha.
+- **Reimprimir recibo** conserva el mismo desglose y la fecha real del cierre histórico; no usa la fecha actual como si fuera un recibo nuevo.
+- La consulta es de solo lectura y utiliza el snapshot almacenado al recibir el lote o cada cliente.
 
 ## Casos de prueba
 
