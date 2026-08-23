@@ -306,7 +306,16 @@ body .main:has(.productivity-page){max-width:none;margin:0}.productivity-page{wi
 .liq-check-main{min-width:0}.liq-check-main b,.liq-check-main small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.liq-check-main .badges{margin-top:6px}
 .liq-check-num input{width:100%;max-width:120px;min-height:38px;padding:8px 9px}
 .liq-check-status{white-space:normal;line-height:1.15}
-@media(max-width:900px){.liquidacion-lote-modal{padding:10px 6px}.liquidacion-lote-card{width:calc(100vw - 12px);max-width:calc(100vw - 12px);max-height:calc(100vh - 20px);border-radius:22px}.liquidacion-lote-card .modal-body{padding:14px}.batch-liquidation-form .grid4.compact-kpis{grid-template-columns:1fr 1fr!important}.liq-check-scroll .liq-check-head,.liq-check-scroll .liq-check-row{min-width:820px}}
+.cash-breakdown-card{border:1px solid var(--line);border-radius:18px;background:#f8fafc;overflow:hidden}
+.cash-breakdown-card summary{cursor:pointer;list-style:none;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff}
+.cash-breakdown-card summary::-webkit-details-marker{display:none}.cash-breakdown-card summary span:first-child{display:flex;flex-direction:column;gap:2px}.cash-breakdown-card summary small{color:var(--muted);font-weight:700}
+.cash-breakdown-body{padding:12px 14px 14px;border-top:1px solid var(--line)}
+.cash-breakdown-grid{display:grid;grid-template-columns:repeat(5,minmax(126px,1fr));gap:8px}
+.cash-denomination-item{display:grid;grid-template-columns:1fr 54px;gap:4px 8px;align-items:center;border:1px solid #dbe4ef;border-radius:12px;background:#fff;padding:8px 9px}
+.cash-denomination-item>span{font-size:12px;font-weight:950}.cash-denomination-item input{width:54px;min-height:34px;padding:6px;text-align:center}.cash-denomination-item strong{grid-column:1/-1;font-size:11px;color:var(--muted);text-align:right}
+.cash-breakdown-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}.cash-breakdown-summary>div{border-radius:12px;background:#fff;border:1px solid #e2e8f0;padding:8px 10px;display:flex;justify-content:space-between;gap:8px}.cash-breakdown-summary span{font-size:11px;color:var(--muted);font-weight:850}.cash-breakdown-summary b{white-space:nowrap}
+.cash-breakdown-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px}.cash-breakdown-actions p{margin:0;font-size:12px;font-weight:850}.cash-breakdown-ok{color:#047857}.cash-breakdown-bad{color:#b91c1c}
+@media(max-width:900px){.liquidacion-lote-modal{padding:10px 6px}.liquidacion-lote-card{width:calc(100vw - 12px);max-width:calc(100vw - 12px);max-height:calc(100vh - 20px);border-radius:22px}.liquidacion-lote-card .modal-body{padding:14px}.batch-liquidation-form .grid4.compact-kpis{grid-template-columns:1fr 1fr!important}.liq-check-scroll .liq-check-head,.liq-check-scroll .liq-check-row{min-width:820px}.cash-breakdown-grid{grid-template-columns:repeat(2,minmax(120px,1fr))}.cash-breakdown-summary{grid-template-columns:1fr 1fr}.cash-breakdown-actions{align-items:flex-start;flex-direction:column}}
 
 
 /* V9.2.10 - Crear orden: lista de productos desplazable y modal estable */

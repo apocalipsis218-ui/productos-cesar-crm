@@ -7,7 +7,7 @@ const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),
 
 assert.match(pkg.version,/^(?:9\.3\.9\.(?:[3-9]|\d{2,})|9\.4\.[0-9]+)$/);
 assert.match(main,/recibir_orden_cxc_v9393/);
-assert.match(main,/recibir_lote_cxc_v9393/);
+assert.match(main,/recibir_lote_cxc_(?:v9393|v945)/);
 assert.match(main,/motivo por el cual el pedido no fue entregado/i);
 assert.match(sql,/create or replace function public\.pc_retornar_no_entregado_validacion_v9393/);
 assert.match(sql,/create or replace function public\.pc_finalizar_lote_cxc_v9393/);

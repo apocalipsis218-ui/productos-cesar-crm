@@ -18,7 +18,7 @@ const checks=[
   ['Delivery no emite botones de ruta o resultados',/function deliveryActionButtons\(o\)\{\s*return `<button class="btn small gray" data-oper-order=/.test(main)],
   ['Liquidación tiene panel de viajes pendientes',/deliveryPendingPanelHtml/.test(main) && /delivery-pending-strip-v937/.test(css)],
   ['Liquidación usa RPC individual V9.3.7 o superior',/recibir_orden_cxc_v93(?:7|93)/.test(main)],
-  ['Liquidación usa RPC de lote V9.3.7 o superior',/recibir_lote_cxc_v93(?:7|93)/.test(main)],
+  ['Liquidación usa RPC de lote V9.3.7 o superior',/recibir_lote_cxc_(?:v937|v9393|v945)/.test(main)],
   ['Historial consolida duplicados',/consolidateFormalLiquidations/.test(main)],
   ['Acción administrativa para duplicados',/consolidar_liquidaciones_duplicadas_v937/.test(main)],
   ['SQL crea unicidad por lote',/uq_liquidaciones_lotes_lote_v937/.test(sql)],

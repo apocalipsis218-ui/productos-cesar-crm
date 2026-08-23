@@ -16,7 +16,7 @@ assert.match(sql48,/estado='Facturada', resultado_entrega=null/);
 assert.match(sql48,/factura_conservada/);
 assert.match(sql48,/peso_validado_conservado/);
 assert.doesNotMatch(schema,/\bnotas_estado\b/,'El esquema base confirma que notas_estado no existe');
-assert.match(main,/recibir_lote_cxc_v9393/);
+assert.match(main,/recibir_lote_cxc_(?:v9393|v945)/);
 assert.match(main,/pedido\(s\) regresaron a Validación/);
 
 console.log('Auditoría V9.3.9.5 aprobada: No entregado retorna a Validación sin notas_estado.');

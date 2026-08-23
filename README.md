@@ -1,4 +1,12 @@
-# Productos César CRM V9.4.4.2 PWA
+# Productos César CRM V9.4.5 PWA
+
+## V9.4.5 — Desglose físico de efectivo en Liquidación
+
+- Agrega conteo compacto por denominaciones RD$2,000, 1,000, 500, 200, 100, 50, 25, 10, 5 y 1.
+- Compara efectivo esperado, contado, ajuste de fracción y diferencia antes de cerrar el lote.
+- Bloquea diferencias de RD$1 o más y valida nuevamente dentro de la RPC transaccional.
+- Conserva el desglose en Supabase y lo incorpora al recibo y a sus reimpresiones.
+- No cambia los resultados CXC por cliente ni redondea silenciosamente importes con centavos.
 
 ## V9.4.4.2 — Reasignación segura desde Validación
 

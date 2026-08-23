@@ -15,6 +15,7 @@ import { mergeRecentAndPendingOrders, shouldRunFallbackPolling } from './stabili
 import { calculatePartialReturn, deliveredQuantity, netDeliveredWeight, partialReturnMeasure, returnedWeightForMeasure } from './partialReturnsV9392.js';
 import { allocateCxcOldest, normalizeManualCxcApplications, cxcApplicationsTotal, groupCxcAccounts, cxcPortfolioSummary } from './cxcV940.js';
 import { auxTablesForPageV942, boundedOrderIdsV942, changedOrderIdV942, isOperationalPageV942, realtimeTablesForPageV942, removeRowByIdV942, upsertRowByIdV942 } from './runtimeDataV942.js';
+import { CASH_DENOMINATIONS_V945, cashBreakdownNonZeroV945, reconcileCashBreakdownV945 } from './cashBreakdownV945.js';
 // Compatibilidad de auditoría: V9.2.15 permanece integrada en la V9.3.0 Mobile First.
 // Compatibilidad histórica de auditorías: V9.2.14 · Operación y tiempos | V9.2.15 · Ventas, clientes, productos y CRM.
 // V9.3.9.7 · Endurecimiento de seguridad operativa.
@@ -27,6 +28,7 @@ import { auxTablesForPageV942, boundedOrderIdsV942, changedOrderIdV942, isOperat
 // V9.4.4 PWA · R2: cálculo base de incentivos por despacho finalizado conservado.
 // V9.4.4.1 PWA · panel de productividad simplificado por empleado.
 // V9.4.4.2 PWA · reasignación y retorno seguro de clientes desde Validación.
+// V9.4.5 PWA · conteo físico por denominaciones al cerrar lotes en Liquidación.
 // Conserva factura, pesaje e historial del intento fallido.
 // Control conservado: Pulsa “Detallar artículos” para registrar producto, cantidad y peso.
 // V9.3.9.1 · Faltantes con seguimiento y liquidación segura de clientes ocasionales.
@@ -158,7 +160,7 @@ function printFooterHtml(){ const rec=normalizeSystemConfig(state.systemConfig||
 function signatureHtml(label){ return `<div class="sign">${esc(label||'Firma')}</div>`; }
 function exportBackup(){
   const cfg=normalizeSystemConfig(state.systemConfig||{});
-  const payload={fecha:new Date().toISOString(),version:'V9.4.4.2 PWA',empresa:cfg.empresa,configuracion:cfg,clientes:state.clientes||[],ordenes:(state.ordenes||[]).map(o=>({codigo:o.codigo,fecha:o.fecha,estado:o.estado,cliente:orderClientName(o),total:o.total_factura||o.total_estimado,delivery:o.delivery_nombre,lote:o.lote_codigo})),productos:state.productos||[],empleados:state.empleadosOperativos||[],usuarios:state.usuarios||[],liquidaciones:state.liquidacionesLotes||[],cxc:state.cxcSaldos||[],cobrosCxc:state.cxcCobros||[]};
+  const payload={fecha:new Date().toISOString(),version:'V9.4.5 PWA',empresa:cfg.empresa,configuracion:cfg,clientes:state.clientes||[],ordenes:(state.ordenes||[]).map(o=>({codigo:o.codigo,fecha:o.fecha,estado:o.estado,cliente:orderClientName(o),total:o.total_factura||o.total_estimado,delivery:o.delivery_nombre,lote:o.lote_codigo})),productos:state.productos||[],empleados:state.empleadosOperativos||[],usuarios:state.usuarios||[],liquidaciones:state.liquidacionesLotes||[],cxc:state.cxcSaldos||[],cobrosCxc:state.cxcCobros||[]};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`backup-productos-cesar-${today()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); toast('Copia de seguridad descargada');
 }
@@ -253,6 +255,8 @@ function saveBatchRowDraft(row){
 function clearValidationBatchDraft(){ state.validationBatchDraft=emptyValidationBatchDraft(); saveValidationBatchDraftLocal(); }
 
 const state = {session:null,user:null,profile:null,page:'inicio',clientes:[],llamadas:[],productos:[],ordenes:[],cobranza:[],plantillas:[],catalogos:{},deliverys:[],empleados:[],pesos:[],entregas:[],pagos:[],historialEstados:[],auditExceptions:[],auditExceptionsSchemaOk:false,entregaLotes:[],entregaLoteDetalle:[],entregaDocumentosHistorial:[],liquidacionesLotes:[],liquidacionLoteDetalle:[],casosHistorial:[],deliveryLotCorrections:[],liquidacionLotEvents:[],deliveryTransfers:[],liquidacionSchemaOk:false,validacionR5SchemaOk:false,v936SchemaOk:false,v937SchemaOk:false,v9371SchemaOk:false,cxcSaldos:[],cxcCobros:[],cxcAplicaciones:[],cxcSchemaOk:false,cxcLoadedAt:0,cxcLoading:null,cxcSearch:'',cxcStatusFilter:'Pendientes',cxcAgingFilter:'Todas',cxcHistorySearch:'',cxcHistoryLimit:20,specialSearch:'',specialStatusFilter:'Todos',specialTypeFilter:'Todos',modulos:[],permisos:[],usuarios:[],usuarioModulos:[],errors:[],loadedScopes:{},moduleLoading:null,filter:'Todos',clientSearch:'',productSearch:'',productFilter:'Todos',productCategoryFilter:'Todas',productUnitFilter:'Todas',productWeightFilter:'Todos',modal:null,configTab:'general',controlTab:'gestiones',controlDate:today(),agendaDate:today(),callSearch:'',followPage:0,followSize:8,deliveryFiltro:'',orderSearch:'',carniceriaSearch:'',carniceriaProgress:null,carniceriaProgressEmployeeId:null,carniceriaProgressLoading:false,carniceriaProgressError:'',carniceriaProgressSchemaOk:false,carniceriaProgressLoadedAt:0,facturacionSearch:'',facturacionTab:'pendientes',facturacionHistorySearch:'',facturacionHistoryFrom:today().slice(0,8)+'01',facturacionHistoryTo:today(),facturacionHistoryStatus:'Todos',facturacionHistoryWorker:'Todos',validacionSearch:'',validacionTab:'pendientes',validationHistoryFrom:today(),validationHistoryTo:today(),validationHistoryDelivery:'',validationHistorySearch:'',pickupSearch:'',pickupHistorySearch:'',deliverySearch:'',deliveryTab:'activos',deliveryHistorySearch:'',deliveryHistoryLimit:10,liquidacionDeliveryFilter:'',liquidacionSearch:'',liqHistorySearch:'',liquidacionHistoryLimit:10,liquidacionTab:'pendientes',liqHistFrom:today(),liqHistTo:today(),deliveryHistoryFrom:today(),deliveryHistoryTo:today(),historyUi:loadHistoryUi(),orderView:'recientes',carniceriaTab:'libres',ui:loadUi(),weightConfig:loadWeightConfigLocal(),systemConfig:loadSystemConfigLocal(),liveStatus:'inactivo',liveLastRefresh:null,liveNotices:[],liveUnread:0,liveSound:localStorage.getItem('pc_live_sound_v61')==='1',liveLoading:false,liveFlashOrders:{},reportTab:'resumen',reportPreset:'mes',reportFrom:today().slice(0,8)+'01',reportTo:today(),reportStatus:'Todos',reportSeller:'Todos',reportZone:'Todas',reportClient:'Todos',reportProduct:'Todos',reportPayment:'Todas',prodMonth:String(new Date().getMonth()+1),prodYear:String(new Date().getFullYear()),prodRole:'Todos',prodView:'resumen',prodExpandedEmployeeId:null,productivitySummary:null,productivityLoading:false,productivityError:'',productivitySchemaOk:false,productivityLoadedKey:'',productivityLoadedAt:0,auditSearch:'',auditType:'todos',auditExceptionSearch:'',auditExceptionStatus:'Todos',auditExceptionSeverity:'Todas',auditExceptionFrom:today().slice(0,8)+'01',auditExceptionTo:today(),alertSearch:'',alertLevel:'todos',kanbanSearch:'',kanbanClosedLimit:10,kanbanClosedHidden:false,kanbanHistorySearch:'',kanbanHistoryPeriod:'todos',kanbanHistoryStatus:'Todos',kanbanHistoryFrom:'',kanbanHistoryTo:'',kanbanHistoryPage:0,kanbanHistoryPageSize:25,userSearch:'',userRoleFilter:'Todos',userStatusFilter:'Todos',userLinkFilter:'Todos',kanbanMobileStage:'recibido',mobileMoreOpen:false,validationBatchDraft:loadValidationBatchDraftLocal()};
+state.liquidacionEfectivoConteos=[];
+state.liquidacionEfectivoSchemaOk=false;
 const navItems = [
   ['inicio','Inicio','Resumen general'],['control','Control','Llamadas y gestiones'],['clientes','Clientes','Ficha y WhatsApp'],['ordenes','Órdenes','Panel completo'],
   ['carniceria','Carnicería','Preparar y pesar'],['facturacion','Facturación','Imprimir y facturar'],['validacion','Validación','Asignar responsables'],['delivery','Delivery','Mis pedidos'],['liquidacion','Liquidación','Cobros y CXC'],['alertas','Alertas','Centro operativo'],['kanban','Kanban','Tablero de órdenes'],
@@ -831,12 +835,13 @@ async function loadOperationalDataV9384(page=state.page){
   aux.forEach((table,index)=>{state[map[table]]=auxResults[index]?.data||[];});
 
   if(includeLots){
-    const [lotes,detalle,documentos,liquidaciones,liqDetalle,correcciones,eventos,transferencias]=await Promise.all([
+    const [lotes,detalle,documentos,liquidaciones,liqDetalle,conteosEfectivo,correcciones,eventos,transferencias]=await Promise.all([
       optionalSafe(sb.from('entrega_lotes').select('*').order('creado_en',{ascending:false}).limit(500),'entrega_lotes'),
       optionalSafe(sb.from('entrega_lote_detalle').select('*').order('id',{ascending:false}).limit(2000),'entrega_lote_detalle'),
       optionalSafe(sb.from('entrega_documentos_historial').select('*').order('fecha_evento',{ascending:false}).limit(2000),'entrega_documentos_historial'),
       optionalSafe(sb.from('liquidaciones_lotes').select('*').order('fecha_liquidacion',{ascending:false}).limit(500),'liquidaciones_lotes'),
       optionalSafe(sb.from('liquidacion_lote_detalle').select('*').order('id',{ascending:false}).limit(3000),'liquidacion_lote_detalle'),
+      optionalSafe(sb.from('liquidacion_efectivo_conteos_v945').select('*').order('creado_en',{ascending:false}).limit(500),'liquidacion_efectivo_conteos_v945'),
       optionalSafe(sb.from('entrega_lote_correcciones').select('*').order('fecha_evento',{ascending:false}).limit(1000),'entrega_lote_correcciones'),
       optionalSafe(sb.from('liquidacion_lote_eventos').select('*').order('creado_en',{ascending:false}).limit(1500),'liquidacion_lote_eventos'),
       optionalSafe(sb.from('entrega_pedido_transferencias').select('*').order('creado_en',{ascending:false}).limit(1500),'entrega_pedido_transferencias')
@@ -846,6 +851,8 @@ async function loadOperationalDataV9384(page=state.page){
     state.entregaDocumentosHistorial=documentos.data||[];
     state.liquidacionesLotes=liquidaciones.data||[];
     state.liquidacionLoteDetalle=liqDetalle.data||[];
+    state.liquidacionEfectivoConteos=conteosEfectivo.data||[];
+    state.liquidacionEfectivoSchemaOk=!conteosEfectivo.error;
     state.deliveryLotCorrections=correcciones.data||[];
     state.v936SchemaOk=!correcciones.error;
     state.liquidacionLotEvents=eventos.data||[];
@@ -1020,7 +1027,7 @@ function render(){
   }
   if(!puede(state.page)) state.page = visibleNav[0][0];
   const sidebarCollapsed=loadSidebarCollapsed();
-  root.innerHTML = `<div class="shell${sidebarCollapsed?' sidebar-collapsed':''}"><aside id="appSidebar" class="sidebar" aria-hidden="${sidebarCollapsed?'true':'false'}"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.4.4.2 PWA · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.4.4.2 PWA</b><br>Reasignación segura desde Validación.</div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" data-collapsed="${sidebarCollapsed?'1':'0'}" aria-controls="appSidebar" aria-expanded="${sidebarCollapsed?'false':'true'}" aria-label="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}" title="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}"><span aria-hidden="true">${sidebarCollapsed?'›':'‹'}</span></button><main class="main"><div class="top"><div class="mobile-brand-mini"><span>${esc(appCfg('empresa.logoTexto','PC'))}</span></div><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray" aria-label="Mi acceso">Mi acceso</button><button id="refreshBtn" aria-label="Actualizar">Actualizar</button><button id="logoutBtn" class="dark" aria-label="Salir">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
+  root.innerHTML = `<div class="shell${sidebarCollapsed?' sidebar-collapsed':''}"><aside id="appSidebar" class="sidebar" aria-hidden="${sidebarCollapsed?'true':'false'}"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.4.5 PWA · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.4.5 PWA</b><br>Conteo de efectivo auditado en Liquidación.</div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" data-collapsed="${sidebarCollapsed?'1':'0'}" aria-controls="appSidebar" aria-expanded="${sidebarCollapsed?'false':'true'}" aria-label="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}" title="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}"><span aria-hidden="true">${sidebarCollapsed?'›':'‹'}</span></button><main class="main"><div class="top"><div class="mobile-brand-mini"><span>${esc(appCfg('empresa.logoTexto','PC'))}</span></div><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray" aria-label="Mi acceso">Mi acceso</button><button id="refreshBtn" aria-label="Actualizar">Actualizar</button><button id="logoutBtn" class="dark" aria-label="Salir">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
   setupKeyboardShortcuts();
   bindSidebarToggle();
   $$('[data-page]').forEach(b=>b.onclick=()=>navigateToPageV942(b.dataset.page));
@@ -5128,11 +5135,14 @@ async function receiveOrderCxcV937(o,payload){
 }
 async function receiveBatchCxcV9392R2(g,payload){
   if(!state.v937SchemaOk) throw new Error('Primero ejecuta los SQL 30, 45 y 46 en Supabase.');
+  if(!state.liquidacionEfectivoSchemaOk) throw new Error('Primero aplica la migración V9.4.5 de desglose de efectivo en Supabase.');
   const lot=batchRecordByCode(g.code);
   if(!lot?.id) throw new Error('No se encontró el lote formal. Actualiza la pantalla.');
-  const {data,error}=await sb.rpc('recibir_lote_cxc_v9393',{
+  const {data,error}=await sb.rpc('recibir_lote_cxc_v945',{
     p_lote_id:Number(lot.id),
     p_items:payload.items,
+    p_desglose:payload.cashBreakdown,
+    p_ajuste_fraccion:Number(payload.cashAdjustment||0),
     p_recibido_por:payload.receivedBy||currentWorkerName(),
     p_observacion:payload.note||null
   });
@@ -5233,7 +5243,7 @@ function bindHistorySection(c,scope,filter,rows,rerender){
   const collapse=$('[data-history-collapse-all]',c); if(collapse) collapse.onclick=()=>{setHistoryRowsOpen(scope,rows,false);rerender();};
   const more=$('[data-history-more]',c); if(more) more.onclick=()=>{state[keys.limit]=Number(state[keys.limit]||10)+10;rerender();};
   const print=$('[data-history-print]',c); if(print) print.onclick=()=>printHistorySummary(filter,rows,state[keys.from],state[keys.to]);
-  $$('[data-print-history-key]',c).forEach(b=>b.onclick=()=>{const l=rows.find(x=>historyRowKey(x)===b.dataset.printHistoryKey);if(l) printLiquidationReceipt(l.delivery_nombre,historyVisualCode(l),historyLotItems(l),{efectivo_recibido:l.efectivo_recibido||l.efectivo_reportado,recibido_por:l.recibido_por||'',observacion:l.observacion||''},false);});
+  $$('[data-print-history-key]',c).forEach(b=>b.onclick=()=>{const l=rows.find(x=>historyRowKey(x)===b.dataset.printHistoryKey);if(l) printLiquidationReceipt(l.delivery_nombre,historyVisualCode(l),historyLotItems(l),{efectivo_recibido:l.efectivo_recibido||l.efectivo_reportado,recibido_por:l.recibido_por||'',observacion:l.observacion||'',cash_count:cashCountForLiquidation(l)},false);});
   $$('[data-consolidate-duplicate]',c).forEach(b=>b.onclick=()=>consolidateDuplicateLiquidations(b.dataset.consolidateDuplicate));
   try{bindDynamic();}catch(err){console.error('bindHistorySection',err);}
 }
@@ -6702,6 +6712,7 @@ function openCloseBatchLiquidationModal(deliveryName,g){
       <div class="liq-check-status" data-batch-status="${o.id}">Sin cotejar</div>
     </div>`;
   }).join('');
+  const cashDenominationFields=CASH_DENOMINATIONS_V945.map(denominacion=>`<label class="cash-denomination-item"><span>RD$ ${denominacion.toLocaleString('es-DO')}</span><input type="number" inputmode="numeric" step="1" min="0" value="0" data-cash-denomination="${denominacion}" aria-label="Cantidad de ${denominacion}"><strong data-cash-subtotal="${denominacion}">${money(0)}</strong></label>`).join('');
   const body=`<div class="form batch-liquidation-form"><div class="client-card" style="grid-template-columns:1fr"><div><div class="client-title">${esc(g.code)} · ${esc(deliveryName||'')}</div><div class="client-sub">Recepción por lote/viaje. Coteja ventas de contado, confirma créditos y luego genera el recibo.</div></div></div>
   <div class="grid4 compact-kpis"><div class="card kpi"><div class="label">Monto por cotejar</div><div class="value">${money(summary.total)}</div></div><div class="card kpi"><div class="label">Efectivo confirmado</div><div class="value">${money(0)}</div></div><div class="card kpi"><div class="label">Crédito / devolución</div><div class="value">${money(0)}</div></div><div class="card kpi"><div class="label">Clientes pendientes</div><div class="value">${orders.length}</div></div></div>
   <div class="lock-alert ok"><b>Cotejo por lote:</b> aparecen todas las ventas del lote: contado, crédito, abonos, devoluciones y no entregados. Marca cada cliente para habilitar su efectivo/abono. Las ventas al contado suman caja; las ventas a crédito se cierran manualmente o se abonan si el delivery trae dinero.</div>
@@ -6709,6 +6720,7 @@ function openCloseBatchLiquidationModal(deliveryName,g){
   <div class="liq-check-scroll"><div class="liq-check-head"><span></span><span>Cliente / orden</span><span>Factura</span><span>Efectivo / abono</span><span>Crédito / devolución</span><span>Estado</span></div>
   <div class="liq-check-list">${rows}</div></div>
   <div class="grid4 compact-kpis"><div class="card kpi"><div class="label">Cotejados</div><div class="value" id="batchCheckedCount">0/${orders.length}</div></div><div class="card kpi"><div class="label">Efectivo cotejado</div><div class="value" id="batchCashTotal">${money(0)}</div></div><div class="card kpi"><div class="label">Crédito / devolución final</div><div class="value" id="batchCreditTotal">${money(0)}</div></div><div class="card kpi"><div class="label">Pendientes</div><div class="value" id="batchUncheckedCount">${orders.length}</div></div></div>
+  <details class="cash-breakdown-card" open><summary><span><b>Desglose de efectivo</b><small>Cuenta el dinero físico recibido del delivery.</small></span><span class="badge warn" id="cashBreakdownBadge">Pendiente</span></summary><div class="cash-breakdown-body"><div class="cash-breakdown-grid">${cashDenominationFields}</div><div class="cash-breakdown-summary"><div><span>Esperado</span><b id="cashExpectedTotal">${money(0)}</b></div><div><span>Contado</span><b id="cashCountedTotal">${money(0)}</b></div><div><span>Ajuste de fracción</span><b id="cashFractionAdjustment">${money(0)}</b></div><div><span>Diferencia</span><b id="cashDifferenceTotal">${money(0)}</b></div></div><div class="cash-breakdown-actions"><p id="cashBreakdownStatus">Digita la cantidad de cada billete o moneda.</p><button type="button" class="btn small gray" id="clearCashBreakdown">Limpiar desglose</button></div></div></details>
   <div class="grid2"><div class="field"><label>Recibido por</label><select id="batchBy">${employeeOptions('CXC',currentWorkerName())}</select>${manualInput('batchByManual')}</div><div class="field"><label>Observación del cierre</label><textarea id="batchObs" placeholder="Opcional"></textarea></div></div>
   <div id="batchCloseSummary" class="lock-alert warn"></div><div class="actions"><button class="btn" id="saveBatchClose">Cerrar lote y generar recibo</button><button class="btn gray" id="previewBatchReceipt">Vista recibo</button></div></div>`;
   const m=openModal('Recibir lote por cotejo',body,'Caja CXC: contado, crédito y abonos revisados cliente por cliente.');
@@ -6746,6 +6758,41 @@ function openCloseBatchLiquidationModal(deliveryName,g){
     else if(selectedResult==='No entregado'){ finalCredit=0; }
     return {checked,cash,err,finalCredit,returnAmount,finalResult,total:f.total,type,selectedResult,initial:f,returnDraft};
   }
+  function readCashBreakdown(){
+    return $$('[data-cash-denomination]',m).map(input=>({
+      denominacion:Number(input.dataset.cashDenomination),
+      cantidad:Number(input.value||0)
+    }));
+  }
+  function paintCashBreakdown(expectedCash){
+    let reconciliation;
+    try{
+      reconciliation=reconcileCashBreakdownV945(readCashBreakdown(),expectedCash);
+    }catch(err){
+      reconciliation={breakdown:[],expected:Number(expectedCash||0),counted:0,adjustment:0,difference:Number(expectedCash||0)*-1,rawDifference:Number(expectedCash||0)*-1,canClose:false,error:err.message||String(err)};
+    }
+    reconciliation.breakdown.forEach(row=>{
+      const subtotal=$(`[data-cash-subtotal="${row.denominacion}"]`,m);
+      if(subtotal) subtotal.textContent=money(row.subtotal);
+    });
+    $('#cashExpectedTotal',m).textContent=money(reconciliation.expected);
+    $('#cashCountedTotal',m).textContent=money(reconciliation.counted);
+    $('#cashFractionAdjustment',m).textContent=money(reconciliation.adjustment);
+    $('#cashDifferenceTotal',m).textContent=money(reconciliation.difference);
+    const badge=$('#cashBreakdownBadge',m),status=$('#cashBreakdownStatus',m);
+    if(reconciliation.canClose){
+      badge.className='badge ok'; badge.textContent='Cuadrado';
+      status.className='cash-breakdown-ok';
+      status.textContent=Math.abs(reconciliation.adjustment)>0.001
+        ? `Conteo conciliado. Se registrará un ajuste de fracción de ${money(reconciliation.adjustment)}.`
+        : 'Conteo físico igual al efectivo esperado.';
+    }else{
+      badge.className='badge bad'; badge.textContent='Diferencia';
+      status.className='cash-breakdown-bad';
+      status.textContent=reconciliation.error||`Faltan o sobran ${money(Math.abs(reconciliation.rawDifference))}. Revisa las cantidades.`;
+    }
+    return reconciliation;
+  }
   function paint(){
     let checkedCount=0,cashTotal=0,creditTotal=0,errors=[],unchecked=[];
     orders.forEach(o=>{
@@ -6768,14 +6815,22 @@ function openCloseBatchLiquidationModal(deliveryName,g){
     $('#batchUncheckedCount',m).textContent=String(unchecked.length);
     $('#batchCashTotal',m).textContent=money(cashTotal);
     $('#batchCreditTotal',m).textContent=money(creditTotal);
+    const cashBreakdown=paintCashBreakdown(cashTotal);
     const msg=$('#batchCloseSummary',m);
     if(errors.length){ msg.className='lock-alert bad'; msg.innerHTML='<b>Revisar:</b><br>'+errors.map(esc).join('<br>'); }
     else if(unchecked.length){ msg.className='lock-alert warn'; msg.innerHTML=`Faltan ${unchecked.length} cliente(s) por cotejar antes de cerrar el lote.`; }
-    else { msg.className='lock-alert ok'; msg.innerHTML=`Lote cotejado. Efectivo a recibir: <b>${money(cashTotal)}</b>. Crédito final: <b>${money(creditTotal)}</b>.`; }
-    return {checkedCount,cashTotal,creditTotal,errors,unchecked};
+    else if(!cashBreakdown.canClose){ msg.className='lock-alert bad'; msg.innerHTML='El lote está cotejado, pero el desglose físico no coincide con el efectivo esperado.'; }
+    else { msg.className='lock-alert ok'; msg.innerHTML=`Lote cotejado y efectivo cuadrado. Efectivo a recibir: <b>${money(cashTotal)}</b>. Crédito final: <b>${money(creditTotal)}</b>.`; }
+    return {checkedCount,cashTotal,creditTotal,errors,unchecked,cashBreakdown};
   }
   $$('[data-batch-check]',m).forEach(ch=>ch.onchange=()=>{ paint(); if(ch.checked){ const inp=$(`[data-batch-cash="${ch.dataset.batchCheck}"]`,m); if(inp && !inp.disabled) focusAndSelect(inp); } });
   $$('[data-batch-cash]',m).forEach(inp=>inp.oninput=paint);
+  $$('[data-cash-denomination]',m).forEach(inp=>inp.oninput=()=>{
+    if(inp.value!=='' && (!Number.isInteger(Number(inp.value)) || Number(inp.value)<0)) inp.classList.add('input-error');
+    else inp.classList.remove('input-error');
+    paint();
+  });
+  $('#clearCashBreakdown',m).onclick=()=>{$$('[data-cash-denomination]',m).forEach(inp=>{inp.value=0;inp.classList.remove('input-error');});paint();};
   $$('[data-batch-result]',m).forEach(sel=>sel.onchange=()=>{
     const o=orderById(sel.dataset.batchResult);
     const inp=$(`[data-batch-cash="${sel.dataset.batchResult}"]`,m);
@@ -6808,14 +6863,16 @@ function openCloseBatchLiquidationModal(deliveryName,g){
   function buildResults(){ return orders.map(o=>({o,...rowCalc(o)})); }
   $('#previewBatchReceipt',m).onclick=()=>{
     const r=buildResults();
+    const previewSummary=paint();
     const previewOrders=r.map(x=>({...x.o,estado:x.finalResult,resultado_entrega:x.finalResult,monto_cobrado:x.cash,monto_pendiente:x.finalCredit}));
-    printLiquidationReceipt(deliveryName,g.code,previewOrders,{efectivo_recibido:r.reduce((s,x)=>s+x.cash,0),recibido_por:getSelectManual(m,'batchBy','batchByManual'),observacion:$('#batchObs',m).value||''},false);
+    printLiquidationReceipt(deliveryName,g.code,previewOrders,{efectivo_recibido:r.reduce((s,x)=>s+x.cash,0),recibido_por:getSelectManual(m,'batchBy','batchByManual'),observacion:$('#batchObs',m).value||'',cash_count:{desglose:previewSummary.cashBreakdown.breakdown,efectivo_esperado:previewSummary.cashBreakdown.expected,efectivo_contado:previewSummary.cashBreakdown.counted,ajuste_fraccion:previewSummary.cashBreakdown.adjustment,diferencia:previewSummary.cashBreakdown.difference}},false);
   };
   $('#saveBatchClose',m).onclick=async()=>{
     const recibido_por=getSelectManual(m,'batchBy','batchByManual'); if(!recibido_por) return alert('Selecciona quién recibe la liquidación.');
     const summaryNow=paint();
     if(summaryNow.unchecked.length) return alert('No puedes recibir los pendientes del lote. Faltan clientes por cotejar:\n\n'+summaryNow.unchecked.map(o=>'- '+(o.cliente?.negocio||o.codigo)).join('\n'));
     if(summaryNow.errors.length) return alert('Hay errores de caja:\n\n'+summaryNow.errors.join('\n'));
+    if(!summaryNow.cashBreakdown.canClose) return alert('El desglose de denominaciones no coincide con el efectivo esperado. Revisa las cantidades antes de cerrar el lote.');
     const obs=$('#batchObs',m).value||'';
     const results=buildResults();
     if(results.some(x=>x.finalResult==='No entregado') && obs.trim().length<3)
@@ -6824,11 +6881,11 @@ function openCloseBatchLiquidationModal(deliveryName,g){
       lineas:x.finalResult==='Devuelto parcial' ? x.returnDraft.rows.map(r=>({detalle_id:r.detalle_id,cantidad:r.qty,peso:r.weight,destino:r.destino,motivo:r.motivo})) : undefined}));
     const save=$('#saveBatchClose',m); save.disabled=true; save.textContent='Procesando lote...';
     try{
-      const response=await receiveBatchCxcV9392R2(g,{items,receivedBy:recibido_por,note:obs});
+      const response=await receiveBatchCxcV9392R2(g,{items,receivedBy:recibido_por,note:obs,cashBreakdown:summaryNow.cashBreakdown.breakdown,cashAdjustment:summaryNow.cashBreakdown.adjustment});
       const finalOrders=results.map(x=>({...x.o,estado:x.finalResult,resultado_entrega:x.finalResult,monto_cobrado:x.cash,monto_pendiente:x.finalCredit,
         monto_devuelto:x.returnAmount||0,total_neto_liquidacion:x.returnDraft?.netTotal??x.total,peso_devuelto:x.returnDraft?.returnedWeight||0,peso_neto_entregado:x.returnDraft?.netWeight??partialReturnOriginalWeight(x.o)}));
       m.remove();
-      printLiquidationReceipt(deliveryName,g.code,finalOrders,{efectivo_recibido:summaryNow.cashTotal,recibido_por,observacion:obs},true);
+      printLiquidationReceipt(deliveryName,g.code,finalOrders,{efectivo_recibido:summaryNow.cashTotal,recibido_por,observacion:obs,cash_count:{desglose:summaryNow.cashBreakdown.breakdown,efectivo_esperado:summaryNow.cashBreakdown.expected,efectivo_contado:summaryNow.cashBreakdown.counted,ajuste_fraccion:summaryNow.cashBreakdown.adjustment,diferencia:summaryNow.cashBreakdown.difference}},true);
       await refreshVisibleModuleV9384(); render();
       toast(response?.no_entregados_a_validacion
         ? `Lote cerrado. ${response.no_entregados_a_validacion} pedido(s) regresaron a Validación.`
@@ -6838,11 +6895,24 @@ function openCloseBatchLiquidationModal(deliveryName,g){
   paint();
 }
 
+function cashCountForLiquidation(row){
+  const ids=new Set((row?.liquidation_ids||[row?.id]).filter(id=>id!==null&&id!==undefined).map(String));
+  return (state.liquidacionEfectivoConteos||[]).find(count=>ids.has(String(count.liquidacion_id)))||null;
+}
+function cashBreakdownReceiptHtml(count){
+  if(!count) return '';
+  let rows=[];
+  try{ rows=cashBreakdownNonZeroV945(typeof count.desglose==='string'?JSON.parse(count.desglose):count.desglose||[]); }catch{ rows=[]; }
+  const detail=rows.length
+    ? `<table class="cash-table"><thead><tr><th>Denominación</th><th>Cantidad</th><th>Subtotal</th></tr></thead><tbody>${rows.map(row=>`<tr><td>${money(row.denominacion)}</td><td>${row.cantidad}</td><td>${money(row.subtotal)}</td></tr>`).join('')}</tbody></table>`
+    : '<p>Sin denominaciones con cantidad.</p>';
+  return `<div class="box"><b>Conteo físico de efectivo</b>${detail}<p><b>Contado:</b> ${money(count.efectivo_contado||0)} · <b>Ajuste de fracción:</b> ${money(count.ajuste_fraccion||0)} · <b>Conciliado:</b> ${money(Number(count.efectivo_contado||0)+Number(count.ajuste_fraccion||0))} · <b>Diferencia:</b> ${money(count.diferencia||0)}</p></div>`;
+}
 function printLiquidationReceipt(deliveryName,code,orders,recibo={},auto=true){
   const summary=deliveryMoneySummary(orders);
   const rows=orders.map(o=>{ const result=o.resultado_entrega||o.estado||''; const pending=Number(o.monto_pendiente||0); const credit=result==='Entregado a crédito'?pending:0; const notDelivered=result==='No entregado'?orderMonto(o):(result==='Devuelto parcial'?pending:0); return `<tr><td>${esc(o.codigo||'')}</td><td>${esc(orderClientName(o))}</td><td>${esc(o.factura_no||'—')}</td><td>${esc(result)}</td><td>${money(orderMonto(o))}</td><td>${money(o.monto_cobrado||0)}</td><td>${money(credit)}</td><td>${money(notDelivered)}</td></tr>`; }).join('');
   const diff=Number(recibo.efectivo_recibido||0)-summary.cobrado;
-  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Recibo ${esc(code)}</title><style>body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:20px}h1{font-size:20px;margin:0 0 8px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #ddd;padding:6px;text-align:left}th{background:#f3f4f6}.tot{font-weight:bold;background:#f8fafc}.sign{border-top:1px solid #000;margin-top:38px;padding-top:4px;width:240px;display:inline-block;margin-right:40px}.box{border:1px solid #ddd;border-radius:10px;padding:10px;margin:10px 0}@media print{button{display:none}}</style></head><body>${printCompanyHeader(appCfg('recibos.tituloLiquidacion','Recibo de liquidación'),'Cierre formal de lote/viaje')}<div class="box"><b>Lote/Viaje:</b> ${esc(code)}<br><b>Responsable del viaje:</b> ${esc(deliveryName||'—')}<br><b>Fecha:</b> ${businessDateTime(new Date())}<br><b>Recibido por:</b> ${esc(recibo.recibido_por||'—')}</div><p><b>Órdenes:</b> ${orders.length} · <b>Total facturado:</b> ${money(summary.total)} · <b>Efectivo recibido:</b> ${money(recibo.efectivo_recibido||0)} · <b>Crédito:</b> ${money(summary.credito)} · <b>No entregado / devuelto:</b> ${money(summary.noEntregado+summary.devuelto)} · <b>Diferencia:</b> ${money(diff)}</p><table><thead><tr><th>Orden</th><th>Cliente</th><th>Factura</th><th>Resultado</th><th>Total</th><th>Cobrado</th><th>Crédito</th><th>No entregado / devuelto</th></tr></thead><tbody>${rows}<tr class="tot"><td colspan="4">Totales</td><td>${money(summary.total)}</td><td>${money(summary.cobrado)}</td><td>${money(summary.credito)}</td><td>${money(summary.noEntregado+summary.devuelto)}</td></tr></tbody></table>${recibo.observacion?`<p><b>Observación:</b> ${esc(recibo.observacion)}</p>`:''}${signatureHtml(appCfg('recibos.firmaDelivery','Firma delivery'))}${signatureHtml(appCfg('recibos.firmaRecibido','Firma recibido por CXC'))}${printFooterHtml()}<button onclick="window.print()">Imprimir</button>${auto?'<script>setTimeout(()=>window.print(),400)<\/script>':''}</body></html>`;
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Recibo ${esc(code)}</title><style>body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:20px}h1{font-size:20px;margin:0 0 8px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #ddd;padding:6px;text-align:left}th{background:#f3f4f6}.cash-table{max-width:520px}.tot{font-weight:bold;background:#f8fafc}.sign{border-top:1px solid #000;margin-top:38px;padding-top:4px;width:240px;display:inline-block;margin-right:40px}.box{border:1px solid #ddd;border-radius:10px;padding:10px;margin:10px 0}@media print{button{display:none}}</style></head><body>${printCompanyHeader(appCfg('recibos.tituloLiquidacion','Recibo de liquidación'),'Cierre formal de lote/viaje')}<div class="box"><b>Lote/Viaje:</b> ${esc(code)}<br><b>Responsable del viaje:</b> ${esc(deliveryName||'—')}<br><b>Fecha:</b> ${businessDateTime(new Date())}<br><b>Recibido por:</b> ${esc(recibo.recibido_por||'—')}</div><p><b>Órdenes:</b> ${orders.length} · <b>Total facturado:</b> ${money(summary.total)} · <b>Efectivo recibido:</b> ${money(recibo.efectivo_recibido||0)} · <b>Crédito:</b> ${money(summary.credito)} · <b>No entregado / devuelto:</b> ${money(summary.noEntregado+summary.devuelto)} · <b>Diferencia:</b> ${money(diff)}</p>${cashBreakdownReceiptHtml(recibo.cash_count)}<table><thead><tr><th>Orden</th><th>Cliente</th><th>Factura</th><th>Resultado</th><th>Total</th><th>Cobrado</th><th>Crédito</th><th>No entregado / devuelto</th></tr></thead><tbody>${rows}<tr class="tot"><td colspan="4">Totales</td><td>${money(summary.total)}</td><td>${money(summary.cobrado)}</td><td>${money(summary.credito)}</td><td>${money(summary.noEntregado+summary.devuelto)}</td></tr></tbody></table>${recibo.observacion?`<p><b>Observación:</b> ${esc(recibo.observacion)}</p>`:''}${signatureHtml(appCfg('recibos.firmaDelivery','Firma delivery'))}${signatureHtml(appCfg('recibos.firmaRecibido','Firma recibido por CXC'))}${printFooterHtml()}<button onclick="window.print()">Imprimir</button>${auto?'<script>setTimeout(()=>window.print(),400)<\/script>':''}</body></html>`;
   const w=window.open('','_blank','width=950,height=750'); if(!w) return alert('El navegador bloqueó la ventana de impresión.'); w.document.open(); w.document.write(html); w.document.close();
 }
 function printHistorySummary(deliveryName,rows,from='',to=''){
