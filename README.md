@@ -1,5 +1,12 @@
 # Productos César CRM V9.4.5 PWA
 
+## V9.4.5.1 — Cotejo completo antes del desglose por lote
+
+- El desglose de efectivo del lote permanece bloqueado hasta cotejar y validar todos sus clientes.
+- El efectivo esperado se calcula después del cotejo completo y solo con contado/abonos confirmados.
+- Si cambia el efectivo confirmado después de aplicar un desglose, el conteo anterior se invalida y debe rehacerse.
+- Los lotes totalmente cotejados sin efectivo muestran `Sin efectivo` y no exigen abrir la ficha.
+
 ## V9.4.5 — Desglose físico de efectivo en Liquidación
 
 - Agrega conteo compacto por denominaciones RD$2,000, 1,000, 500, 200, 100, 50, 25, 10, 5 y 1.

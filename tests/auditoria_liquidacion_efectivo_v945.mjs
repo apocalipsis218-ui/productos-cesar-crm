@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   CASH_DENOMINATIONS_V945,
+  batchCashBreakdownReadinessV945,
   cashBreakdownFromCountsV945,
   cashBreakdownNonZeroV945,
   normalizeCashBreakdownV945,
@@ -54,6 +55,26 @@ const creditOnly=reconcileCashBreakdownV945(cashBreakdownFromCountsV945({}),0);
 assert.equal(creditOnly.counted,0);
 assert.equal(creditOnly.canClose,true);
 
+const partialBatch=batchCashBreakdownReadinessV945({totalClients:5,checkedClients:1,errorCount:0,expectedCash:2324});
+assert.equal(partialBatch.pendingClients,4);
+assert.equal(partialBatch.allReviewed,false);
+assert.equal(partialBatch.canOpen,false);
+
+const invalidBatch=batchCashBreakdownReadinessV945({totalClients:5,checkedClients:5,errorCount:1,expectedCash:2324});
+assert.equal(invalidBatch.allReviewed,true);
+assert.equal(invalidBatch.valid,false);
+assert.equal(invalidBatch.canOpen,false);
+
+const cashBatch=batchCashBreakdownReadinessV945({totalClients:5,checkedClients:5,errorCount:0,expectedCash:8658});
+assert.equal(cashBatch.valid,true);
+assert.equal(cashBatch.requiresBreakdown,true);
+assert.equal(cashBatch.canOpen,true);
+
+const noCashBatch=batchCashBreakdownReadinessV945({totalClients:5,checkedClients:5,errorCount:0,expectedCash:0});
+assert.equal(noCashBatch.requiresBreakdown,false);
+assert.equal(noCashBatch.canOpen,false);
+assert.equal(noCashBatch.canCloseWithoutBreakdown,true);
+
 assert.throws(()=>normalizeCashBreakdownV945([{denominacion:2000,cantidad:-1}]),/entero/);
 assert.throws(()=>normalizeCashBreakdownV945([{denominacion:2000,cantidad:1.5}]),/entero/);
 assert.throws(()=>normalizeCashBreakdownV945([{denominacion:250,cantidad:1}]),/no permitida/);
@@ -65,9 +86,14 @@ assert.deepEqual(cashBreakdownNonZeroV945(cashBreakdownFromCountsV945({500:2,25:
 
 const checks=[
   ['versión V9.4.5 sincronizada',pkg.version==='9.4.5'&&/V9\.4\.5 PWA/.test(main)],
+  ['revisión funcional V9.4.5.1 documentada',/V9\.4\.5\.1 PWA/.test(main)&&/V9\.4\.5\.1 — Cotejo completo/.test(read('../README.md'))],
   ['helpers usados por la interfaz están importados',/import \{[\s\S]*cashBreakdownFromCountsV945,[\s\S]*normalizeCashBreakdownV945,[\s\S]*reconcileCashBreakdownV945[\s\S]*\} from '\.\/cashBreakdownV945\.js';/.test(main)],
   ['ficha usa las diez denominaciones',/CASH_DENOMINATIONS_V945/.test(main)&&/data-cash-sheet-denomination/.test(main)],
   ['botón compacto se usa en lote e individual',(main.match(/cashBreakdownTriggerHtmlV945\(/g)||[]).length>=3&&/Desglose de efectivo/.test(main)],
+  ['desglose por lote exige cotejo completo',/batchCashBreakdownReadinessV945/.test(main)&&/Primero coteja todos los clientes del lote/.test(main)&&/button\.disabled=options\.disabled===true/.test(main)&&/cash-breakdown-trigger \.btn:disabled/.test(css)],
+  ['filas inválidas también bloquean el desglose',/current\.breakdownReadiness\.errorCount/.test(main)&&/Corrige los errores del cotejo antes de desglosar el efectivo/.test(main)],
+  ['lote sin efectivo no abre una ficha innecesaria',/canCloseWithoutBreakdown/.test(main)&&/El lote cotejado no contiene efectivo físico para desglosar/.test(main)],
+  ['cambio posterior invalida el desglose aplicado',/batchCashBreakdownExpected!==null/.test(main)&&/batchCashBreakdown=emptyCashBreakdownV945\(\)/.test(main)&&/batchCashSurplusAuthorization=''/.test(main)],
   ['ficha vertical muestra cantidad por denominación y subtotal',/cash-sheet-row/.test(main)&&/×/.test(main)&&/data-cash-sheet-subtotal/.test(main)],
   ['Enter recorre desde RD$2,000 hasta aplicar',/bindEnterFlow\(\[\.\.\.inputs,apply\]\)/.test(main)&&/focusAndSelect\(inputs\[0\]\)/.test(main)],
   ['ficha muestra esperado, contado, ajuste y diferencia',/cash-sheet-expected/.test(main)&&/cashSheetCounted/.test(main)&&/cashSheetAdjustment/.test(main)&&/cashSheetDifference/.test(main)],

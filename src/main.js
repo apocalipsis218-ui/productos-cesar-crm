@@ -17,6 +17,7 @@ import { allocateCxcOldest, normalizeManualCxcApplications, cxcApplicationsTotal
 import { auxTablesForPageV942, boundedOrderIdsV942, changedOrderIdV942, isOperationalPageV942, realtimeTablesForPageV942, removeRowByIdV942, upsertRowByIdV942 } from './runtimeDataV942.js';
 import {
   CASH_DENOMINATIONS_V945,
+  batchCashBreakdownReadinessV945,
   cashBreakdownFromCountsV945,
   cashBreakdownNonZeroV945,
   normalizeCashBreakdownV945,
@@ -35,6 +36,7 @@ import {
 // V9.4.4.1 PWA · panel de productividad simplificado por empleado.
 // V9.4.4.2 PWA · reasignación y retorno seguro de clientes desde Validación.
 // V9.4.5 PWA · conteo físico por denominaciones al cerrar lotes en Liquidación.
+// V9.4.5.1 PWA · el desglose por lote exige cotejar y validar todos los clientes primero.
 // Conserva factura, pesaje e historial del intento fallido.
 // Control conservado: Pulsa “Detallar artículos” para registrar producto, cantidad y peso.
 // V9.3.9.1 · Faltantes con seguimiento y liquidación segura de clientes ocasionales.
@@ -6509,12 +6511,18 @@ function closeCashBreakdownSheetV945(sheet){
   if(!state.modal) document.body.classList.remove('modal-open');
 }
 function cashBreakdownTriggerHtmlV945(id){
-  return `<div class="cash-breakdown-trigger"><div><b>Conteo físico</b><small>Registra billetes y monedas solo cuando exista efectivo.</small></div><div class="cash-breakdown-trigger-actions"><span class="badge warn" id="${id}Badge">Pendiente</span><button type="button" class="btn small dark" id="${id}">Desglose de efectivo</button></div></div>`;
+  return `<div class="cash-breakdown-trigger"><div><b>Conteo físico</b><small id="${id}Hint">Registra billetes y monedas solo cuando exista efectivo.</small></div><div class="cash-breakdown-trigger-actions"><span class="badge warn" id="${id}Badge">Pendiente</span><button type="button" class="btn small dark" id="${id}">Desglose de efectivo</button></div></div>`;
 }
-function paintCashBreakdownTriggerV945(root,id,reconciliation){
-  const badge=$(`#${id}Badge`,root),button=$(`#${id}`,root);
+function paintCashBreakdownTriggerV945(root,id,reconciliation,options={}){
+  const badge=$(`#${id}Badge`,root),button=$(`#${id}`,root),hint=$(`#${id}Hint`,root);
   if(!badge||!button) return;
-  if(reconciliation.canClose){
+  button.disabled=options.disabled===true;
+  button.setAttribute('aria-disabled',String(button.disabled));
+  if(hint&&options.hintText) hint.textContent=options.hintText;
+  if(options.badgeText){
+    badge.className=`badge ${options.badgeClass||'warn'}`;
+    badge.textContent=options.badgeText;
+  }else if(reconciliation.canClose){
     badge.className='badge ok';
     badge.textContent=reconciliation.expected>0?'Cuadrado':'Sin efectivo';
   }else if(reconciliation.hasSurplus){
@@ -6881,6 +6889,7 @@ function openCloseBatchLiquidationModal(deliveryName,g){
   const partialDrafts=new Map();
   let batchCashBreakdown=emptyCashBreakdownV945();
   let batchCashSurplusAuthorization='';
+  let batchCashBreakdownExpected=null;
   const rows=orders.map(o=>{
     const f=liquidationOrderFinancial(o);
     const type=liquidationRowType(o);
@@ -6941,7 +6950,7 @@ function openCloseBatchLiquidationModal(deliveryName,g){
     else if(selectedResult==='No entregado'){ finalCredit=0; }
     return {checked,cash,err,finalCredit,returnAmount,finalResult,total:f.total,type,selectedResult,initial:f,returnDraft};
   }
-  function paintCashBreakdown(expectedCash){
+  function paintCashBreakdown(expectedCash,readiness){
     let reconciliation;
     try{
       reconciliation=reconcileCashBreakdownV945(batchCashBreakdown,expectedCash);
@@ -6949,7 +6958,23 @@ function openCloseBatchLiquidationModal(deliveryName,g){
       reconciliation={breakdown:[],expected:Number(expectedCash||0),counted:0,adjustment:0,difference:Number(expectedCash||0)*-1,rawDifference:Number(expectedCash||0)*-1,exact:false,hasSurplus:false,hasShortage:true,canApply:false,canClose:false,error:err.message||String(err)};
     }
     const value={...reconciliation,surplusAuthorized:reconciliation.hasSurplus&&batchCashSurplusAuthorization===cashBreakdownSurplusAuthorizationKeyV945(reconciliation)};
-    paintCashBreakdownTriggerV945(m,'batchCashBreakdown',value);
+    const pending=readiness.pendingClients;
+    const disabled=!readiness.canOpen;
+    const badgeText=!readiness.allReviewed
+      ? `${pending} por cotejar`
+      : readiness.errorCount
+        ? 'Revisa errores'
+        : readiness.canCloseWithoutBreakdown
+          ? 'Sin efectivo'
+          : '';
+    const hintText=!readiness.allReviewed
+      ? `Coteja los ${readiness.totalClients} clientes antes de desglosar el efectivo del lote.`
+      : readiness.errorCount
+        ? 'Corrige las filas observadas antes de abrir el desglose.'
+        : readiness.canCloseWithoutBreakdown
+          ? 'El lote cotejado no contiene efectivo físico para desglosar.'
+          : `Todos los clientes están cotejados. Desglosa el efectivo confirmado: ${money(expectedCash)}.`;
+    paintCashBreakdownTriggerV945(m,'batchCashBreakdown',value,{disabled,badgeText,badgeClass:readiness.canCloseWithoutBreakdown?'info':'warn',hintText});
     return value;
   }
   function paint(){
@@ -6974,7 +6999,13 @@ function openCloseBatchLiquidationModal(deliveryName,g){
     $('#batchUncheckedCount',m).textContent=String(unchecked.length);
     $('#batchCashTotal',m).textContent=money(cashTotal);
     $('#batchCreditTotal',m).textContent=money(creditTotal);
-    const cashBreakdown=paintCashBreakdown(cashTotal);
+    const breakdownReadiness=batchCashBreakdownReadinessV945({totalClients:orders.length,checkedClients:checkedCount,errorCount:errors.length,expectedCash:cashTotal});
+    if(batchCashBreakdownExpected!==null&&Math.abs(batchCashBreakdownExpected-cashTotal)>0.009){
+      batchCashBreakdown=emptyCashBreakdownV945();
+      batchCashSurplusAuthorization='';
+      batchCashBreakdownExpected=null;
+    }
+    const cashBreakdown=paintCashBreakdown(cashTotal,breakdownReadiness);
     const msg=$('#batchCloseSummary',m);
     if(errors.length){ msg.className='lock-alert bad'; msg.innerHTML='<b>Revisar:</b><br>'+errors.map(esc).join('<br>'); }
     else if(unchecked.length){ msg.className='lock-alert warn'; msg.innerHTML=`Faltan ${unchecked.length} cliente(s) por cotejar antes de cerrar el lote.`; }
@@ -6982,15 +7013,31 @@ function openCloseBatchLiquidationModal(deliveryName,g){
     else if(cashBreakdown.hasSurplus){ msg.className='lock-alert warn'; msg.innerHTML=`El lote está cotejado, pero hay un sobrante de <b>${money(cashBreakdown.difference)}</b>. ${cashBreakdown.surplusAuthorized?'Autorizado para este cierre.':'Abre el desglose y autorízalo antes de cerrar.'}`; }
     else if(!cashBreakdown.canApply){ msg.className='lock-alert bad'; msg.innerHTML='Completa el desglose físico antes de cerrar el lote.'; }
     else { msg.className='lock-alert ok'; msg.innerHTML=`Lote cotejado y efectivo cuadrado. Efectivo a recibir: <b>${money(cashTotal)}</b>. Crédito final: <b>${money(creditTotal)}</b>.`; }
-    return {checkedCount,cashTotal,creditTotal,errors,unchecked,cashBreakdown};
+    return {checkedCount,cashTotal,creditTotal,errors,unchecked,cashBreakdown,breakdownReadiness};
   }
   $$('[data-batch-check]',m).forEach(ch=>ch.onchange=()=>{ paint(); if(ch.checked){ const inp=$(`[data-batch-cash="${ch.dataset.batchCheck}"]`,m); if(inp && !inp.disabled) focusAndSelect(inp); } });
   $$('[data-batch-cash]',m).forEach(inp=>inp.oninput=paint);
   $('#batchCashBreakdown',m).onclick=()=>{
-    const expected=paint().cashTotal;
+    const current=paint();
+    if(!current.breakdownReadiness.allReviewed){
+      const firstUnchecked=$$('[data-batch-check]',m).find(input=>!input.checked);
+      alert(`Primero coteja todos los clientes del lote. Faltan ${current.breakdownReadiness.pendingClients} por revisar.`);
+      firstUnchecked?.focus();
+      return;
+    }
+    if(current.breakdownReadiness.errorCount){
+      alert('Corrige los errores del cotejo antes de desglosar el efectivo.');
+      return;
+    }
+    if(!current.breakdownReadiness.requiresBreakdown){
+      alert('El lote cotejado no contiene efectivo físico para desglosar.');
+      return;
+    }
+    const expected=current.cashTotal;
     openCashBreakdownSheetV945({title:'Desglose de efectivo · recepción por lote',expected,rows:batchCashBreakdown,onApply:value=>{
       batchCashBreakdown=value.breakdown;
       batchCashSurplusAuthorization=value.surplusAuthorizationKey||'';
+      batchCashBreakdownExpected=value.expected;
       paint();
     }});
   };
