@@ -841,7 +841,7 @@ async function loadOperationalDataV9384(page=state.page){
       optionalSafe(sb.from('entrega_documentos_historial').select('*').order('fecha_evento',{ascending:false}).limit(2000),'entrega_documentos_historial'),
       optionalSafe(sb.from('liquidaciones_lotes').select('*').order('fecha_liquidacion',{ascending:false}).limit(500),'liquidaciones_lotes'),
       optionalSafe(sb.from('liquidacion_lote_detalle').select('*').order('id',{ascending:false}).limit(3000),'liquidacion_lote_detalle'),
-      optionalSafe(sb.from('liquidacion_efectivo_conteos_v945').select('*').order('creado_en',{ascending:false}).limit(500),'liquidacion_efectivo_conteos_v945'),
+      optionalSafe(sb.from('liquidacion_efectivo_conteos_v945').select('id,liquidacion_id,lote_id,orden_id,tipo_recepcion,codigo_lote,metodo,monto_recibido_total,efectivo_esperado,efectivo_contado,ajuste_fraccion,efectivo_conciliado,diferencia,desglose,motivo_ajuste,recibido_por,creado_por,creado_en').order('creado_en',{ascending:false}).limit(500),'liquidacion_efectivo_conteos_v945'),
       optionalSafe(sb.from('entrega_lote_correcciones').select('*').order('fecha_evento',{ascending:false}).limit(1000),'entrega_lote_correcciones'),
       optionalSafe(sb.from('liquidacion_lote_eventos').select('*').order('creado_en',{ascending:false}).limit(1500),'liquidacion_lote_eventos'),
       optionalSafe(sb.from('entrega_pedido_transferencias').select('*').order('creado_en',{ascending:false}).limit(1500),'entrega_pedido_transferencias')
@@ -5133,9 +5133,27 @@ async function receiveOrderCxcV937(o,payload){
   if(error) throw error;
   return data;
 }
+async function receiveOrderCxcV945(o,payload){
+  if(!state.v937SchemaOk) throw new Error('Primero ejecuta el SQL 30 de la V9.3.7 en Supabase.');
+  if(!state.liquidacionEfectivoSchemaOk) throw new Error('Primero aplica las migraciones V9.4.5 R1 y R2 de desglose de efectivo en Supabase.');
+  const {data,error}=await sb.rpc('recibir_orden_cxc_v945',{
+    p_orden_id:Number(o.id),
+    p_resultado:payload.result,
+    p_monto_recibido:Number(payload.cash||0),
+    p_metodo:payload.method||'Efectivo',
+    p_efectivo_fisico:Number(payload.physicalCash||0),
+    p_desglose:payload.cashBreakdown,
+    p_ajuste_fraccion:Number(payload.cashAdjustment||0),
+    p_recibido_por:payload.receivedBy||currentWorkerName(),
+    p_observacion:payload.note||null,
+    p_lineas:payload.rows||null
+  });
+  if(error) throw error;
+  return data;
+}
 async function receiveBatchCxcV9392R2(g,payload){
   if(!state.v937SchemaOk) throw new Error('Primero ejecuta los SQL 30, 45 y 46 en Supabase.');
-  if(!state.liquidacionEfectivoSchemaOk) throw new Error('Primero aplica la migración V9.4.5 de desglose de efectivo en Supabase.');
+  if(!state.liquidacionEfectivoSchemaOk) throw new Error('Primero aplica las migraciones V9.4.5 R1 y R2 de desglose de efectivo en Supabase.');
   const lot=batchRecordByCode(g.code);
   if(!lot?.id) throw new Error('No se encontró el lote formal. Actualiza la pantalla.');
   const {data,error}=await sb.rpc('recibir_lote_cxc_v945',{
@@ -6472,21 +6490,89 @@ async function receivePartialReturnV9392(o,payload){
   if(error) throw error;
   return data;
 }
+function emptyCashBreakdownV945(){
+  return cashBreakdownFromCountsV945({});
+}
+function closeCashBreakdownSheetV945(sheet){
+  sheet?.remove();
+  state.modal=!!document.querySelector('.modal');
+  if(!state.modal) document.body.classList.remove('modal-open');
+}
+function cashBreakdownTriggerHtmlV945(id){
+  return `<div class="cash-breakdown-trigger"><div><b>Conteo físico</b><small>Registra billetes y monedas solo cuando exista efectivo.</small></div><div class="cash-breakdown-trigger-actions"><span class="badge warn" id="${id}Badge">Pendiente</span><button type="button" class="btn small dark" id="${id}">Desglose de efectivo</button></div></div>`;
+}
+function paintCashBreakdownTriggerV945(root,id,reconciliation){
+  const badge=$(`#${id}Badge`,root),button=$(`#${id}`,root);
+  if(!badge||!button) return;
+  if(reconciliation.canClose){
+    badge.className='badge ok';
+    badge.textContent=reconciliation.expected>0?'Cuadrado':'Sin efectivo';
+  }else{
+    badge.className='badge bad';
+    badge.textContent=reconciliation.counted>0?'Diferencia':'Pendiente';
+  }
+  button.setAttribute('aria-label',`Desglose de efectivo. Esperado ${money(reconciliation.expected)}. ${badge.textContent}.`);
+}
+function openCashBreakdownSheetV945({title='Desglose de efectivo',expected=0,rows=[],onApply}){
+  let draft;
+  try{ draft=normalizeCashBreakdownV945(rows); }catch{ draft=emptyCashBreakdownV945(); }
+  const rowHtml=draft.map(row=>`<label class="cash-sheet-row"><input type="number" inputmode="numeric" min="0" step="1" value="${row.cantidad}" data-cash-sheet-denomination="${row.denominacion}" aria-label="Cantidad de ${row.denominacion}"><span>×</span><b>${money(row.denominacion)}</b><span>=</span><strong data-cash-sheet-subtotal="${row.denominacion}">${money(row.subtotal)}</strong></label>`).join('');
+  const body=`<div class="form cash-sheet-form"><div class="cash-sheet-expected"><span>Efectivo esperado</span><strong>${money(expected)}</strong></div><div class="cash-sheet-list">${rowHtml}</div><div class="cash-sheet-totals"><div><span>Contado</span><b id="cashSheetCounted">${money(0)}</b></div><div><span>Ajuste</span><b id="cashSheetAdjustment">${money(0)}</b></div><div><span>Diferencia</span><b id="cashSheetDifference">${money(0)}</b></div></div><div id="cashSheetStatus" class="lock-alert warn">Digita la cantidad de cada denominación.</div><div class="actions cash-sheet-actions"><button type="button" class="btn gray" id="clearCashSheet">Limpiar</button><button type="button" class="btn" id="applyCashSheet">Aplicar desglose</button></div></div>`;
+  const sheet=openModal(title,body,'Flujo rápido: RD$2,000 → Enter → siguiente denominación → aplicar.');
+  sheet.classList.add('cash-breakdown-sheet-modal');
+  const inputs=$$('[data-cash-sheet-denomination]',sheet),apply=$('#applyCashSheet',sheet);
+  function read(){
+    return inputs.map(input=>({denominacion:Number(input.dataset.cashSheetDenomination),cantidad:Number(input.value||0)}));
+  }
+  function paint(){
+    let value;
+    try{
+      value=reconcileCashBreakdownV945(read(),expected);
+      inputs.forEach(input=>input.classList.remove('input-error'));
+    }catch(err){
+      value={breakdown:[],expected:Number(expected||0),counted:0,adjustment:0,difference:Number(expected||0)*-1,rawDifference:Number(expected||0)*-1,canClose:false,error:err.message||String(err)};
+    }
+    value.breakdown.forEach(row=>{const subtotal=$(`[data-cash-sheet-subtotal="${row.denominacion}"]`,sheet);if(subtotal)subtotal.textContent=money(row.subtotal);});
+    $('#cashSheetCounted',sheet).textContent=money(value.counted);
+    $('#cashSheetAdjustment',sheet).textContent=money(value.adjustment);
+    $('#cashSheetDifference',sheet).textContent=money(value.difference);
+    const status=$('#cashSheetStatus',sheet);
+    status.className='lock-alert '+(value.canClose?'ok':'bad');
+    status.textContent=value.canClose
+      ? (Math.abs(value.adjustment)>0.001?`Cuadrado con ajuste de fracción ${money(value.adjustment)}.`:'Conteo físico cuadrado.')
+      : (value.error||`Faltan o sobran ${money(Math.abs(value.rawDifference))}.`);
+    apply.disabled=!value.canClose;
+    return value;
+  }
+  inputs.forEach(input=>input.addEventListener('input',()=>{
+    if(input.value!==''&&(!Number.isInteger(Number(input.value))||Number(input.value)<0)) input.classList.add('input-error');
+    else input.classList.remove('input-error');
+    paint();
+  }));
+  $('#clearCashSheet',sheet).onclick=()=>{inputs.forEach(input=>{input.value=0;input.classList.remove('input-error');});paint();focusAndSelect(inputs[0]);};
+  apply.onclick=()=>{const value=paint();if(!value.canClose)return;onApply?.(value);closeCashBreakdownSheetV945(sheet);};
+  bindEnterFlow([...inputs,apply]);
+  paint();
+  focusAndSelect(inputs[0]);
+  return sheet;
+}
 function openLiquidacionOrdenModal(o){
   if(!o) return;
   if(!state.v937SchemaOk) return alert('Primero ejecuta el SQL 30 de la V9.3.7 en Supabase.');
   const total=Number(o.total_factura||o.total_estimado||0);
   const defaultRes=['Cobrado','Entregado a crédito','No entregado','Devuelto parcial'].includes(o.resultado_entrega)?o.resultado_entrega:'Cobrado';
   const initialCash=defaultRes==='Cobrado'?total:Number(o.monto_cobrado||0);
+  let individualCashBreakdown=emptyCashBreakdownV945();
   const body=`<div class="form"><div class="client-card" style="grid-template-columns:1fr"><div><div class="client-title">${esc(orderClientName(o))}</div><div class="client-sub">${esc(o.codigo)} · Lote ${esc(batchCodeFromOrder(o)||'—')} · Delivery ${esc(o.delivery_nombre||'—')} · Factura ${money(total)}</div></div></div>
   <div class="lock-alert ok"><b>CXC decide el resultado final:</b> este registro no depende de botones ni reportes realizados por el delivery.</div>
   <div class="grid3"><div class="field"><label>Resultado final</label><select id="liqRes"><option value="Cobrado" ${defaultRes==='Cobrado'?'selected':''}>Cobrado completo</option><option value="Entregado a crédito" ${defaultRes==='Entregado a crédito'?'selected':''}>Abono / entregado a crédito</option><option value="No entregado" ${defaultRes==='No entregado'?'selected':''}>No entregado</option><option value="Devuelto parcial" ${defaultRes==='Devuelto parcial'?'selected':''}>Devuelto parcial</option></select></div><div class="field"><label>Monto recibido en CXC</label><input id="liqCobrado" type="number" step="0.01" min="0" value="${initialCash}"></div><div class="field"><label>Método</label><select id="liqMetodo"><option>Efectivo</option><option>Transferencia</option><option>Mixto</option><option>Crédito</option><option>No aplica</option></select></div></div>
+  <div class="cash-method-row"><div class="field compact" id="liqMixedPhysicalField" hidden><label>Efectivo físico dentro del monto</label><input id="liqMixedPhysical" type="number" step="0.01" min="0" value="${initialCash}"></div>${cashBreakdownTriggerHtmlV945('individualCashBreakdown')}</div>
   <section id="partialReturnPanel" class="partial-return-panel" hidden><div class="lock-alert warn"><b>Selecciona exactamente lo que regresó.</b> La factura original se conserva; el sistema calculará el valor devuelto, el total neto entregado y el nuevo peso.</div><div class="partial-return-head"><span></span><span>Artículo</span><span>Cantidad</span><span>Peso</span><span>Destino</span><span>Motivo</span></div>${partialReturnRowsHtml(o)||'<div class="empty">Esta orden no tiene artículos entregados disponibles para devolver.</div>'}<div class="grid4 compact-kpis"><div class="card kpi"><div class="label">Factura original</div><div class="value">${money(total)}</div></div><div class="card kpi"><div class="label">Valor devuelto</div><div class="value" id="returnAmount">${money(0)}</div></div><div class="card kpi"><div class="label">Total neto</div><div class="value" id="returnNet">${money(total)}</div></div><div class="card kpi"><div class="label">Peso neto</div><div class="value" id="returnNetWeight">${partialReturnOriginalWeight(o).toFixed(2)} lb</div></div></div><div id="returnValidation" class="lock-alert warn">Selecciona al menos un artículo devuelto.</div></section>
   <div class="grid3 compact-kpis"><div class="card kpi"><div class="label">Factura</div><div class="value">${money(total)}</div></div><div class="card kpi"><div class="label">Recibido</div><div class="value" id="liqReceivedNow">${money(initialCash)}</div></div><div class="card kpi"><div class="label">Pendiente / devolución</div><div class="value" id="liqFinalCredit">${money(Math.max(total-initialCash,0))}</div></div></div>
   <div id="liqSummary" class="lock-alert ok"></div><div class="grid2"><div class="field"><label>Recibido por</label><select id="liqBy">${employeeOptions('CXC',currentWorkerName())}</select>${manualInput('liqByManual')}</div><div class="field"><label id="liqNotesLabel">Observación</label><textarea id="liqNotas" placeholder="Opcional"></textarea></div></div><button class="btn" id="saveLiq">Recibir cliente</button></div>`;
   const m=openModal('Recibir cliente en Liquidación / CXC',body,'Si seleccionas No entregado, la orden regresará a Validación para reasignación.');
   wireManual(m,'liqBy','liqByManual');
-  const res=$('#liqRes',m), cash=$('#liqCobrado',m), method=$('#liqMetodo',m), notes=$('#liqNotas',m), btn=$('#saveLiq',m), summary=$('#liqSummary',m), received=$('#liqReceivedNow',m), pending=$('#liqFinalCredit',m);
+  const res=$('#liqRes',m), cash=$('#liqCobrado',m), method=$('#liqMetodo',m), mixedPhysical=$('#liqMixedPhysical',m), mixedPhysicalField=$('#liqMixedPhysicalField',m), cashBreakdownButton=$('#individualCashBreakdown',m), notes=$('#liqNotas',m), btn=$('#saveLiq',m), summary=$('#liqSummary',m), received=$('#liqReceivedNow',m), pending=$('#liqFinalCredit',m);
   const returnPanel=$('#partialReturnPanel',m);
   function readReturn(){
     const rows=$$('[data-return-detail]',m).filter(row=>$('[data-return-check]',row)?.checked).map(row=>({
@@ -6524,7 +6610,35 @@ function openLiquidacionOrdenModal(o){
       return {...calculateCentralReceipt(total,res.value,Number(cash.value||0)),error:''};
     }catch(err){return {total,result:res.value,cash:Number(cash.value||0),pending:0,error:err.message||String(err)};}
   }
-  function paint(){ const x=calc(); received.textContent=money(x.cash); pending.textContent=money(x.pending); summary.className='lock-alert '+(x.error?'bad':'ok'); summary.innerHTML=x.error?esc(x.error):`Recepción válida. Se registrará ${money(x.cash)}${x.pending?` y quedará ${money(x.pending)} pendiente / devolución`:''}.`; return x; }
+  function physicalCashExpected(x){
+    if(method.value==='Efectivo') return Number(x.cash||0);
+    if(method.value==='Mixto'){
+      const value=Number(mixedPhysical.value||0);
+      if(value<0) throw new Error('El efectivo físico del pago mixto no puede ser negativo.');
+      if(value>Number(x.cash||0)+0.01) throw new Error('El efectivo físico no puede superar el monto total recibido.');
+      return value;
+    }
+    return 0;
+  }
+  function cashBreakdownFor(x){
+    try{
+      const expected=physicalCashExpected(x);
+      return reconcileCashBreakdownV945(individualCashBreakdown,expected);
+    }catch(err){
+      return {breakdown:[],expected:0,counted:0,adjustment:0,difference:0,rawDifference:0,canClose:false,error:err.message||String(err)};
+    }
+  }
+  function paint(){
+    const x=calc();
+    const cashBreakdown=cashBreakdownFor(x);
+    received.textContent=money(x.cash); pending.textContent=money(x.pending);
+    mixedPhysicalField.hidden=method.value!=='Mixto';
+    paintCashBreakdownTriggerV945(m,'individualCashBreakdown',cashBreakdown);
+    const error=x.error||cashBreakdown.error||(!cashBreakdown.canClose?'El desglose físico no coincide con el efectivo esperado.':'');
+    summary.className='lock-alert '+(error?'bad':'ok');
+    summary.innerHTML=error?esc(error):`Recepción válida. Se registrará ${money(x.cash)}${x.pending?` y quedará ${money(x.pending)} pendiente / devolución`:''}${cashBreakdown.expected>0?` · efectivo físico ${money(cashBreakdown.expected)} cuadrado`:''}.`;
+    return {...x,cashBreakdown};
+  }
   res.onchange=()=>{
     if(res.value==='Cobrado') cash.value=total;
     if(res.value==='No entregado') cash.value=0;
@@ -6546,17 +6660,32 @@ function openLiquidacionOrdenModal(o){
     paintReturn(); paint();
   });
   $$('[data-return-qty],[data-return-weight],[data-return-destination],[data-return-reason]',m).forEach(el=>el.addEventListener(el.tagName==='SELECT'?'change':'input',()=>{paintReturn();paint();}));
-  cash.oninput=paint; paint();
-  bindEnterFlow([res,cash,method,$('#liqBy',m),notes,btn]); focusAndSelect(cash);
+  cash.oninput=paint;
+  mixedPhysical.oninput=paint;
+  method.onchange=()=>{
+    if(method.value==='Mixto' && (!mixedPhysical.value||Number(mixedPhysical.value)>Number(cash.value||0))) mixedPhysical.value=Number(cash.value||0).toFixed(2);
+    if(!['Efectivo','Mixto'].includes(method.value)) individualCashBreakdown=emptyCashBreakdownV945();
+    paint();
+  };
+  cashBreakdownButton.onclick=()=>{
+    const x=calc();
+    let expected=0;
+    try{ expected=physicalCashExpected(x); }catch(err){ return alert(err.message||String(err)); }
+    openCashBreakdownSheetV945({title:'Desglose de efectivo · recepción individual',expected,rows:individualCashBreakdown,onApply:value=>{individualCashBreakdown=value.breakdown;paint();}});
+  };
+  paint();
+  bindEnterFlow([res,cash,method,cashBreakdownButton,$('#liqBy',m),notes,btn]); focusAndSelect(cash);
   btn.onclick=async()=>{
     const by=getSelectManual(m,'liqBy','liqByManual'); if(!by) return alert('Selecciona quién recibe al delivery.');
     if(res.value==='No entregado' && notes.value.trim().length<3) return alert('Indica el motivo por el cual el pedido no fue entregado.');
     const x=paint(); if(x.error) return alert(x.error);
+    if(!x.cashBreakdown.canClose) return alert(x.cashBreakdown.error||'El desglose de efectivo no coincide con el efectivo físico esperado.');
     btn.disabled=true; btn.textContent='Procesando...';
     try{
-      const result=x.result==='Devuelto parcial'
-        ? await receivePartialReturnV9392(o,{rows:x.returnData.rows.map(r=>({detalle_id:r.detalle_id,cantidad:r.qty,peso:r.weight,destino:r.destino,motivo:r.motivo})),cash:x.cash,method:method.value,receivedBy:by,note:notes.value||''})
-        : await receiveOrderCxcV937(o,{result:x.result,cash:x.cash,method:method.value,receivedBy:by,note:notes.value||''});
+      const rows=x.result==='Devuelto parcial'
+        ? x.returnData.rows.map(r=>({detalle_id:r.detalle_id,cantidad:r.qty,peso:r.weight,destino:r.destino,motivo:r.motivo}))
+        : null;
+      const result=await receiveOrderCxcV945(o,{result:x.result,rows,cash:x.cash,method:method.value,physicalCash:x.cashBreakdown.expected,cashBreakdown:x.cashBreakdown.breakdown,cashAdjustment:x.cashBreakdown.adjustment,receivedBy:by,note:notes.value||''});
       m.remove(); await refreshVisibleModuleV9384(); render();
       toast(x.result==='No entregado'
         ? 'Pedido devuelto a Validación para reasignación.'
@@ -6697,6 +6826,7 @@ function openCloseBatchLiquidationModal(deliveryName,g){
   const orders=g.items||[];
   const summary=deliveryMoneySummary(orders);
   const partialDrafts=new Map();
+  let batchCashBreakdown=emptyCashBreakdownV945();
   const rows=orders.map(o=>{
     const f=liquidationOrderFinancial(o);
     const type=liquidationRowType(o);
@@ -6712,7 +6842,6 @@ function openCloseBatchLiquidationModal(deliveryName,g){
       <div class="liq-check-status" data-batch-status="${o.id}">Sin cotejar</div>
     </div>`;
   }).join('');
-  const cashDenominationFields=CASH_DENOMINATIONS_V945.map(denominacion=>`<label class="cash-denomination-item"><span>RD$ ${denominacion.toLocaleString('es-DO')}</span><input type="number" inputmode="numeric" step="1" min="0" value="0" data-cash-denomination="${denominacion}" aria-label="Cantidad de ${denominacion}"><strong data-cash-subtotal="${denominacion}">${money(0)}</strong></label>`).join('');
   const body=`<div class="form batch-liquidation-form"><div class="client-card" style="grid-template-columns:1fr"><div><div class="client-title">${esc(g.code)} · ${esc(deliveryName||'')}</div><div class="client-sub">Recepción por lote/viaje. Coteja ventas de contado, confirma créditos y luego genera el recibo.</div></div></div>
   <div class="grid4 compact-kpis"><div class="card kpi"><div class="label">Monto por cotejar</div><div class="value">${money(summary.total)}</div></div><div class="card kpi"><div class="label">Efectivo confirmado</div><div class="value">${money(0)}</div></div><div class="card kpi"><div class="label">Crédito / devolución</div><div class="value">${money(0)}</div></div><div class="card kpi"><div class="label">Clientes pendientes</div><div class="value">${orders.length}</div></div></div>
   <div class="lock-alert ok"><b>Cotejo por lote:</b> aparecen todas las ventas del lote: contado, crédito, abonos, devoluciones y no entregados. Marca cada cliente para habilitar su efectivo/abono. Las ventas al contado suman caja; las ventas a crédito se cierran manualmente o se abonan si el delivery trae dinero.</div>
@@ -6720,7 +6849,7 @@ function openCloseBatchLiquidationModal(deliveryName,g){
   <div class="liq-check-scroll"><div class="liq-check-head"><span></span><span>Cliente / orden</span><span>Factura</span><span>Efectivo / abono</span><span>Crédito / devolución</span><span>Estado</span></div>
   <div class="liq-check-list">${rows}</div></div>
   <div class="grid4 compact-kpis"><div class="card kpi"><div class="label">Cotejados</div><div class="value" id="batchCheckedCount">0/${orders.length}</div></div><div class="card kpi"><div class="label">Efectivo cotejado</div><div class="value" id="batchCashTotal">${money(0)}</div></div><div class="card kpi"><div class="label">Crédito / devolución final</div><div class="value" id="batchCreditTotal">${money(0)}</div></div><div class="card kpi"><div class="label">Pendientes</div><div class="value" id="batchUncheckedCount">${orders.length}</div></div></div>
-  <details class="cash-breakdown-card" open><summary><span><b>Desglose de efectivo</b><small>Cuenta el dinero físico recibido del delivery.</small></span><span class="badge warn" id="cashBreakdownBadge">Pendiente</span></summary><div class="cash-breakdown-body"><div class="cash-breakdown-grid">${cashDenominationFields}</div><div class="cash-breakdown-summary"><div><span>Esperado</span><b id="cashExpectedTotal">${money(0)}</b></div><div><span>Contado</span><b id="cashCountedTotal">${money(0)}</b></div><div><span>Ajuste de fracción</span><b id="cashFractionAdjustment">${money(0)}</b></div><div><span>Diferencia</span><b id="cashDifferenceTotal">${money(0)}</b></div></div><div class="cash-breakdown-actions"><p id="cashBreakdownStatus">Digita la cantidad de cada billete o moneda.</p><button type="button" class="btn small gray" id="clearCashBreakdown">Limpiar desglose</button></div></div></details>
+  ${cashBreakdownTriggerHtmlV945('batchCashBreakdown')}
   <div class="grid2"><div class="field"><label>Recibido por</label><select id="batchBy">${employeeOptions('CXC',currentWorkerName())}</select>${manualInput('batchByManual')}</div><div class="field"><label>Observación del cierre</label><textarea id="batchObs" placeholder="Opcional"></textarea></div></div>
   <div id="batchCloseSummary" class="lock-alert warn"></div><div class="actions"><button class="btn" id="saveBatchClose">Cerrar lote y generar recibo</button><button class="btn gray" id="previewBatchReceipt">Vista recibo</button></div></div>`;
   const m=openModal('Recibir lote por cotejo',body,'Caja CXC: contado, crédito y abonos revisados cliente por cliente.');
@@ -6758,39 +6887,14 @@ function openCloseBatchLiquidationModal(deliveryName,g){
     else if(selectedResult==='No entregado'){ finalCredit=0; }
     return {checked,cash,err,finalCredit,returnAmount,finalResult,total:f.total,type,selectedResult,initial:f,returnDraft};
   }
-  function readCashBreakdown(){
-    return $$('[data-cash-denomination]',m).map(input=>({
-      denominacion:Number(input.dataset.cashDenomination),
-      cantidad:Number(input.value||0)
-    }));
-  }
   function paintCashBreakdown(expectedCash){
     let reconciliation;
     try{
-      reconciliation=reconcileCashBreakdownV945(readCashBreakdown(),expectedCash);
+      reconciliation=reconcileCashBreakdownV945(batchCashBreakdown,expectedCash);
     }catch(err){
       reconciliation={breakdown:[],expected:Number(expectedCash||0),counted:0,adjustment:0,difference:Number(expectedCash||0)*-1,rawDifference:Number(expectedCash||0)*-1,canClose:false,error:err.message||String(err)};
     }
-    reconciliation.breakdown.forEach(row=>{
-      const subtotal=$(`[data-cash-subtotal="${row.denominacion}"]`,m);
-      if(subtotal) subtotal.textContent=money(row.subtotal);
-    });
-    $('#cashExpectedTotal',m).textContent=money(reconciliation.expected);
-    $('#cashCountedTotal',m).textContent=money(reconciliation.counted);
-    $('#cashFractionAdjustment',m).textContent=money(reconciliation.adjustment);
-    $('#cashDifferenceTotal',m).textContent=money(reconciliation.difference);
-    const badge=$('#cashBreakdownBadge',m),status=$('#cashBreakdownStatus',m);
-    if(reconciliation.canClose){
-      badge.className='badge ok'; badge.textContent='Cuadrado';
-      status.className='cash-breakdown-ok';
-      status.textContent=Math.abs(reconciliation.adjustment)>0.001
-        ? `Conteo conciliado. Se registrará un ajuste de fracción de ${money(reconciliation.adjustment)}.`
-        : 'Conteo físico igual al efectivo esperado.';
-    }else{
-      badge.className='badge bad'; badge.textContent='Diferencia';
-      status.className='cash-breakdown-bad';
-      status.textContent=reconciliation.error||`Faltan o sobran ${money(Math.abs(reconciliation.rawDifference))}. Revisa las cantidades.`;
-    }
+    paintCashBreakdownTriggerV945(m,'batchCashBreakdown',reconciliation);
     return reconciliation;
   }
   function paint(){
@@ -6825,12 +6929,10 @@ function openCloseBatchLiquidationModal(deliveryName,g){
   }
   $$('[data-batch-check]',m).forEach(ch=>ch.onchange=()=>{ paint(); if(ch.checked){ const inp=$(`[data-batch-cash="${ch.dataset.batchCheck}"]`,m); if(inp && !inp.disabled) focusAndSelect(inp); } });
   $$('[data-batch-cash]',m).forEach(inp=>inp.oninput=paint);
-  $$('[data-cash-denomination]',m).forEach(inp=>inp.oninput=()=>{
-    if(inp.value!=='' && (!Number.isInteger(Number(inp.value)) || Number(inp.value)<0)) inp.classList.add('input-error');
-    else inp.classList.remove('input-error');
-    paint();
-  });
-  $('#clearCashBreakdown',m).onclick=()=>{$$('[data-cash-denomination]',m).forEach(inp=>{inp.value=0;inp.classList.remove('input-error');});paint();};
+  $('#batchCashBreakdown',m).onclick=()=>{
+    const expected=paint().cashTotal;
+    openCashBreakdownSheetV945({title:'Desglose de efectivo · recepción por lote',expected,rows:batchCashBreakdown,onApply:value=>{batchCashBreakdown=value.breakdown;paint();}});
+  };
   $$('[data-batch-result]',m).forEach(sel=>sel.onchange=()=>{
     const o=orderById(sel.dataset.batchResult);
     const inp=$(`[data-batch-cash="${sel.dataset.batchResult}"]`,m);
@@ -6897,7 +6999,29 @@ function openCloseBatchLiquidationModal(deliveryName,g){
 
 function cashCountForLiquidation(row){
   const ids=new Set((row?.liquidation_ids||[row?.id]).filter(id=>id!==null&&id!==undefined).map(String));
-  return (state.liquidacionEfectivoConteos||[]).find(count=>ids.has(String(count.liquidacion_id)))||null;
+  const lotIds=new Set([row?.lote_id].filter(id=>id!==null&&id!==undefined).map(String));
+  const matches=(state.liquidacionEfectivoConteos||[]).filter(count=>
+    ids.has(String(count.liquidacion_id)) || (lotIds.size&&lotIds.has(String(count.lote_id)))
+  );
+  const batch=matches.find(count=>(count.tipo_recepcion||(!count.orden_id?'lote':''))==='lote');
+  if(batch) return batch;
+  const individual=matches.filter(count=>(count.tipo_recepcion||'individual')==='individual');
+  if(!individual.length) return null;
+  const counts={};
+  CASH_DENOMINATIONS_V945.forEach(denomination=>{counts[denomination]=0;});
+  individual.forEach(count=>{
+    let rows=[];
+    try{rows=normalizeCashBreakdownV945(typeof count.desglose==='string'?JSON.parse(count.desglose):count.desglose||[]);}catch{rows=[];}
+    rows.forEach(detail=>{counts[detail.denominacion]+=detail.cantidad;});
+  });
+  return {
+    tipo_recepcion:'individual_consolidado',
+    desglose:cashBreakdownFromCountsV945(counts),
+    efectivo_esperado:individual.reduce((sum,count)=>sum+Number(count.efectivo_esperado||0),0),
+    efectivo_contado:individual.reduce((sum,count)=>sum+Number(count.efectivo_contado||0),0),
+    ajuste_fraccion:individual.reduce((sum,count)=>sum+Number(count.ajuste_fraccion||0),0),
+    diferencia:individual.reduce((sum,count)=>sum+Number(count.diferencia||0),0)
+  };
 }
 function cashBreakdownReceiptHtml(count){
   if(!count) return '';
