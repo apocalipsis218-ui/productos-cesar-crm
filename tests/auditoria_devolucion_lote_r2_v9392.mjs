@@ -22,7 +22,7 @@ const checks=[
   ['recalculo inmediato',/batchReturnAmount/.test(main)&&/batchReturnNet/.test(main)&&/batchReturnNetWeight/.test(main)],
   ['guardar y volver',/Guardar devolución y volver al lote/.test(main)&&/Cancelar y volver al lote/.test(main)],
   ['borrador dentro del lote',/const partialDrafts=new Map/.test(main)&&/partialDrafts\.set/.test(main)],
-  ['cierre R2 o superior conectado',/receiveBatchCxcV9392R2/.test(main)&&/recibir_lote_cxc_v939(?:2_r2|3)/.test(main)],
+  ['cierre R2 o superior conectado',/receiveBatchCxcV9392R2/.test(main)&&/recibir_lote_cxc_(?:v9392_r2|v9393|v945)/.test(main)],
   ['RPC transaccional',/create or replace function public\.recibir_lote_cxc_v9392_r2/.test(sql)&&/registrar_devolucion_parcial_v9392/.test(sql)&&/recibir_orden_cxc_v937/.test(sql)],
   ['detalle obligatorio',/Toda devolución parcial debe incluir el detalle de artículos/.test(sql)],
   ['protección lote completo',/Faltan % cliente\(s\) pendientes/.test(sql)&&/orden repetida/.test(sql)],

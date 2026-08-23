@@ -85,7 +85,7 @@ const historical=virtual.rows.find(r=>r.employeeId===4&&r.role==='Validación');
 
 const checks=[
   ['SQL del ranking cierra el agregado JSON antes de FROM',/jsonb_agg\(jsonb_build_object\([\s\S]*?\) order by r\.incentivo desc, r\.empleado_nombre, r\.rol\)\s+from final_rows r/.test(sql)],
-  ['versión V9.4.4 R2 sincronizada',pkg.version==='9.4.4'&&/V9\.4\.4 PWA · R2/.test(main)&&/'version', 'V9\.4\.4 R2'/.test(sql)],
+  ['versión V9.4.4 R2 o superior sincronizada',/^9\.4\.(?:[4-9]|\d{2,})$/.test(pkg.version)&&/V9\.4\.4 PWA · R2/.test(main)&&/'version', 'V9\.4\.4 R2'/.test(sql)],
   ['RPC mensual protegida y cerrada a anónimo',
     /function public\.resumen_productividad_mensual_v944/.test(sql) &&
     /security definer/.test(sql) && /set search_path = ''/.test(sql) &&

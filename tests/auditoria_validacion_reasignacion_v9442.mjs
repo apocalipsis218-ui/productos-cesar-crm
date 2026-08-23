@@ -25,7 +25,7 @@ const checks=[
   ['Productividad une detalle con lote responsable',/l\.responsable_empleado_id/.test(productivitySql)&&/d\.lote_id = l\.id/.test(productivitySql)],
   ['Productividad excluye lotes revertidos',/coalesce\(l\.estado, ''\) <> 'Revertido'/.test(productivitySql)],
   ['mapeo documenta transferencia y retorno',/Cómo atribuye Productividad/.test(map)&&/Quitar del lote/.test(map)],
-  ['versión V9.4.4.2 sincronizada',/V9\.4\.4\.2 PWA/.test(main)&&/V9\.4\.4\.2 PWA/.test(html)&&/APP_VERSION = 'V9\.4\.4 PWA'/.test(pwa)],
+  ['versión V9.4.4.2 o superior sincronizada',/V9\.4\.4\.2 PWA/.test(main)&&/V9\.4\.(?:4\.2|[5-9]|\d{2,}) PWA/.test(html)&&/APP_VERSION = 'V9\.4\.(?:4|[5-9]|\d{2,}) PWA'/.test(pwa)],
   ['auditoría disponible en npm',pkg.scripts['audit:validacion-reasignacion']==='node tests/auditoria_validacion_reasignacion_v9442.mjs'],
   ['auditoría integrada en npm test',pkg.scripts.pretest.includes('auditoria_validacion_reasignacion_v9442.mjs')]
 ];
