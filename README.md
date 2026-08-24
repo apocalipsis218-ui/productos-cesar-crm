@@ -1,5 +1,14 @@
 # Productos César CRM V9.4.5 PWA
 
+## V9.4.5.2 — Sobrantes visibles y autorización restringida
+
+- El Historial de liquidaciones identifica cada cierre como `Cuadrado`, `Sobrante autorizado` o `Faltante` y permite abrir el desglose físico guardado.
+- El período seleccionado muestra una alerta compacta con la cantidad y el monto total de cierres que contienen sobrantes autorizados.
+- La ficha diferencia `Efectivo esperado`, `Físico contado` y `Sobrante`; la autorización se realiza dentro del CRM y queda vinculada al conteo exacto.
+- Solo los perfiles `Gerente` y `Administrador` pueden autorizar sobrantes. La base de datos vuelve a validar el rol aunque se manipule el navegador.
+- Las recepciones individuales consolidan su diferencia en el cierre formal del lote, sin alterar liquidaciones que poseen un conteo por lote.
+- La migración es aditiva, conserva la trazabilidad existente y no elimina datos operativos.
+
 ## V9.4.5.1 — Cotejo completo antes del desglose por lote
 
 - El desglose de efectivo del lote permanece bloqueado hasta cotejar y validar todos sus clientes.
