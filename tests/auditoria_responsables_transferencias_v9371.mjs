@@ -22,7 +22,7 @@ const checks=[
   ['responsable formal en Validación',/Responsable del viaje/.test(main)&&/tripResponsibleOptions/.test(main)],
   ['manual y otro empleado disponibles',/manual_externo/.test(helperSource)&&/otro_empleado/.test(helperSource)&&/Otros empleados/.test(main)],
   ['responsables manuales alimentan filtros',/mergeResponsibleNames/.test(main)&&/function activeDeliveryNames\(\)\{ return allTripResponsibleNames\(\); \}/.test(main)],
-  ['creación de lote usa RPC transaccional',/crear_lote_entrega_v9371/.test(main)],
+  ['creación de lote usa RPC transaccional',/crear_lote_entrega_v(?:9371|9453)/.test(main)],
   ['validación individual crea lote formal',/p_items:\[\{orden_id:Number\(o\.id\)/.test(main)],
   ['disponibilidad SQL 31 se sincroniza al cargar transferencias',/state\.v9371SchemaOk=!transferencias\.error/.test(main)],
   ['transferencia visible por pedido',/data-transfer-order/.test(main)&&/Transferir pedido/.test(main)],

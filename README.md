@@ -1,5 +1,12 @@
 # Productos César CRM V9.4.5 PWA
 
+## V9.4.5.3 — Fecha operativa del lote
+
+- Validación permite seleccionar la fecha de entrega al responsable; por defecto usa la fecha actual.
+- Una fecha anterior queda separada de la fecha/hora real en que el lote se registró.
+- La base de datos rechaza fechas futuras y conserva ambas fechas en la trazabilidad.
+- La fecha del lote aparece en hoja de ruta, historial de Validación, Delivery y Liquidación.
+
 ## V9.4.5.2 — Sobrantes visibles y autorización restringida
 
 - El Historial de liquidaciones identifica cada cierre como `Cuadrado`, `Sobrante autorizado` o `Faltante` y permite abrir el desglose físico guardado.

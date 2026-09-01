@@ -201,7 +201,9 @@ body.theme-blue{--red:#2563eb;--red2:#1d4ed8}body.theme-green{--red:#059669;--re
 
 
 /* V9.0.8 Validación por lotes */
-.validation-batch-panel .batch-toolbar{display:grid;grid-template-columns:minmax(220px,280px) 1fr auto;gap:12px;align-items:end;margin:12px 0 14px}
+.validation-batch-panel .batch-toolbar{display:grid;grid-template-columns:minmax(220px,280px) minmax(190px,220px) 1fr auto;gap:12px;align-items:end;margin:12px 0 14px}
+.validation-operational-date input[type="date"]{font-weight:850;color:#0f172a;background:#fff}
+.validation-operational-date .hint{max-width:230px}
 .batch-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .batch-table{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#fff;margin-top:12px}
 .batch-head,.batch-row{display:grid;grid-template-columns:44px minmax(240px,1.45fr) 112px 138px 150px 126px auto;gap:9px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
