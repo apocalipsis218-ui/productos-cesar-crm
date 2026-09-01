@@ -60,3 +60,27 @@ export function cashBreakdownFromCountsV945(counts={}){
 export function cashBreakdownNonZeroV945(rows=[]){
   return normalizeCashBreakdownV945(rows).filter(row=>row.cantidad>0);
 }
+
+export function batchCashBreakdownReadinessV945({totalClients=0,checkedClients=0,errorCount=0,expectedCash=0}={}){
+  const total=Math.max(0,Math.trunc(Number(totalClients)||0));
+  const checked=Math.min(total,Math.max(0,Math.trunc(Number(checkedClients)||0)));
+  const errors=Math.max(0,Math.trunc(Number(errorCount)||0));
+  const expected=roundMoney(expectedCash);
+  if(expected<0) throw new Error('El efectivo esperado del lote no puede ser negativo.');
+  const pending=Math.max(total-checked,0);
+  const allReviewed=total>0&&pending===0;
+  const valid=allReviewed&&errors===0;
+  const requiresBreakdown=valid&&expected>0.009;
+  return {
+    totalClients:total,
+    checkedClients:checked,
+    pendingClients:pending,
+    errorCount:errors,
+    expectedCash:expected,
+    allReviewed,
+    valid,
+    requiresBreakdown,
+    canOpen:requiresBreakdown,
+    canCloseWithoutBreakdown:valid&&!requiresBreakdown
+  };
+}
