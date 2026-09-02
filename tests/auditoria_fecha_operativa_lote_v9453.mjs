@@ -16,6 +16,7 @@ assert.match(main, /d\.operationalDate=normalizeOperationalDate\(operationalDate
 assert.match(main, /if\(normalized>today\(\)\).*La fecha del lote no puede ser posterior/, 'La interfaz debe rechazar fechas futuras.');
 assert.equal(count(main, /sb\.rpc\('crear_lote_entrega_v9453'/g), 2, 'Los flujos grupal e individual deben usar la nueva RPC.');
 assert.equal(count(main, /p_fecha_operativa:fechaOperativa/g), 2, 'Ambos flujos deben enviar la fecha operativa explícitamente.');
+assert.equal(count(main, /Primero ejecuta el SQL 31 de la V9\.3\.7\.1 en Supabase\./g), 1, 'La creación de lotes no debe bloquearse por el estado del historial de transferencias.');
 assert.match(main, /fecha_operativa:normalizeOperationalDate\(operationalDate\).*fecha_entrega:originalDate/, 'El snapshot debe conservar separadas la fecha del lote y la fecha real.');
 assert.match(main, /<b>Fecha del lote:<\/b>.*<b>Registrado en el sistema:<\/b>/, 'La hoja de ruta debe mostrar ambas fechas.');
 assert.match(main, /Fecha del lote:.*Liquidado:/, 'El historial de Delivery/Liquidación debe mostrar la fecha del lote.');

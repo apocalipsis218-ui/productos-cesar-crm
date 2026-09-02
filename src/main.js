@@ -4902,7 +4902,6 @@ function bindValidationBatch(container,orders){
     if(!responsible.name) return alert('Selecciona la persona responsable del viaje.');
     const dateCheck=validateOperationalDate(operationalDate?.value);
     if(!dateCheck.ok) return alert(dateCheck.message);
-    if(!state.v9371SchemaOk) return alert('Primero ejecuta el SQL 31 de la V9.3.7.1 en Supabase.');
     const val=validateSelectedBatch(container,orders);
     if(!val.selected.length) return alert('Selecciona al menos una orden para el lote.');
     if(val.missingAmounts.length) return alert('Falta el monto final de factura en estas órdenes:\n- '+val.missingAmounts.join('\n- '));
@@ -6429,7 +6428,6 @@ function openValidacionModal(o){
     }
     const obs=valNotas.value||'';
     const notaPeso=[obs,alerta].filter(Boolean).join(' | ');
-    if(!state.v9371SchemaOk) return alert('Primero ejecuta el SQL 31 de la V9.3.7.1 en Supabase.');
     const lote=newBatchCode(); const fechaOriginal=new Date().toISOString(); const fechaOperativa=dateCheck.value;
     const selected=[{o,amount:monto,peso,expected:Number(ref.value||0)}];
     const snapshot=buildDeliveryRouteSnapshot(lote,del,selected,fechaOriginal,by,fechaOperativa);

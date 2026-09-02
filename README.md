@@ -6,6 +6,7 @@
 - Una fecha anterior queda separada de la fecha/hora real en que el lote se registró.
 - La base de datos rechaza fechas futuras y conserva ambas fechas en la trazabilidad.
 - La fecha del lote aparece en hoja de ruta, historial de Validación, Delivery y Liquidación.
+- La creación del lote no depende de la carga opcional del historial de transferencias; un fallo temporal de esa consulta ya no muestra falsamente que falta el SQL 31.
 
 ## V9.4.5.2 — Sobrantes visibles y autorización restringida
 
