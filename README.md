@@ -1,5 +1,13 @@
 # Productos César CRM V9.4.5 PWA
 
+## V9.4.5.4 — Impresión y trazabilidad de preparación
+
+- La confirmación posterior al guardado permite imprimir inmediatamente la orden de preparación.
+- Carnicería muestra si la impresión fue registrada, quién la solicitó, cuándo y cuántas veces.
+- Las impresiones desde la confirmación de la orden no se confunden con las realizadas en Carnicería.
+- El volante de preparación omite la palabra `Pendiente` por artículo para aprovechar mejor el papel de 80 mm.
+- La base de datos valida el origen, la identidad y el permiso antes de guardar la trazabilidad.
+
 ## V9.4.5.3 — Fecha operativa del lote
 
 - Validación permite seleccionar la fecha de entrega al responsable; por defecto usa la fecha actual.

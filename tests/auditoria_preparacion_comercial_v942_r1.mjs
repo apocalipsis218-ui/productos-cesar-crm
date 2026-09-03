@@ -23,7 +23,7 @@ const checks=[
     /function public\.registrar_impresion_preparacion_v942/.test(sql) &&
     /impresiones_preparacion=coalesce\(impresiones_preparacion,0\)\+1/.test(sql) &&
     /insert into public\.orden_estados_historial/.test(sql) &&
-    main.includes("sb.rpc('registrar_impresion_preparacion_v942'")],
+    /sb\.rpc\('registrar_impresion_preparacion_v94(?:2|54)'/.test(main)],
   ['casos especiales tienen concurrencia y doble historial',
     /function public\.actualizar_caso_especial_v942/.test(sql) &&
     /for update;/.test(sql) && /p_actualizado_en_esperado/.test(sql) &&
