@@ -1,11 +1,27 @@
 # Productos César CRM V9.4.5 PWA
 
+## V9.4.5.5 — Estado unificado de impresión
+
+- Carnicería muestra un solo indicador de impresión, sin duplicar mensajes por módulo.
+- Una impresión realizada desde Órdenes o Carnicería cambia el estado visible a `Impresa`.
+- La etiqueta conserva en su detalle el usuario, la fecha y la cantidad total de impresiones.
+- Supabase continúa registrando internamente el origen para fines de auditoría, sin requerir otra migración.
+
+## V9.4.5.4 — Impresión y trazabilidad de preparación
+
+- La confirmación posterior al guardado permite imprimir inmediatamente la orden de preparación.
+- La base conserva quién solicitó cada impresión, cuándo ocurrió y cuántas veces se imprimió.
+- El origen de la impresión permanece disponible en la auditoría interna.
+- El volante de preparación omite la palabra `Pendiente` por artículo para aprovechar mejor el papel de 80 mm.
+- La base de datos valida el origen, la identidad y el permiso antes de guardar la trazabilidad.
+
 ## V9.4.5.3 — Fecha operativa del lote
 
 - Validación permite seleccionar la fecha de entrega al responsable; por defecto usa la fecha actual.
 - Una fecha anterior queda separada de la fecha/hora real en que el lote se registró.
 - La base de datos rechaza fechas futuras y conserva ambas fechas en la trazabilidad.
 - La fecha del lote aparece en hoja de ruta, historial de Validación, Delivery y Liquidación.
+- La creación del lote no depende de la carga opcional del historial de transferencias; un fallo temporal de esa consulta ya no muestra falsamente que falta el SQL 31.
 
 ## V9.4.5.2 — Sobrantes visibles y autorización restringida
 

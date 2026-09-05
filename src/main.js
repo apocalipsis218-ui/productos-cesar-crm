@@ -39,6 +39,7 @@ import {
 // V9.4.5.1 PWA · el desglose por lote exige cotejar y validar todos los clientes primero.
 // V9.4.5.2 PWA · sobrantes visibles, autorización restringida y diferencia individual consolidada.
 // V9.4.5.3 PWA · fecha operativa editable del lote con auditoría de registro real.
+// V9.4.5.5 PWA · impresión inmediata y estado unificado de impresión.
 // Conserva factura, pesaje e historial del intento fallido.
 // Control conservado: Pulsa “Detallar artículos” para registrar producto, cantidad y peso.
 // V9.3.9.1 · Faltantes con seguimiento y liquidación segura de clientes ocasionales.
@@ -172,7 +173,7 @@ function printFooterHtml(){ const rec=normalizeSystemConfig(state.systemConfig||
 function signatureHtml(label){ return `<div class="sign">${esc(label||'Firma')}</div>`; }
 function exportBackup(){
   const cfg=normalizeSystemConfig(state.systemConfig||{});
-  const payload={fecha:new Date().toISOString(),version:'V9.4.5 PWA',revision_visual:'V9.4.5.3',empresa:cfg.empresa,configuracion:cfg,clientes:state.clientes||[],ordenes:(state.ordenes||[]).map(o=>({codigo:o.codigo,fecha:o.fecha,estado:o.estado,cliente:orderClientName(o),total:o.total_factura||o.total_estimado,delivery:o.delivery_nombre,lote:o.lote_codigo})),productos:state.productos||[],empleados:state.empleadosOperativos||[],usuarios:state.usuarios||[],liquidaciones:state.liquidacionesLotes||[],cxc:state.cxcSaldos||[],cobrosCxc:state.cxcCobros||[]};
+  const payload={fecha:new Date().toISOString(),version:'V9.4.5 PWA',revision_visual:'V9.4.5.5',empresa:cfg.empresa,configuracion:cfg,clientes:state.clientes||[],ordenes:(state.ordenes||[]).map(o=>({codigo:o.codigo,fecha:o.fecha,estado:o.estado,cliente:orderClientName(o),total:o.total_factura||o.total_estimado,delivery:o.delivery_nombre,lote:o.lote_codigo})),productos:state.productos||[],empleados:state.empleadosOperativos||[],usuarios:state.usuarios||[],liquidaciones:state.liquidacionesLotes||[],cxc:state.cxcSaldos||[],cobrosCxc:state.cxcCobros||[]};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`backup-productos-cesar-${today()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); toast('Copia de seguridad descargada');
 }
@@ -1040,7 +1041,7 @@ function render(){
   }
   if(!puede(state.page)) state.page = visibleNav[0][0];
   const sidebarCollapsed=loadSidebarCollapsed();
-  root.innerHTML = `<div class="shell${sidebarCollapsed?' sidebar-collapsed':''}"><aside id="appSidebar" class="sidebar" aria-hidden="${sidebarCollapsed?'true':'false'}"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.4.5.3 PWA · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.4.5.3 PWA</b><br>Fecha del lote editable con registro real auditado.</div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" data-collapsed="${sidebarCollapsed?'1':'0'}" aria-controls="appSidebar" aria-expanded="${sidebarCollapsed?'false':'true'}" aria-label="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}" title="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}"><span aria-hidden="true">${sidebarCollapsed?'›':'‹'}</span></button><main class="main"><div class="top"><div class="mobile-brand-mini"><span>${esc(appCfg('empresa.logoTexto','PC'))}</span></div><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray" aria-label="Mi acceso">Mi acceso</button><button id="refreshBtn" aria-label="Actualizar">Actualizar</button><button id="logoutBtn" class="dark" aria-label="Salir">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
+  root.innerHTML = `<div class="shell${sidebarCollapsed?' sidebar-collapsed':''}"><aside id="appSidebar" class="sidebar" aria-hidden="${sidebarCollapsed?'true':'false'}"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.4.5.5 PWA · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.4.5.5 PWA</b><br>Impresión inmediata y estado unificado.</div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" data-collapsed="${sidebarCollapsed?'1':'0'}" aria-controls="appSidebar" aria-expanded="${sidebarCollapsed?'false':'true'}" aria-label="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}" title="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}"><span aria-hidden="true">${sidebarCollapsed?'›':'‹'}</span></button><main class="main"><div class="top"><div class="mobile-brand-mini"><span>${esc(appCfg('empresa.logoTexto','PC'))}</span></div><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray" aria-label="Mi acceso">Mi acceso</button><button id="refreshBtn" aria-label="Actualizar">Actualizar</button><button id="logoutBtn" class="dark" aria-label="Salir">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
   setupKeyboardShortcuts();
   bindSidebarToggle();
   $$('[data-page]').forEach(b=>b.onclick=()=>navigateToPageV942(b.dataset.page));
@@ -1960,7 +1961,7 @@ function bindDynamic(){
   $$('[data-prep-order]').forEach(b=>b.onclick=()=>{clearLiveFlashOrder(b.dataset.prepOrder); openPreparacionModal(state.ordenes.find(x=>x.id==b.dataset.prepOrder));});
   $$('[data-take-order]').forEach(b=>b.onclick=()=>{clearLiveFlashOrder(b.dataset.takeOrder); openTakeOrderModal(state.ordenes.find(x=>String(x.id)===String(b.dataset.takeOrder)));});
   $$('[data-release-order]').forEach(b=>b.onclick=()=>openReleaseOrderModal(state.ordenes.find(x=>String(x.id)===String(b.dataset.releaseOrder))));
-  $$('[data-print-prep]').forEach(b=>b.onclick=()=>printPreparationTicket(state.ordenes.find(x=>x.id==b.dataset.printPrep)));
+  $$('[data-print-prep]').forEach(b=>b.onclick=()=>printPreparationTicket(state.ordenes.find(x=>x.id==b.dataset.printPrep),b.dataset.printOrigin||(state.page==='carniceria'?'carniceria':'ordenes')));
   $$('[data-print-order]').forEach(b=>b.onclick=()=>printOrderTicket(state.ordenes.find(x=>x.id==b.dataset.printOrder)));
   $$('[data-invoice-order]').forEach(b=>b.onclick=()=>openFacturaModal(state.ordenes.find(x=>x.id==b.dataset.invoiceOrder)));
   $$('[data-quick-invoice]').forEach(b=>b.onclick=()=>quickInvoiceOrder(state.ordenes.find(x=>String(x.id)===String(b.dataset.quickInvoice)),b));
@@ -3651,8 +3652,9 @@ function showOrderWhatsAppPrompt(o,kind='confirmacion'){
   const actualKind=kind==='reenvio'?'confirmacion':kind;
   const msg=buildOrderWhatsAppMessage(o,actualKind);
   const title=kind==='actualizacion'?'Enviar actualización por WhatsApp':kind==='reenvio'?'Reenviar orden por WhatsApp':'Enviar confirmación por WhatsApp';
-  const m=openModal(title,`<div class="success"><b>${esc(o.codigo||'Orden')} guardada correctamente.</b><br>El mensaje no contiene precios ni monto.</div><pre class="wa-order-preview">${esc(msg)}</pre><div class="actions"><button class="btn green" id="sendOrderWa">Abrir WhatsApp</button><button class="btn gray" id="skipOrderWa">Ahora no</button></div>`,'Revisa el detalle antes de pulsar Enviar dentro de WhatsApp.');
+  const m=openModal(title,`<div class="success"><b>${esc(o.codigo||'Orden')} guardada correctamente.</b><br>El mensaje no contiene precios ni monto.</div><pre class="wa-order-preview">${esc(msg)}</pre><div class="actions"><button class="btn green" id="sendOrderWa">Abrir WhatsApp</button><button class="btn dark" id="printSavedOrderPrep">Imprimir preparación</button><button class="btn gray" id="skipOrderWa">Ahora no</button></div>`,'Revisa el detalle antes de pulsar Enviar dentro de WhatsApp.');
   $('#sendOrderWa',m).onclick=async()=>{ await openOrderWhatsApp(o,actualKind); m.remove(); };
+  $('#printSavedOrderPrep',m).onclick=async()=>{ const opened=await printPreparationTicket(o,'orden_creada'); if(opened) m.remove(); };
   $('#skipOrderWa',m).onclick=()=>m.remove();
 }
 function maybeOfferOrderWhatsApp(o,kind='confirmacion'){
@@ -4296,21 +4298,39 @@ function renderCarniceria(c){
   const inp=$('#search_carniceriaSearch'); if(inp) inp.oninput=e=>{ const pos=e.target.selectionStart||e.target.value.length; state.carniceriaSearch=e.target.value; renderCarniceria($('#content')); focusAfterRender('search_carniceriaSearch',pos); };
   bindDynamic();
 }
+function preparationPrintAudit(o){
+  const count=Math.max(0,Number(o?.impresiones_preparacion||0));
+  const at=o?.ultima_impresion_preparacion||null;
+  const by=o?.impreso_preparacion_por?usuarioNameFromId(o.impreso_preparacion_por):'';
+  return {count,at,by};
+}
+function preparationPrintBadge(o){
+  const p=preparationPrintAudit(o);
+  if(!p.count) return '<span class="badge warn" title="Todavía no existe una impresión registrada para esta orden.">🖨 Sin imprimir</span>';
+  const detail=`Registro creado al abrir el diálogo de impresión · ${preparationPrintDetail(o)}`;
+  return `<span class="badge ok" title="${esc(detail)}">🖨 Impresa${p.count>1?' · '+p.count+'x':''}</span>`;
+}
+function preparationPrintDetail(o){
+  const p=preparationPrintAudit(o);
+  if(!p.count) return 'Sin impresión registrada';
+  return `${p.at?businessDateTime(p.at):'Fecha no disponible'} · ${p.by||'Usuario no disponible'} · ${p.count} ${p.count===1?'impresión':'impresiones'}`;
+}
 function carniceriaCard(o){
   const taken=!!o.tomado_por, editable=canEditCarniceriaOrder(o), releasable=canReleaseCarnOrder(o), done=['Lista para facturar','Impresa para facturar'].includes(o.estado);
   const cls=done?'done':taken?'locked':'free';
   const lock=taken?`<span class="badge warn">${esc(lockText(o))}</span>`:'<span class="badge ok">Libre</span>';
+  const printLabel=Number(o.impresiones_preparacion||0)>0?'Reimprimir prep.':'Imprimir prep.';
   let buttons='';
   if(done){
-    buttons=`<button class="btn small dark" data-print-prep="${o.id}">Imprimir prep.</button><button class="btn small gray" data-oper-order="${o.id}">Ver</button>`;
+    buttons=`<button class="btn small dark" data-print-prep="${o.id}" data-print-origin="carniceria">${printLabel}</button><button class="btn small gray" data-oper-order="${o.id}">Ver</button>`;
   }else if(taken){
-    buttons=`${editable?`<button class="btn small" data-prep-order="${o.id}">Continuar</button>`:`<button class="btn small gray" data-prep-order="${o.id}">Ver bloqueada</button>`}<button class="btn small dark" data-print-prep="${o.id}">Imprimir prep.</button><button class="btn small gray" data-oper-order="${o.id}">Ver</button>${releasable?`<button class="btn small warn" data-release-order="${o.id}">Soltar</button>`:''}`;
+    buttons=`${editable?`<button class="btn small" data-prep-order="${o.id}">Continuar</button>`:`<button class="btn small gray" data-prep-order="${o.id}">Ver bloqueada</button>`}<button class="btn small dark" data-print-prep="${o.id}" data-print-origin="carniceria">${printLabel}</button><button class="btn small gray" data-oper-order="${o.id}">Ver</button>${releasable?`<button class="btn small warn" data-release-order="${o.id}">Soltar</button>`:''}`;
   }else{
-    buttons=`<button class="btn small" data-take-order="${o.id}">Tomar pedido</button><button class="btn small dark" data-print-prep="${o.id}">Imprimir prep.</button><button class="btn small gray" data-oper-order="${o.id}">Ver</button>`;
+    buttons=`<button class="btn small" data-take-order="${o.id}">Tomar pedido</button><button class="btn small dark" data-print-prep="${o.id}" data-print-origin="carniceria">${printLabel}</button><button class="btn small gray" data-oper-order="${o.id}">Ver</button>`;
   }
   const age=o.tomado_en ? Math.max(0,Math.round((Date.now()-new Date(o.tomado_en).getTime())/60000)) : null;
   const ageBadge=age!==null?`<span class="badge ${age>45?'bad':'info'}">⏱ ${age} min en cola</span>`:'';
-  return `<div class="client-card op-card ${cls} ${newOrderClass(o,'carniceria')}" style="grid-template-columns:1fr auto"><div><div class="client-title">${esc(o.codigo||('ORD-'+o.id))} · ${esc(orderClientName(o))}</div><div class="client-sub">Creada: ${shortDate(o.fecha)} · Despacho: ${shortDate(dispatchDateOf(o))} · ${esc(orderClientPhone(o))} · ${esc(orderClientSector(o))}</div><div class="order-status-line">${newOrderBadge(o,'carniceria')}${orderCustomerBadge(o)}${orderDeliveryModeBadge(o)}${orderTypeBadge(o)}<span class="badge info">${esc(o.estado||'')}</span>${scheduleBadge(o)}${createdClockBadge(o)}${stageClockBadge(o,'carniceria')}${lock}${ageBadge}<span class="badge">${money(o.total_factura||o.total_estimado)}</span>${preparedByDisplay(o)?`<span class="badge warn">Prep. ${esc(preparedByDisplay(o))}</span>`:''}</div><div class="mini-items">${orderItemsText(o,7)}</div></div><div class="card-actions">${buttons}</div></div>`;
+  return `<div class="client-card op-card ${cls} ${newOrderClass(o,'carniceria')}" style="grid-template-columns:1fr auto"><div><div class="client-title">${esc(o.codigo||('ORD-'+o.id))} · ${esc(orderClientName(o))}</div><div class="client-sub">Creada: ${shortDate(o.fecha)} · Despacho: ${shortDate(dispatchDateOf(o))} · ${esc(orderClientPhone(o))} · ${esc(orderClientSector(o))}</div><div class="order-status-line">${newOrderBadge(o,'carniceria')}${orderCustomerBadge(o)}${orderDeliveryModeBadge(o)}${orderTypeBadge(o)}<span class="badge info">${esc(o.estado||'')}</span>${scheduleBadge(o)}${createdClockBadge(o)}${stageClockBadge(o,'carniceria')}${lock}${ageBadge}${preparationPrintBadge(o)}<span class="badge">${money(o.total_factura||o.total_estimado)}</span>${preparedByDisplay(o)?`<span class="badge warn">Prep. ${esc(preparedByDisplay(o))}</span>`:''}</div><div class="mini-items">${orderItemsText(o,7)}</div></div><div class="card-actions">${buttons}</div></div>`;
 }
 function invoiceHistoryDate(o){ return dateOnly(o?.facturado_en||o?.actualizado_en||o?.fecha||''); }
 function invoiceHistoryOrders(){
@@ -4902,7 +4922,6 @@ function bindValidationBatch(container,orders){
     if(!responsible.name) return alert('Selecciona la persona responsable del viaje.');
     const dateCheck=validateOperationalDate(operationalDate?.value);
     if(!dateCheck.ok) return alert(dateCheck.message);
-    if(!state.v9371SchemaOk) return alert('Primero ejecuta el SQL 31 de la V9.3.7.1 en Supabase.');
     const val=validateSelectedBatch(container,orders);
     if(!val.selected.length) return alert('Selecciona al menos una orden para el lote.');
     if(val.missingAmounts.length) return alert('Falta el monto final de factura en estas órdenes:\n- '+val.missingAmounts.join('\n- '));
@@ -5969,21 +5988,29 @@ function prepRowsHtml(o, disabled=false){
   }).join('')}</div>`;
 }
 
-async function printPreparationTicket(o){
-  if(!o) return;
+async function printPreparationTicket(o,origin='ordenes'){
+  if(!o) return false;
   const now=new Date();
   const items=o.items||[];
-  const lines=items.map(i=>{ const st=i.estado_preparacion||''; const qty=i.cantidad_preparada!==null&&i.cantidad_preparada!==undefined?i.cantidad_preparada:''; const instruction=itemInstruction(i); return `<tr><td>${esc(Number(i.cantidad_pedida||0))}</td><td>${esc(i.unidad||'')}</td><td>${esc(i.producto_nombre||'')}${instruction?`<br><span class="small"><b>Obs.:</b> ${esc(instruction)}</span>`:''}${st?`<br><span class="small">${esc(st)}${qty!==''?' · prep. '+esc(qty):''}</span>`:''}</td></tr>`; }).join('');
+  const lines=items.map(i=>{
+    const st=i.estado_preparacion||'';
+    const qty=i.cantidad_preparada!==null&&i.cantidad_preparada!==undefined?i.cantidad_preparada:'';
+    const instruction=itemInstruction(i);
+    const prepMeta=[st&&norm(st)!=='pendiente'?st:'',qty!==''?'prep. '+qty:''].filter(Boolean).join(' · ');
+    return `<tr><td>${esc(Number(i.cantidad_pedida||0))}</td><td>${esc(i.unidad||'')}</td><td>${esc(i.producto_nombre||'')}${instruction?`<br><span class="small"><b>Obs.:</b> ${esc(instruction)}</span>`:''}${prepMeta?`<br><span class="small">${esc(prepMeta)}</span>`:''}</td></tr>`;
+  }).join('');
   const titlePx=Math.max(14,Math.min(28,Number(appCfg('impresion.tamanoTituloPx',18))||18)); const detailPx=Math.max(10,Math.min(20,Number(appCfg('impresion.tamanoDetallePx',12))||12)); const pickupAlert=isStorePickup(o)&&appCfg('impresion.mostrarAvisoRetiro',true)!==false?`<div class="print-pickup-alert">${esc(pickupNoticeText())}</div>`:''; const html=`<!doctype html><html><head><meta charset="utf-8"><title>${esc(o.codigo||'Preparación')}</title><style>@page{size:80mm auto;margin:3mm}body{width:74mm;margin:0;font-family:Arial,sans-serif;font-size:${detailPx}px;color:#000}.center{text-align:center}.line{border-top:1px dashed #000;margin:6px 0}h2{font-size:${titlePx}px;margin:0 0 3px}.small{font-size:${Math.max(9,detailPx-2)}px}.print-pickup-alert{border:3px solid #000;padding:7px 5px;margin:7px 0;text-align:center;font-size:${Math.max(titlePx,18)}px;font-weight:950;line-height:1.05}table{width:100%;border-collapse:collapse}td{vertical-align:top;padding:2px 0}.b{font-weight:bold}.sign{border-top:1px solid #000;margin-top:14px;padding-top:2px}@media print{button{display:none}}.lock-alert{background:#fff8e6;border:1px solid #fbbf24;color:#92400e;border-radius:16px;padding:12px 14px;font-size:13px;font-weight:800;line-height:1.35}.lock-alert.ok{background:#ecfdf5;border-color:#86efac;color:#047857}.lock-alert.bad{background:#fff1f2;border-color:#fecdd3;color:#991b1b}.queue-box{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:12px 14px;display:flex;gap:10px;align-items:center;justify-content:space-between;box-shadow:0 8px 18px rgba(17,24,39,.05);margin:10px 0 14px}.queue-box b{font-size:16px}.queue-box .limit{font-size:12px;color:#64748b}.op-card.locked{background:#fffbeb;border-color:#fbbf24}.op-card.free{background:#fff}.op-card.done{background:#ecfdf5;border-color:#86efac}.btn.danger,.btn.danger:hover{background:#dc2626;color:white}.btn.outline{background:#fff;color:#111827;border:1px solid #d1d5db}.input-error{border-color:#ef4444!important;box-shadow:0 0 0 3px rgba(239,68,68,.14)!important}.no-granel-note{display:inline-block;margin-top:4px;color:#991b1b;font-weight:900;font-size:11px}
     .live-bar{background:#fff;border:1px solid var(--line);border-radius:18px;padding:12px 14px;margin:-6px 0 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;box-shadow:var(--shadow2);flex-wrap:wrap}.live-left{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.live-dot{width:10px;height:10px;border-radius:999px;background:#94a3b8;box-shadow:0 0 0 4px rgba(148,163,184,.15)}.live-dot.on{background:#10b981;box-shadow:0 0 0 4px rgba(16,185,129,.15)}.live-dot.warn{background:#f59e0b;box-shadow:0 0 0 4px rgba(245,158,11,.15)}.live-dot.bad{background:#ef4444;box-shadow:0 0 0 4px rgba(239,68,68,.15)}.live-title{font-weight:950}.live-sub{font-size:12px;color:var(--muted);font-weight:700}.live-notice{border:1px solid #bfdbfe;background:#eff6ff;border-radius:14px;padding:9px 11px;font-size:12px;color:#1e40af;font-weight:800}.live-notice b{display:block;color:#111827;margin-bottom:2px}.live-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   </style></head><body><div class="center"><h2>PRODUCTOS CÉSAR</h2><div class="b">ORDEN DE PREPARACIÓN</div><div>${esc(o.codigo||'')}</div></div>${pickupAlert}<div class="line"></div><div>Fecha orden: ${shortDate(o.fecha)}</div><div>Fecha despacho: ${shortDate(dispatchDateOf(o))} ${o.hora_despacho?esc(String(o.hora_despacho).slice(0,5)):''}</div><div>Impreso: ${businessDateTime(now)}</div>${isFutureDispatch(o)?'<div class="b">NO DESPACHAR HOY</div>':''}<div class="line"></div><div class="b">CLIENTE</div><div>${esc(orderClientName(o))}</div><div>Tel: ${esc(orderClientPhone(o))}</div><div>Sector: ${esc(orderClientSector(o))}</div>${occasionalPrintBlock(o)}<div class="line"></div><div>Tomado por: ${esc(workerDisplayName(o.tomado_por||o.preparado_por)||'________________')}</div><div>Hora tomada: ${o.tomado_en?businessDateTime(o.tomado_en):'________________'}</div><div class="line"></div><div class="b">DETALLE SIN PRECIOS</div><table>${lines}</table><div class="line"></div>${o.notas?`<div>Notas: ${esc(o.notas)}</div>`:''}${o.nota_programacion?`<div>Programación: ${esc(o.nota_programacion)}</div>`:''}<div class="sign">Peso final</div><div class="sign">Paquetes</div><div class="sign">Firma despacho</div><button onclick="window.print()">Imprimir</button><script>setTimeout(()=>window.print(),400)<\/script></body></html>`;
-  const w=window.open('','_blank','width=420,height=720'); if(!w) return alert('El navegador bloqueó la ventana de impresión. Permite popups para esta página.'); w.document.open(); w.document.write(html); w.document.close();
-  const {error}=await sb.rpc('registrar_impresion_preparacion_v942',{
+  const w=window.open('','_blank','width=420,height=720'); if(!w){ alert('El navegador bloqueó la ventana de impresión. Permite popups para esta página.'); return false; } w.document.open(); w.document.write(html); w.document.close();
+  const {error}=await sb.rpc('registrar_impresion_preparacion_v9454',{
     p_orden_id:o.id,
-    p_estado_esperado:o.estado
+    p_estado_esperado:o.estado,
+    p_origen:origin
   });
   if(error) appAlert('El volante se abrió, pero no se pudo registrar la impresión de forma segura.\n\n'+error.message,'Impresión no auditada');
   await refreshVisibleModuleV9384(); render();
+  return true;
 }
 function shortageFollowupDialog(o,lines){
   const missing=lines.filter(x=>x.estado_preparacion==='Sin existencia').map(x=>{
@@ -6036,7 +6063,7 @@ function openPreparacionModal(o){
       (data.rows||[]).forEach(x=>{ const r=$(`[data-detail-id="${x.id}"]`,m); if(!r) return; if($('[data-prepqty]',r)) $('[data-prepqty]',r).value=x.qty??''; if($('[data-prepstate]',r)) $('[data-prepstate]',r).value=x.estado||'Pendiente'; if($('[data-prepsub]',r)) $('[data-prepsub]',r).value=x.sustituto||''; if($('[data-prepsubqty]',r)) $('[data-prepsubqty]',r).value=x.sustitutoQty||''; }); updatePrepSubstituteVisibility(m); updatePrepWeightUi(m);
     });
   }
-  $('#printPrepNow',m).onclick=()=>printPreparationTicket(o);
+  $('#printPrepNow',m).onclick=()=>printPreparationTicket(o,'carniceria');
   const relBtn=$('#releaseFromPrep',m); if(relBtn) relBtn.onclick=()=>openReleaseOrderModal(o);
   if(locked) return;
   const prepMissingItems=()=>{
@@ -6429,7 +6456,6 @@ function openValidacionModal(o){
     }
     const obs=valNotas.value||'';
     const notaPeso=[obs,alerta].filter(Boolean).join(' | ');
-    if(!state.v9371SchemaOk) return alert('Primero ejecuta el SQL 31 de la V9.3.7.1 en Supabase.');
     const lote=newBatchCode(); const fechaOriginal=new Date().toISOString(); const fechaOperativa=dateCheck.value;
     const selected=[{o,amount:monto,peso,expected:Number(ref.value||0)}];
     const snapshot=buildDeliveryRouteSnapshot(lote,del,selected,fechaOriginal,by,fechaOperativa);
