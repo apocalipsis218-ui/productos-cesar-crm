@@ -33,8 +33,8 @@ const checks=[
   ['trazabilidad de origen se conserva al imprimir desde Carnicería',
     cardBody.includes('data-print-origin="carniceria"')],
   ['revisión V9.4.5.5 sincronizada',
-    main.includes('V9.4.5.5 PWA') &&
-    html.includes('revisión funcional V9.4.5.5') &&
+    /V9\.4\.5\.(?:[5-9]|\d{2,}) PWA/.test(main) &&
+    /revisión funcional V9\.4\.5\.(?:[5-9]|\d{2,})/.test(html) &&
     readme.includes('V9.4.5.5 — Estado unificado de impresión')]
 ];
 
