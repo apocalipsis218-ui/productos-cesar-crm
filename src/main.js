@@ -40,6 +40,7 @@ import {
 // V9.4.5.2 PWA · sobrantes visibles, autorización restringida y diferencia individual consolidada.
 // V9.4.5.3 PWA · fecha operativa editable del lote con auditoría de registro real.
 // V9.4.5.5 PWA · impresión inmediata y estado unificado de impresión.
+// V9.4.5.6 PWA · búsquedas estables para PC, tablet y actualización en vivo.
 // Conserva factura, pesaje e historial del intento fallido.
 // Control conservado: Pulsa “Detallar artículos” para registrar producto, cantidad y peso.
 // V9.3.9.1 · Faltantes con seguimiento y liquidación segura de clientes ocasionales.
@@ -173,7 +174,7 @@ function printFooterHtml(){ const rec=normalizeSystemConfig(state.systemConfig||
 function signatureHtml(label){ return `<div class="sign">${esc(label||'Firma')}</div>`; }
 function exportBackup(){
   const cfg=normalizeSystemConfig(state.systemConfig||{});
-  const payload={fecha:new Date().toISOString(),version:'V9.4.5 PWA',revision_visual:'V9.4.5.5',empresa:cfg.empresa,configuracion:cfg,clientes:state.clientes||[],ordenes:(state.ordenes||[]).map(o=>({codigo:o.codigo,fecha:o.fecha,estado:o.estado,cliente:orderClientName(o),total:o.total_factura||o.total_estimado,delivery:o.delivery_nombre,lote:o.lote_codigo})),productos:state.productos||[],empleados:state.empleadosOperativos||[],usuarios:state.usuarios||[],liquidaciones:state.liquidacionesLotes||[],cxc:state.cxcSaldos||[],cobrosCxc:state.cxcCobros||[]};
+  const payload={fecha:new Date().toISOString(),version:'V9.4.5 PWA',revision_visual:'V9.4.5.6',empresa:cfg.empresa,configuracion:cfg,clientes:state.clientes||[],ordenes:(state.ordenes||[]).map(o=>({codigo:o.codigo,fecha:o.fecha,estado:o.estado,cliente:orderClientName(o),total:o.total_factura||o.total_estimado,delivery:o.delivery_nombre,lote:o.lote_codigo})),productos:state.productos||[],empleados:state.empleadosOperativos||[],usuarios:state.usuarios||[],liquidaciones:state.liquidacionesLotes||[],cxc:state.cxcSaldos||[],cobrosCxc:state.cxcCobros||[]};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`backup-productos-cesar-${today()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); toast('Copia de seguridad descargada');
 }
@@ -616,7 +617,7 @@ function handleLiveOrderChange(payload){
   }
   pushLiveNotice(title,msg,target);
   if(event!=='DELETE') scheduleLiveOrderRefreshV942(row.id);
-  else if(!document.querySelector('.modal')) render();
+  else renderLiveSafelyV9456();
 }
 function handleLiveAuxChange(payload,table){
   const event=payload.eventType||'';
@@ -634,13 +635,13 @@ function handleLiveAuxChange(payload,table){
     state.cxcLoadedAt=0;
     if(state.page==='liquidacion'&&['cxc','cxc_historial'].includes(state.liquidacionTab)){
       loadCxcDataV940(true).then(()=>{
-        if(state.page==='liquidacion'&&['cxc','cxc_historial'].includes(state.liquidacionTab)&&!document.querySelector('.modal')) render();
+        if(state.page==='liquidacion'&&['cxc','cxc_historial'].includes(state.liquidacionTab)) renderLiveSafelyV9456();
       });
     }
   }
   const orderId=changedOrderIdV942(table,payload,state.ordenes);
   if(orderId) scheduleLiveOrderRefreshV942(orderId);
-  else if(!document.querySelector('.modal')) render();
+  else renderLiveSafelyV9456();
 }
 function scheduleLiveOrderRefreshV942(orderId){
   const ids=boundedOrderIdsV942([orderId]);
@@ -662,7 +663,7 @@ async function flushLiveOrderRefreshV942(){
     const unchanged=(state.ordenes||[]).filter(row=>!requested.has(String(row?.id)));
     state.ordenes=[...(result.data||[]),...unchanged].sort((a,b)=>Number(b?.id||0)-Number(a?.id||0));
     state.liveLastRefresh=new Date().toISOString();
-    if(!document.querySelector('.modal')) render(); else updateLiveDom();
+    renderLiveSafelyV9456();
   }catch(e){
     state.liveStatus='polling'; updateLiveDom();
   }finally{state.liveLoading=false;}
@@ -673,8 +674,7 @@ async function refreshLiveData(reason='Actualización',fromRealtime=false){
   try{
     await refreshVisibleModuleV9384();
     state.liveLastRefresh=new Date().toISOString();
-    if(!document.querySelector('.modal')) render();
-    else updateLiveDom();
+    renderLiveSafelyV9456();
   }catch(e){
     state.liveStatus='polling'; updateLiveDom();
   }finally{ state.liveLoading=false; }
@@ -830,7 +830,7 @@ async function refreshSystemConfigV9390(){
   state.systemConfig=normalizeSystemConfig(cfgPatch);
   saveWeightConfigLocal(state.weightConfig);
   saveSystemConfigLocal(state.systemConfig);
-  if(!document.querySelector('.modal')) render();
+  if(!document.querySelector('.modal')) renderLiveSafelyV9456();
   else toast('Configuración global actualizada');
 }
 async function loadOperationalDataV9384(page=state.page){
@@ -1028,6 +1028,7 @@ function renderPasswordRecovery(){
 
 function render(){
   applyUi();
+  bindDeferredSearchRenderV9456();
   if(!state.profile || state.profile.activo===false){
     root.innerHTML = `<div class="login"><div class="login-card"><div class="logo">PC</div><h2 style="text-align:center;margin:0 0 6px">Acceso no habilitado</h2><p style="text-align:center;color:var(--muted);margin:0 0 18px">Tu usuario existe en Supabase Auth, pero no tiene un perfil activo en el sistema.</p><div class="error">Pídele al administrador que active tu perfil en Configuración → Usuarios y módulos.</div><button class="btn dark" id="logoutBlocked">Salir</button></div></div>`;
     $('#logoutBlocked').onclick=async()=>{await sb.auth.signOut(); teardownLiveUpdates(); state.session=null; state.user=null; renderLogin();};
@@ -1041,7 +1042,7 @@ function render(){
   }
   if(!puede(state.page)) state.page = visibleNav[0][0];
   const sidebarCollapsed=loadSidebarCollapsed();
-  root.innerHTML = `<div class="shell${sidebarCollapsed?' sidebar-collapsed':''}"><aside id="appSidebar" class="sidebar" aria-hidden="${sidebarCollapsed?'true':'false'}"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.4.5.5 PWA · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.4.5.5 PWA</b><br>Impresión inmediata y estado unificado.</div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" data-collapsed="${sidebarCollapsed?'1':'0'}" aria-controls="appSidebar" aria-expanded="${sidebarCollapsed?'false':'true'}" aria-label="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}" title="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}"><span aria-hidden="true">${sidebarCollapsed?'›':'‹'}</span></button><main class="main"><div class="top"><div class="mobile-brand-mini"><span>${esc(appCfg('empresa.logoTexto','PC'))}</span></div><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray" aria-label="Mi acceso">Mi acceso</button><button id="refreshBtn" aria-label="Actualizar">Actualizar</button><button id="logoutBtn" class="dark" aria-label="Salir">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
+  root.innerHTML = `<div class="shell${sidebarCollapsed?' sidebar-collapsed':''}"><aside id="appSidebar" class="sidebar" aria-hidden="${sidebarCollapsed?'true':'false'}"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.4.5.6 PWA · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.4.5.6 PWA</b><br>Búsquedas estables en PC y tablet.</div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" data-collapsed="${sidebarCollapsed?'1':'0'}" aria-controls="appSidebar" aria-expanded="${sidebarCollapsed?'false':'true'}" aria-label="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}" title="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}"><span aria-hidden="true">${sidebarCollapsed?'›':'‹'}</span></button><main class="main"><div class="top"><div class="mobile-brand-mini"><span>${esc(appCfg('empresa.logoTexto','PC'))}</span></div><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray" aria-label="Mi acceso">Mi acceso</button><button id="refreshBtn" aria-label="Actualizar">Actualizar</button><button id="logoutBtn" class="dark" aria-label="Salir">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
   setupKeyboardShortcuts();
   bindSidebarToggle();
   $$('[data-page]').forEach(b=>b.onclick=()=>navigateToPageV942(b.dataset.page));
@@ -1076,6 +1077,7 @@ function renderPage(){
     }
     const fn=({inicio:renderInicio,control:renderControl,clientes:renderClientes,ordenes:renderOrdenes,carniceria:renderCarniceria,facturacion:renderFacturacion,validacion:renderValidacion,delivery:renderDelivery,liquidacion:renderLiquidacion,productos:renderProductos,productividad:renderProductividad,alertas:renderAlertas,kanban:renderKanban,reportes:renderReportes,auditoria:renderAuditoria,config:renderConfig}[state.page]||renderInicio);
     fn(c);
+    enhanceSearchFieldsV9456(c);
     applyMobileLabels(c);
   }catch(err){
     console.error('Error renderizando módulo', state.page, err);
@@ -1417,7 +1419,171 @@ function orderStateControlHtml(o){
   const label=o ? (o.estado||initial) : initial;
   return `<div class="field order-auto-state"><label>${o?'Estado actual':'Estado inicial automático'}</label><input id="ordEstadoInfo" value="${esc(label)}" readonly><div class="hint">El estado se asigna automáticamente según la fecha de despacho y luego avanza por cada módulo.</div></div>`;
 }
-function focusAfterRender(id,pos){ setTimeout(()=>{ const el=document.getElementById(id); if(el){ el.focus(); try{ el.setSelectionRange(pos,pos); }catch(e){} } },0); }
+function focusAfterRender(id,pos){ setTimeout(()=>{ const el=document.getElementById(id); if(el){ if(document.activeElement!==el) el.focus({preventScroll:true}); try{ el.setSelectionRange(pos,pos); }catch(e){} } },0); }
+
+// V9.4.5.6 · búsquedas estables en PC y tablet.
+// Los listados pueden volver a renderizarse sin reemplazar el input que mantiene
+// abierto el teclado virtual. La espera breve evita reconstruir listas grandes
+// por cada pulsación y compositionend protege teclados predictivos/acentos.
+const SEARCH_RENDER_DELAY_V9456=150;
+const searchRenderTimersV9456=new WeakMap();
+let deferredLiveRenderV9456=false;
+
+function isSearchFieldV9456(el){
+  if(!el || String(el.tagName||'').toUpperCase()!=='INPUT') return false;
+  const id=String(el.id||'');
+  const placeholder=String(el.getAttribute?.('placeholder')||'');
+  return el.type==='search' || /search/i.test(id) || /^buscar\b/i.test(placeholder.trim());
+}
+function enhanceSearchFieldsV9456(scope=document){
+  const fields=[];
+  if(isSearchFieldV9456(scope)) fields.push(scope);
+  scope?.querySelectorAll?.('input')?.forEach(el=>{if(isSearchFieldV9456(el)) fields.push(el);});
+  fields.forEach(el=>{
+    if((el.getAttribute('type')||'text').toLowerCase()==='text') el.setAttribute('type','search');
+    el.setAttribute('autocomplete','off');
+    el.setAttribute('autocorrect','off');
+    el.setAttribute('autocapitalize','off');
+    el.setAttribute('spellcheck','false');
+    el.setAttribute('inputmode','search');
+    el.setAttribute('enterkeyhint','search');
+    el.dataset.stableSearch='v9456';
+    if(el.dataset.searchCompositionBound!=='1'){
+      el.dataset.searchCompositionBound='1';
+      el.addEventListener('compositionstart',()=>{el.dataset.searchComposing='1';});
+      el.addEventListener('compositionend',()=>{
+        delete el.dataset.searchComposing;
+        el.dispatchEvent(new Event('input',{bubbles:true}));
+      });
+    }
+  });
+}
+function syncElementAttributesV9456(current,incoming,preserveInput=false){
+  const preserved=new Set(preserveInput?['value','type','autocomplete','autocorrect','autocapitalize','spellcheck','inputmode','enterkeyhint','data-stable-search','data-search-composition-bound']:[]);
+  [...current.attributes].forEach(a=>{if(!preserved.has(a.name) && !incoming.hasAttribute(a.name)) current.removeAttribute(a.name);});
+  [...incoming.attributes].forEach(a=>{if(!preserved.has(a.name) && current.getAttribute(a.name)!==a.value) current.setAttribute(a.name,a.value);});
+}
+function patchSearchNodeV9456(current,incoming,active){
+  if(!current || !incoming) return;
+  if(current===active){
+    syncElementAttributesV9456(current,incoming,true);
+    return;
+  }
+  // Solo se conservan el buscador activo y sus contenedores. Los demás nodos
+  // se sustituyen para que sus eventos se enlacen una sola vez en cada render.
+  if(!current.contains?.(active)){
+    current.replaceWith(incoming.cloneNode(true));
+    return;
+  }
+  if(current.nodeType!==incoming.nodeType){
+    return;
+  }
+  if(current.nodeType===Node.TEXT_NODE || current.nodeType===Node.COMMENT_NODE){
+    if(current.nodeValue!==incoming.nodeValue) current.nodeValue=incoming.nodeValue;
+    return;
+  }
+  if(current.tagName!==incoming.tagName){
+    return;
+  }
+  syncElementAttributesV9456(current,incoming,false);
+  if(current instanceof HTMLInputElement){
+    current.value=incoming.value;
+    current.checked=incoming.checked;
+  }else if(current instanceof HTMLTextAreaElement) current.value=incoming.value;
+  else if(current instanceof HTMLSelectElement) current.value=incoming.value;
+  const next=[...incoming.childNodes];
+  for(let i=0;i<next.length;i++){
+    let old=current.childNodes[i];
+    const wanted=next[i];
+    if(!old){current.appendChild(wanted.cloneNode(true));continue;}
+    if(wanted.nodeType===Node.ELEMENT_NODE && wanted.id && old.id!==wanted.id){
+      const match=[...current.childNodes].slice(i+1).find(n=>n.nodeType===Node.ELEMENT_NODE && n.id===wanted.id);
+      if(match && !match.contains?.(active)){current.insertBefore(match,old);old=match;}
+    }
+    patchSearchNodeV9456(old,wanted,active);
+  }
+  while(current.childNodes.length>next.length){
+    const tail=current.lastChild;
+    if(tail===active || tail?.contains?.(active)) break;
+    tail.remove();
+  }
+}
+function patchSearchContainerV9456(container,html,active,nativeSetter){
+  const staging=container.cloneNode(false);
+  nativeSetter.call(staging,String(html??''));
+  const incoming=[...staging.childNodes];
+  for(let i=0;i<incoming.length;i++){
+    const old=container.childNodes[i];
+    if(!old){container.appendChild(incoming[i].cloneNode(true));continue;}
+    patchSearchNodeV9456(old,incoming[i],active);
+  }
+  while(container.childNodes.length>incoming.length){
+    const tail=container.lastChild;
+    if(tail===active || tail?.contains?.(active)) break;
+    tail.remove();
+  }
+}
+function renderKeepingSearchFocusV9456(input,renderFn){
+  if(!input?.isConnected || typeof renderFn!=='function') return;
+  const pos=input.selectionStart??input.value.length;
+  const end=input.selectionEnd??pos;
+  const descriptor=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
+  if(!descriptor?.get || !descriptor?.set){renderFn();focusAfterRender(input.id,pos);return;}
+  Object.defineProperty(Element.prototype,'innerHTML',{
+    configurable:true,
+    enumerable:descriptor.enumerable,
+    get:descriptor.get,
+    set(html){
+      if(input.isConnected && (this===input || this.contains?.(input))) patchSearchContainerV9456(this,html,input,descriptor.set);
+      else descriptor.set.call(this,html);
+    }
+  });
+  try{renderFn();}
+  finally{Object.defineProperty(Element.prototype,'innerHTML',descriptor);}
+  if(input.isConnected){
+    try{input.setSelectionRange(pos,end);}catch(e){}
+    enhanceSearchFieldsV9456(input);
+  }
+}
+function scheduleSearchRenderV9456(event,renderFn){
+  const input=event?.currentTarget||event?.target;
+  if(!input || input.dataset.searchComposing==='1' || event?.isComposing) return;
+  const previous=searchRenderTimersV9456.get(input);
+  if(previous) clearTimeout(previous);
+  const timer=setTimeout(()=>{
+    searchRenderTimersV9456.delete(input);
+    if(input.isConnected) renderKeepingSearchFocusV9456(input,renderFn);
+  },SEARCH_RENDER_DELAY_V9456);
+  searchRenderTimersV9456.set(input,timer);
+}
+function activeSearchFieldV9456(){
+  const active=document.activeElement;
+  return isSearchFieldV9456(active) && active?.isConnected ? active : null;
+}
+function renderLiveSafelyV9456(){
+  if(document.querySelector('.modal')){updateLiveDom();return false;}
+  if(activeSearchFieldV9456()){
+    deferredLiveRenderV9456=true;
+    updateLiveDom();
+    return false;
+  }
+  deferredLiveRenderV9456=false;
+  render();
+  return true;
+}
+function bindDeferredSearchRenderV9456(){
+  if(window.__pcDeferredSearchRenderV9456) return;
+  window.__pcDeferredSearchRenderV9456=true;
+  document.addEventListener('focusout',e=>{
+    if(!isSearchFieldV9456(e.target)) return;
+    setTimeout(()=>{
+      if(deferredLiveRenderV9456 && !activeSearchFieldV9456() && !document.querySelector('.modal')){
+        deferredLiveRenderV9456=false;
+        render();
+      }
+    },0);
+  },true);
+}
 function parseDateTime(v){ if(!v) return null; try{ const s=String(v); const d=s.includes('T') ? new Date(s) : new Date(s.slice(0,10)+'T00:00:00'); return isNaN(d.getTime()) ? null : d; }catch(e){ return null; } }
 function minutesSince(v){ const d=parseDateTime(v); if(!d) return null; return Math.max(0,Math.floor((Date.now()-d.getTime())/60000)); }
 function elapsedTextSince(v){ const m=minutesSince(v); if(m===null) return '—'; if(m<1) return 'ahora'; if(m<60) return `${m} min`; const h=Math.floor(m/60), r=m%60; if(h<24) return `${h} h${r?` ${r} min`:''}`; const d=Math.floor(h/24), hr=h%24; return `${d} día${d===1?'':'s'}${hr?` ${hr} h`:''}`; }
@@ -1914,7 +2080,7 @@ function renderControlGestiones(c){
   $('#controlDate').onchange=e=>{state.controlDate=e.target.value||today(); renderControl($('#content'));};
   $('#nuevaGestion').onclick=()=>openCallModal();
   const inp=$('#controlSearch'), sug=$('#controlSuggest');
-  inp.oninput=()=>{ state.callSearch=inp.value; const query=inp.value; const rows=state.clientes.filter(x=>matchClientName(x,query)).slice(0,10); sug.innerHTML=query?`<div class="panel"><div class="list">${rows.map(x=>`<div class="client-card"><div class="avatar">${esc(String(x.codigo||'').replace('CL-','').slice(-3))}</div><div><div class="client-title">${esc(x.negocio)}</div><div class="client-sub">${esc(x.contacto||'')} · ${esc(x.telefono||'')} · ${esc(x.sector||'')}</div></div><div class="card-actions"><button class="iconbtn whatsapp" data-wa="${x.id}">WA</button><button class="btn small" data-call="${x.id}">Gestionar</button><button class="btn small gray" data-client="${x.id}">Ficha</button></div></div>`).join('')}</div></div>`:''; if(query.length>1) setTimeout(()=>{ const pos=inp.selectionStart||inp.value.length; renderControlGestiones($('#controlBody')); focusAfterRender('controlSearch',pos); },0); bindDynamic(); };
+  inp.oninput=e=>{ state.callSearch=e.target.value; const query=e.target.value; const rows=state.clientes.filter(x=>matchClientName(x,query)).slice(0,10); sug.innerHTML=query?`<div class="panel"><div class="list">${rows.map(x=>`<div class="client-card"><div class="avatar">${esc(String(x.codigo||'').replace('CL-','').slice(-3))}</div><div><div class="client-title">${esc(x.negocio)}</div><div class="client-sub">${esc(x.contacto||'')} · ${esc(x.telefono||'')} · ${esc(x.sector||'')}</div></div><div class="card-actions"><button class="iconbtn whatsapp" data-wa="${x.id}">WA</button><button class="btn small" data-call="${x.id}">Gestionar</button><button class="btn small gray" data-client="${x.id}">Ficha</button></div></div>`).join('')}</div></div>`:''; scheduleSearchRenderV9456(e,()=>renderControlGestiones($('#controlBody'))); bindDynamic(); };
   bindDynamic();
 }
 
@@ -1950,7 +2116,7 @@ function renderControlAgenda(c){
 function renderClientes(c){
   const q=state.clientSearch; const rows=state.clientes.filter(x=>(state.filter==='Todos'||x.estado===state.filter) && matchClientName(x,q));
   c.innerHTML=`<div class="panel"><div class="panel-head"><div><h3>Clientes</h3><p>${rows.length} de ${state.clientes.length} clientes · búsqueda estricta por nombre.</p></div><button class="btn" id="newClient">+ Cliente</button></div><div class="searchbar"><input id="clientSearch" value="${esc(q)}" placeholder="Buscar nombre del cliente..."></div><div class="chips">${['Todos','Activo','Inactivo','Prospecto','Suspendido'].map(f=>`<button class="chip ${state.filter===f?'active':''}" data-filter="${f}">${f}</button>`).join('')}</div><div class="actions"><button class="btn gray" id="tplClientes">Descargar plantilla clientes</button><button class="btn gray" id="exportClientes">Exportar Excel</button><label class="btn gray" for="importClientes">Importar Excel</label><input id="importClientes" type="file" accept=".xlsx,.xls" style="display:none"></div></div><div class="list">${rows.slice(0,150).map(clientCard).join('')||'<div class="empty">No hay clientes con ese filtro.</div>'}</div>`;
-  $('#clientSearch').oninput=e=>{ const pos=e.target.selectionStart||e.target.value.length; state.clientSearch=e.target.value; renderClientes($('#content')); focusAfterRender('clientSearch',pos);}; $$('[data-filter]').forEach(b=>b.onclick=()=>{state.filter=b.dataset.filter; renderClientes($('#content'));}); $('#newClient').onclick=()=>openClientForm(); $('#tplClientes').onclick=()=>downloadClienteTemplate(); $('#exportClientes').onclick=()=>exportClientes(rows); $('#importClientes').onchange=e=>importClientes(e.target.files[0]); bindDynamic();
+  $('#clientSearch').oninput=e=>{ state.clientSearch=e.target.value; scheduleSearchRenderV9456(e,()=>renderClientes($('#content')));}; $$('[data-filter]').forEach(b=>b.onclick=()=>{state.filter=b.dataset.filter; renderClientes($('#content'));}); $('#newClient').onclick=()=>openClientForm(); $('#tplClientes').onclick=()=>downloadClienteTemplate(); $('#exportClientes').onclick=()=>exportClientes(rows); $('#importClientes').onchange=e=>importClientes(e.target.files[0]); bindDynamic();
 }
 function clientCard(c){ const lc=lastCall(c.id); const d=daysSince(c.ultimo_pedido); return `<div class="client-card"><div class="avatar">${esc(String(c.codigo||'').replace('CL-','').slice(-3)||'C')}</div><div><div class="client-title">${esc(c.negocio)}</div><div class="client-sub">${esc(c.contacto||'')} · ${esc(c.sector||'Sin sector')} · ${esc(c.tipo||'')}</div><div class="badges"><span class="badge ${c.estado==='Activo'?'ok':c.estado==='Prospecto'?'info':''}">${esc(c.estado||'')}</span>${lc?`<span class="badge ${lc.resultado==='Pidió'?'ok':'warn'}">${esc(lc.resultado)} · ${shortDate(lc.fecha)}</span>`:'<span class="badge">Sin gestiones</span>'}<span class="badge ${d===null||d>=30?'warn':''}">${d===null?'nunca ha pedido':d+' días sin pedir'}</span></div></div><div class="card-actions"><a class="iconbtn call" href="tel:${esc(c.telefono||'')}">Llamar</a><button class="iconbtn whatsapp" data-wa="${c.id}">WhatsApp</button><button class="btn small gray" data-client="${c.id}">Ficha</button></div></div>`; }
 function bindDynamic(){
@@ -2132,10 +2298,10 @@ function renderOrdenes(c){
   $('#createOrder').onclick=()=>openOrderForm();
   $('#specialTypeFilter')?.addEventListener('change',e=>{state.specialTypeFilter=e.target.value; renderOrdenes($('#content'));});
   $('#specialStatusFilter')?.addEventListener('change',e=>{state.specialStatusFilter=e.target.value; renderOrdenes($('#content'));});
-  $('#specialSearch')?.addEventListener('input',e=>{ const pos=e.target.selectionStart||e.target.value.length; state.specialSearch=e.target.value; renderOrdenes($('#content')); focusAfterRender('specialSearch',pos);});
+  const specialSearch=$('#specialSearch'); if(specialSearch) specialSearch.oninput=e=>{ state.specialSearch=e.target.value; scheduleSearchRenderV9456(e,()=>renderOrdenes($('#content')));};
   $('#printSpecialCases')?.addEventListener('click',()=>printSpecialCasesReport());
   $$('[data-order-view]').forEach(b=>b.onclick=()=>{state.orderView=b.dataset.orderView; state.orderPage=1; renderOrdenes($('#content'));});
-  $('#orderSearch').oninput=e=>{ const pos=e.target.selectionStart||e.target.value.length; state.orderSearch=e.target.value; state.orderPage=1; renderOrdenes($('#content')); focusAfterRender('orderSearch',pos); };
+  $('#orderSearch').oninput=e=>{ state.orderSearch=e.target.value; state.orderPage=1; scheduleSearchRenderV9456(e,()=>renderOrdenes($('#content'))); };
   $('#orderPrev')?.addEventListener('click',()=>{state.orderPage=Math.max(1,page-1); renderOrdenes($('#content')); window.scrollTo({top:0,behavior:'smooth'});});
   $('#orderNext')?.addEventListener('click',()=>{state.orderPage=Math.min(totalPages,page+1); renderOrdenes($('#content')); window.scrollTo({top:0,behavior:'smooth'});});
   bindDynamic();
@@ -2219,7 +2385,7 @@ function renderProductos(c){
   <div class="product-mobile-list">${rows.map(p=>{const issues=productConfigIssues(p);return `<article class="product-mobile-card ${issues.length?'needs-review':''}"><div class="product-mobile-head"><div><span class="product-code">${esc(p.codigo||'Sin código')}</span><h4>${esc(p.nombre)}</h4><p>${esc(p.categoria||'Sin categoría')} · ${money(p.precio_defecto)}/${esc(p.unidad||'lb')}</p></div><span class="badge ${p.activo!==false?'ok':'bad'}">${p.activo!==false?'Activo':'Inactivo'}</span></div><div class="badges"><span class="badge info">${esc(weightConfigLabel(p))}</span>${p.suma_peso_final===false?'<span class="badge">No suma peso</span>':''}<span class="badge">${productAllowsFraction(p)?'Permite fracción':'Solo entero'}</span></div>${issues.length?`<div class="product-mobile-warning"><b>Revisar configuración</b><span>${esc(issues.join(' · '))}</span></div>`:'<div class="product-mobile-ok">Configurado correctamente</div>'}<div class="product-mobile-actions"><button class="btn small gray" data-prod-edit="${p.id}">Editar</button><button class="btn small dark" data-prod-actions="${p.id}">Más</button></div></article>`}).join('')||'<div class="empty">No hay productos con estos filtros.</div>'}</div>
   <div class="table-wrap product-table-wrap"><table class="table product-table"><thead><tr><th>Código</th><th>Producto</th><th>Categoría</th><th>Unidad</th><th>Precio</th><th>Despacho / peso</th><th>Estado</th><th>Configuración</th><th>Acciones</th></tr></thead><tbody>${rows.map(p=>`<tr><td>${esc(p.codigo||'')}</td><td><b>${esc(p.nombre)}</b>${p.observaciones?`<div class="hint">${esc(p.observaciones).slice(0,80)}</div>`:''}</td><td>${esc(p.categoria||'')}</td><td>${esc(p.unidad||'lb')}</td><td>${money(p.precio_defecto)}</td><td><span class="badge info">${esc(weightConfigLabel(p))}</span>${p.suma_peso_final===false?`<div class="hint">No suma peso</div>`:''}${productAllowsFraction(p)?`<div class="hint">Permite fracción</div>`:`<div class="hint">Solo entero</div>`}</td><td><span class="badge ${p.activo!==false?'ok':'bad'}">${p.activo!==false?'Activo':'Inactivo'}</span></td><td>${productConfigBadge(p)}</td><td><div class="actions product-row-actions"><button class="btn small gray" data-prod-edit="${p.id}">Editar</button><button class="btn small dark" data-prod-actions="${p.id}">Acciones</button></div></td></tr>`).join('')}</tbody></table></div>`;
   const productFilterShell=$('.product-filter-shell',c); if(productFilterShell && isMobileViewport()) productFilterShell.removeAttribute('open');
-  $('#productSearch').oninput=e=>{ const pos=e.target.selectionStart||e.target.value.length; state.productSearch=e.target.value; renderProductos($('#content')); focusAfterRender('productSearch',pos);};
+  $('#productSearch').oninput=e=>{ state.productSearch=e.target.value; scheduleSearchRenderV9456(e,()=>renderProductos($('#content')));};
   $$('[data-prod-filter]').forEach(b=>b.onclick=()=>{state.productFilter=b.dataset.prodFilter; renderProductos($('#content'));});
   $('#productCategoryFilter').onchange=e=>{state.productCategoryFilter=e.target.value; renderProductos($('#content'));};
   $('#productUnitFilter').onchange=e=>{state.productUnitFilter=e.target.value; renderProductos($('#content'));};
@@ -2282,7 +2448,7 @@ function renderAlertas(c){
   c.innerHTML=`<div class="executive-hero alert-hero"><div><div class="hero-eyebrow">V9.3.0 R3 · Centro de alertas</div><h3>Prioridades operativas del día</h3><p>Unifica atrasos, órdenes detenidas, productos mal configurados, pendientes de agenda y liquidaciones para actuar rápido.</p></div><div class="hero-actions"><button class="btn" data-go="kanban">Ver Kanban</button><button class="btn gray" data-go="ordenes">Órdenes</button><button class="btn dark" id="refreshAlerts">Actualizar</button></div></div>
   <div class="exec-kpi-grid alert-kpis"><div class="exec-kpi danger"><span>Críticas</span><strong>${counts.bad}</strong><small>Bloquean o atrasan la operación</small></div><div class="exec-kpi warn"><span>Advertencias</span><strong>${counts.warn}</strong><small>Requieren revisión</small></div><div class="exec-kpi"><span>Informativas</span><strong>${counts.info}</strong><small>Seguimiento operativo</small></div><div class="exec-kpi"><span>Total alertas</span><strong>${all.length}</strong><small>${rows.length} visibles con filtros</small></div></div>
   <div class="panel"><div class="panel-head"><div><h3>Alertas y tareas de atención</h3><p>Filtra por nivel y busca por cliente, orden, producto o módulo.</p></div></div><div class="alert-toolbar"><input id="alertSearch" value="${esc(q)}" placeholder="Buscar alerta, cliente, orden o producto..."><div class="tabs mini-tabs">${['todos','bad','warn','info'].map(x=>`<button class="tab ${level===x?'active':''}" data-alert-level="${x}">${alertLevelLabel(x)}</button>`).join('')}</div></div><div class="alert-list">${rows.map(alertCard).join('')||'<div class="empty">No hay alertas con esos filtros.</div>'}</div></div>`;
-  $('#alertSearch').oninput=e=>{const pos=e.target.selectionStart||e.target.value.length; state.alertSearch=e.target.value; renderAlertas($('#content')); focusAfterRender('alertSearch',pos);};
+  $('#alertSearch').oninput=e=>{state.alertSearch=e.target.value; scheduleSearchRenderV9456(e,()=>renderAlertas($('#content')));};
   $$('[data-alert-level]').forEach(b=>b.onclick=()=>{state.alertLevel=b.dataset.alertLevel; renderAlertas($('#content'));});
   $('#refreshAlerts').onclick=async()=>{await liveRefresh('manual'); renderAlertas($('#content'));};
   $$('[data-go]').forEach(b=>b.onclick=()=>{state.page=b.dataset.go; render();});
@@ -2361,7 +2527,7 @@ function renderKanbanClosedHistory(m){
   <div class="grid4 compact-kpis kanban-history-kpis"><div class="card kpi"><div class="label">Órdenes cerradas</div><div class="value">${rows.length}</div></div><div class="card kpi"><div class="label">Monto facturado</div><div class="value">${money(totals.amount)}</div></div><div class="card kpi"><div class="label">Efectivo registrado</div><div class="value">${money(totals.cash)}</div></div><div class="card kpi"><div class="label">Crédito pendiente</div><div class="value">${money(totals.credit)}</div></div></div>
   <div class="kanban-history-table"><div class="kanban-history-head"><span>Orden / cliente</span><span>Estado</span><span>Cierre</span><span>Total</span><span>Acción</span></div>${visible.map(o=>`<div class="kanban-history-row"><div><b>${esc(o.codigo||('ORD-'+o.id))}</b><small>${esc(orderClientName(o))}${o.factura_no?` · Factura ${esc(o.factura_no)}`:''}${o.delivery_nombre?` · ${esc(o.delivery_nombre)}`:''}</small></div><div>${orderStatusBadgeHtml(o)}</div><div><b>${kanbanClosedTime(o)?new Date(kanbanClosedTime(o)).toLocaleDateString('es-DO'):'—'}</b><small>${kanbanClosedTime(o)?new Date(kanbanClosedTime(o)).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'}):''}</small></div><div><b>${money(orderAmount(o))}</b></div><div><button class="btn small gray" data-oper-order="${o.id}">Ver</button></div></div>`).join('')||'<div class="empty">No hay órdenes cerradas con estos filtros.</div>'}</div>
   <div class="kanban-history-pagination"><div>Mostrando ${rows.length?fromIndex+1:0}–${Math.min(fromIndex+size,rows.length)} de ${rows.length}</div><div class="pager-actions"><label>Por página <select id="kanbanHistoryPageSize"><option ${size===25?'selected':''}>25</option><option ${size===50?'selected':''}>50</option></select></label><button class="btn small gray" id="kanbanHistoryPrev" ${state.kanbanHistoryPage<=0?'disabled':''}>Anterior</button><span>Página ${state.kanbanHistoryPage+1} de ${pages}</span><button class="btn small gray" id="kanbanHistoryNext" ${state.kanbanHistoryPage>=pages-1?'disabled':''}>Siguiente</button></div></div>`;
-  const search=$('#kanbanHistorySearch',m); search.oninput=e=>{const pos=e.target.selectionStart||e.target.value.length;state.kanbanHistorySearch=e.target.value;state.kanbanHistoryPage=0;renderKanbanClosedHistory(m);requestAnimationFrame(()=>{const n=$('#kanbanHistorySearch',m);n?.focus();n?.setSelectionRange(pos,pos);});};
+  const search=$('#kanbanHistorySearch',m); search.oninput=e=>{state.kanbanHistorySearch=e.target.value;state.kanbanHistoryPage=0;scheduleSearchRenderV9456(e,()=>renderKanbanClosedHistory(m));};
   $('#kanbanHistoryStatus',m).onchange=e=>{state.kanbanHistoryStatus=e.target.value;state.kanbanHistoryPage=0;renderKanbanClosedHistory(m);};
   $('#kanbanHistoryFrom',m).onchange=e=>{state.kanbanHistoryFrom=e.target.value;state.kanbanHistoryPeriod='todos';state.kanbanHistoryPage=0;renderKanbanClosedHistory(m);};
   $('#kanbanHistoryTo',m).onchange=e=>{state.kanbanHistoryTo=e.target.value;state.kanbanHistoryPeriod='todos';state.kanbanHistoryPage=0;renderKanbanClosedHistory(m);};
@@ -2399,7 +2565,7 @@ function renderKanban(c){
     return `<section class="kanban-col kanban-closed-col ${mobileActive} ${hidden?'closed-collapsed':''}" data-kanban-col="cerradas"><header><div><b>${esc(title)}</b><span>${esc(sub)} · ${hidden?'ocultas':`mostrando ${Math.min(closedVisible.length,closedTotal)} de ${closedTotal}`}</span></div><div class="kanban-header-actions"><em>${closedTotal}</em><button class="icon-btn" data-kanban-closed-toggle title="${hidden?'Mostrar cerradas':'Ocultar cerradas'}">${hidden?'＋':'−'}</button></div></header>${hidden?`<div class="kanban-closed-collapsed"><strong>${closedTotal}</strong><span>órdenes cerradas</span><button class="btn small gray" data-kanban-closed-history>Ver historial</button></div>`:`<div class="kanban-list kanban-closed-list">${closedVisible.map(kanbanClosedCard).join('')||'<div class="kanban-empty">Sin órdenes</div>'}</div><div class="kanban-closed-footer">${closedVisible.length<closedTotal?`<button class="btn small gray" data-kanban-closed-more>Mostrar 10 más</button>`:closedTotal>10?'<button class="btn small gray" data-kanban-closed-reset>Mostrar solo 10</button>':''}<button class="btn small dark" data-kanban-closed-history>Historial completo</button></div>`}</section>`;
   }).join('');
   c.innerHTML=`<div class="executive-hero kanban-hero"><div><div class="hero-eyebrow">V9.3.0 · Tablero Kanban</div><h3>Flujo completo de órdenes</h3><p>Visualiza dónde está cada pedido, quién lo tiene y cuánto tiempo lleva en su etapa actual.</p></div><div class="hero-actions"><button class="btn" data-go="alertas">Centro de alertas</button><button class="btn gray" data-go="ordenes">Lista de órdenes</button><button class="btn dark" data-kanban-closed-history>Historial cerradas</button></div></div><div class="kanban-kpi-grid"><div class="kanban-kpi"><span>Órdenes activas</span><strong>${activeTotal}</strong><small>Requieren seguimiento</small></div><div class="kanban-kpi"><span>En preparación</span><strong>${grouped.carniceria.length}</strong><small>Carnicería</small></div><div class="kanban-kpi"><span>Retiros pendientes</span><strong>${grouped.retiros.length}</strong><small>En el negocio</small></div><div class="kanban-kpi"><span>En ruta</span><strong>${grouped.delivery.length}</strong><small>Delivery asignado</small></div><div class="kanban-kpi"><span>Cerradas hoy</span><strong>${closedToday}</strong><small>${closedTotal} en historial visible</small></div></div><div class="panel"><div class="panel-head"><div><h3>Tablero operativo</h3><p>${orders.length} orden(es) visibles. Cada columna tiene desplazamiento interno; los cambios reales se hacen con los botones de cada módulo.</p></div></div><div class="searchbar"><input id="kanbanSearch" value="${esc(q)}" placeholder="Buscar orden, cliente, producto, teléfono o estado..."></div>${mobileStageTabs}<div class="kanban-board">${colsHtml}</div></div>`;
-  $('#kanbanSearch').oninput=e=>{ const pos=e.target.selectionStart||e.target.value.length; state.kanbanSearch=e.target.value; renderKanban($('#content')); focusAfterRender('kanbanSearch',pos); };
+  $('#kanbanSearch').oninput=e=>{ state.kanbanSearch=e.target.value; scheduleSearchRenderV9456(e,()=>renderKanban($('#content'))); };
   $$('[data-go]').forEach(b=>b.onclick=()=>{state.page=b.dataset.go; render();});
   $$('[data-kanban-mobile-stage]').forEach(b=>b.onclick=()=>{state.kanbanMobileStage=b.dataset.kanbanMobileStage;renderKanban($('#content'));});
   $$('[data-kanban-closed-history]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();openKanbanClosedHistory();});
@@ -3128,10 +3294,10 @@ function renderAuditoria(c){
   $('#auditExceptionTo').onchange=e=>{state.auditExceptionTo=e.target.value;rerender();};
   $('#auditExceptionStatus').onchange=e=>{state.auditExceptionStatus=e.target.value;rerender();};
   $('#auditExceptionSeverity').onchange=e=>{state.auditExceptionSeverity=e.target.value;rerender();};
-  $('#auditExceptionSearch').oninput=e=>{const pos=e.target.selectionStart||e.target.value.length;state.auditExceptionSearch=e.target.value;rerender();focusAfterRender('auditExceptionSearch',pos);};
+  $('#auditExceptionSearch').oninput=e=>{state.auditExceptionSearch=e.target.value;scheduleSearchRenderV9456(e,rerender);};
   $('#exportAuditExceptions').onclick=()=>exportAuditExceptions(exceptionRows);
   $$('[data-audit-review]').forEach(b=>b.onclick=()=>openAuditExceptionReview((state.auditExceptions||[]).find(x=>String(x.id)===String(b.dataset.auditReview))));
-  $('#auditSearch').oninput=e=>{ const pos=e.target.selectionStart||e.target.value.length; state.auditSearch=e.target.value; rerender(); focusAfterRender('auditSearch',pos); };
+  $('#auditSearch').oninput=e=>{ state.auditSearch=e.target.value; scheduleSearchRenderV9456(e,rerender); };
   $('#auditType').onchange=e=>{ state.auditType=e.target.value; rerender(); };
   $('#refreshAudit').onclick=async()=>{ await refreshVisibleModuleV9384(); render(); toast('Auditoría actualizada'); };
   bindDynamic();
@@ -3320,7 +3486,7 @@ function renderConfigUsuarios(c){
   }).join('')||'<tr><td colspan="6"><div class="empty">No hay usuarios con esos filtros.</div></td></tr>'}</tbody></table></div>${roleMapHtml()}`;
   $('#authGuide').onclick=()=>openAuthGuide();
   $('#refreshUsers').onclick=async()=>{ await refreshVisibleModuleV9384(); state.configTab='usuarios'; renderConfig($('#content')); toast('Usuarios y empleados actualizados'); };
-  $('#userSearch').oninput=e=>{const pos=e.target.selectionStart||e.target.value.length;state.userSearch=e.target.value;renderConfigUsuarios(c);focusAfterRender('userSearch',pos);};
+  $('#userSearch').oninput=e=>{state.userSearch=e.target.value;scheduleSearchRenderV9456(e,()=>renderConfigUsuarios(c));};
   $('#userRoleFilter').onchange=e=>{state.userRoleFilter=e.target.value;renderConfigUsuarios(c);};
   $('#userStatusFilter').onchange=e=>{state.userStatusFilter=e.target.value;renderConfigUsuarios(c);};
   $('#userLinkFilter').onchange=e=>{state.userLinkFilter=e.target.value;renderConfigUsuarios(c);};
@@ -3573,7 +3739,7 @@ function weightDiffDialog(check){
   return responsibilityDecisionDialog({title:'Verificar diferencia de peso',message:'El peso real no coincide con el peso calculado.',rows:[['Peso calculado',`${check.calc} lb`],['Peso real',`${check.peso} lb`],['Diferencia',`${check.diff>0?'+':''}${check.diff} lb`],['Tolerancia aviso',`${check.aviso} lb`],['Tolerancia máxima',`${check.max} lb`]]});
 }
 
-function openModal(title, body, opts=''){ state.modal=true; document.body.classList.add('modal-open'); const m=document.createElement('div'); m.className='modal'; m.innerHTML=`<div class="modal-card"><div class="mobile-sheet-handle"></div><div class="modal-head"><div><div class="modal-title">${title}</div>${opts?`<div class="hint">${opts}</div>`:''}</div><button class="close" id="modalClose" aria-label="Cerrar">×</button></div><div class="modal-body">${body}</div></div>`; document.body.appendChild(m); const closeModal=()=>{m.remove();state.modal=false;if(!document.querySelector('.modal'))document.body.classList.remove('modal-open');}; $('#modalClose',m).onclick=closeModal; m.onclick=e=>{if(e.target===m)closeModal();}; setTimeout(()=>{attachGlobalModalDraft(m,title,opts);applyMobileLabels(m);},120); return m; }
+function openModal(title, body, opts=''){ state.modal=true; document.body.classList.add('modal-open'); const m=document.createElement('div'); m.className='modal'; m.innerHTML=`<div class="modal-card"><div class="mobile-sheet-handle"></div><div class="modal-head"><div><div class="modal-title">${title}</div>${opts?`<div class="hint">${opts}</div>`:''}</div><button class="close" id="modalClose" aria-label="Cerrar">×</button></div><div class="modal-body">${body}</div></div>`; document.body.appendChild(m); enhanceSearchFieldsV9456(m); const closeModal=()=>{m.remove();state.modal=false;if(!document.querySelector('.modal'))document.body.classList.remove('modal-open');}; $('#modalClose',m).onclick=closeModal; m.onclick=e=>{if(e.target===m)closeModal();}; setTimeout(()=>{attachGlobalModalDraft(m,title,opts);enhanceSearchFieldsV9456(m);applyMobileLabels(m);},120); return m; }
 
 function orderWhatsAppConfig(){
   return normalizeSystemConfig(state.systemConfig||{}).whatsapp || defaultSystemConfig().whatsapp;
@@ -4230,7 +4396,7 @@ function renderOperPanel(c, title, desc, orders, empty, buttonsFn, searchKey='')
   c.innerHTML=`<div class="panel"><div class="panel-head"><div><h3>${title}</h3><p>${desc}</p></div><span class="badge info">${rows.length} de ${orders.length} orden(es)</span></div>${searchKey?`<div class="searchbar"><input id="${inputId}" value="${esc(q)}" placeholder="Buscar nombre del cliente..."></div>`:''}<div class="list">${rows.map(o=>`<div class="client-card op-card ${orderTypeClass(o)} ${newOrderClass(o,moduleFromSearchKey(searchKey))}" style="grid-template-columns:1fr auto"><div><div class="client-title">${esc(o.codigo||('ORD-'+o.id))} · ${esc(orderClientName(o))}</div><div class="client-sub">Creada: ${shortDate(o.fecha)} · Despacho: ${shortDate(dispatchDateOf(o))} · ${esc(orderClientPhone(o))} · ${esc(orderClientSector(o))}</div><div class="order-status-line">${newOrderBadge(o,moduleFromSearchKey(searchKey))}${orderCustomerBadge(o)}${orderDeliveryModeBadge(o)}${orderTypeBadge(o)}${specialCaseBadge(o)}${orderStatusBadgeHtml(o)}${scheduleBadge(o)}${stageClockBadge(o,moduleFromSearchKey(searchKey))}<span class="badge">${money(o.total_factura||o.total_estimado)}</span>${o.factura_no?`<span class="badge ok">Factura ${esc(o.factura_no)}</span>`:''}${preparedByDisplay(o)?`<span class="badge warn">Prep. ${esc(preparedByDisplay(o))}</span>`:''}${o.delivery_nombre?`<span class="badge ok">${esc(o.delivery_nombre)}</span>`:''}</div><div class="mini-items">${orderItemsText(o,7)}</div></div><div class="card-actions">${buttonsFn(o)}</div></div>`).join('')||`<div class="empty">${empty}</div>`}</div></div>`;
   if(searchKey){
     const inp=$('#'+inputId);
-    if(inp) inp.oninput=e=>{ const pos=e.target.selectionStart||e.target.value.length; state[searchKey]=e.target.value; render(); focusAfterRender(inputId,pos); };
+    if(inp) inp.oninput=e=>{ state[searchKey]=e.target.value; scheduleSearchRenderV9456(e,render); };
   }
   bindDynamic();
 }
@@ -4295,7 +4461,7 @@ function renderCarniceria(c){
     renderCarniceria(c);
   });
   $$('[data-carn-tab]').forEach(b=>b.onclick=()=>{state.carniceriaTab=b.dataset.carnTab; renderCarniceria($('#content'));});
-  const inp=$('#search_carniceriaSearch'); if(inp) inp.oninput=e=>{ const pos=e.target.selectionStart||e.target.value.length; state.carniceriaSearch=e.target.value; renderCarniceria($('#content')); focusAfterRender('search_carniceriaSearch',pos); };
+  const inp=$('#search_carniceriaSearch'); if(inp) inp.oninput=e=>{ state.carniceriaSearch=e.target.value; scheduleSearchRenderV9456(e,()=>renderCarniceria($('#content'))); };
   bindDynamic();
 }
 function preparationPrintAudit(o){
@@ -4365,7 +4531,7 @@ function renderFacturacion(c){
     $('#factHistTo',c).onchange=e=>{state.facturacionHistoryTo=e.target.value;rerender();};
     $('#factHistStatus',c).onchange=e=>{state.facturacionHistoryStatus=e.target.value;rerender();};
     $('#factHistWorker',c).onchange=e=>{state.facturacionHistoryWorker=e.target.value;rerender();};
-    $('#factHistSearch',c).oninput=e=>{const pos=e.target.selectionStart||0;state.facturacionHistorySearch=e.target.value;rerender();focusAfterRender('factHistSearch',pos);};
+    $('#factHistSearch',c).oninput=e=>{state.facturacionHistorySearch=e.target.value;scheduleSearchRenderV9456(e,rerender);};
     $('#factHistClear',c).onclick=()=>{state.facturacionHistoryFrom='';state.facturacionHistoryTo='';state.facturacionHistoryStatus='Todos';state.facturacionHistoryWorker='Todos';state.facturacionHistorySearch='';rerender();};
     bindDynamic();
   }
@@ -4803,7 +4969,7 @@ function renderValidationHistory(c){
   const rows=validationHistoryFilteredRows(); const k=validationHistorySummary(rows); const names=activeDeliveryNames(); const from=state.validationHistoryFrom||today(), to=state.validationHistoryTo||today(); const forceOpen=Boolean(String(state.validationHistorySearch||'').trim());
   const keys=rows.map(l=>lotUiKey('validation',l.codigo_lote,l.id||l.fecha_entrega||l.creado_en));
   c.innerHTML=`<div class="panel validation-history-panel"><div class="panel-head"><div><h3>Historial de entregas a delivery</h3><p>Consulta, reimprime, corrige la composición, asignaciones y documenta lo entregado por Validación.</p></div><span class="badge info">V9.4.5.3</span></div><div class="validation-history-toolbar"><div class="field"><label>Desde</label><input type="date" id="validationHistFrom" value="${esc(from)}"></div><div class="field"><label>Hasta</label><input type="date" id="validationHistTo" value="${esc(to)}"></div><div class="field"><label>Responsable</label><select id="validationHistDelivery"><option value="">Todos</option>${names.map(n=>`<option ${state.validationHistoryDelivery===n?'selected':''}>${esc(n)}</option>`).join('')}</select></div><div class="field"><label>Buscar</label><input id="validationHistSearch" value="${esc(state.validationHistorySearch||'')}" placeholder="Lote, orden, factura o cliente..."></div><div class="batch-actions"><button class="btn gray" data-validation-preset="hoy">Hoy</button><button class="btn gray" data-validation-preset="ayer">Ayer</button><button class="btn gray" data-validation-preset="semana">Esta semana</button><button class="btn dark" id="printValidationDaily">Imprimir reporte</button></div></div><div class="validation-history-kpis"><div class="card kpi"><div class="label">Lotes</div><div class="value">${k.lotes}</div></div><div class="card kpi"><div class="label">Órdenes</div><div class="value">${k.ordenes}</div></div><div class="card kpi"><div class="label">Facturado</div><div class="value">${money(k.total)}</div></div><div class="card kpi"><div class="label">Peso entregado</div><div class="value">${Number(k.entregado.toFixed(2))} lb</div></div><div class="card kpi"><div class="label">Sin liquidar</div><div class="value">${k.pendientes}</div></div></div><div class="${state.v936SchemaOk?'lock-alert ok':'lock-alert warn'}"><b>Correcciones seguras:</b> ${state.v936SchemaOk?'auditoría V9.3.6 disponible para lotes abiertos.':'ejecuta el SQL 28 para habilitar Corregir asignación y Revertir lote.'}</div><div class="history-list-actions"><button class="btn small gray" data-validation-expand-all>Expandir todos</button><button class="btn small gray" data-validation-collapse-all>Ocultar todos</button></div><div class="liq-batch-list">${rows.map((l,i)=>validationHistoryCard(l,i,forceOpen)).join('')||'<div class="empty">No hay entregas registradas para ese rango.</div>'}</div></div>`;
-  $('#validationHistFrom').onchange=e=>{state.validationHistoryFrom=e.target.value||today();renderValidacion($('#content'));}; $('#validationHistTo').onchange=e=>{state.validationHistoryTo=e.target.value||today();renderValidacion($('#content'));}; $('#validationHistDelivery').onchange=e=>{state.validationHistoryDelivery=e.target.value;renderValidacion($('#content'));}; $('#validationHistSearch').oninput=e=>{state.validationHistorySearch=e.target.value;renderValidacion($('#content'));focusAfterRender('validationHistSearch',e.target.selectionStart||e.target.value.length);};
+  $('#validationHistFrom').onchange=e=>{state.validationHistoryFrom=e.target.value||today();renderValidacion($('#content'));}; $('#validationHistTo').onchange=e=>{state.validationHistoryTo=e.target.value||today();renderValidacion($('#content'));}; $('#validationHistDelivery').onchange=e=>{state.validationHistoryDelivery=e.target.value;renderValidacion($('#content'));}; $('#validationHistSearch').oninput=e=>{state.validationHistorySearch=e.target.value;scheduleSearchRenderV9456(e,()=>renderValidacion($('#content')));};
   $$('[data-validation-preset]',c).forEach(b=>b.onclick=()=>{ const d=new Date(); if(b.dataset.validationPreset==='ayer') d.setDate(d.getDate()-1); if(b.dataset.validationPreset==='semana'){ const day=(d.getDay()+6)%7; d.setDate(d.getDate()-day); state.validationHistoryFrom=localIsoDate(d); state.validationHistoryTo=today(); } else { const v=localIsoDate(d); state.validationHistoryFrom=v;state.validationHistoryTo=v; } renderValidacion($('#content')); });
   $('#printValidationDaily').onclick=()=>printValidationDailyReport(rows,from,to,state.validationHistoryDelivery||'');
   $$('[data-validation-lot-toggle]',c).forEach(b=>b.onclick=()=>{const key=b.dataset.validationLotToggle;setHistoryOpen('validationLots',key,!historyIsOpen('validationLots',key));renderValidationHistory(c);});
@@ -4827,7 +4993,7 @@ function renderPickupValidation(c){
   const delivered=pickupDeliveredOrders().filter(o=>!q||matchOrder(o,q)).slice(0,40);
   const total=pending.reduce((s,o)=>s+orderAmount(o),0);
   c.innerHTML=`<div class="panel pickup-panel"><div class="panel-head"><div><h3>Retiros en negocio</h3><p>Órdenes facturadas que el cliente recoge directamente. No se envían a Delivery ni pasan a Liquidación.</p></div><span class="badge pickup-badge">${pending.length} pendiente(s)</span></div><div class="grid4 compact-kpis"><div class="card kpi"><div class="label">Pendientes</div><div class="value">${pending.length}</div></div><div class="card kpi"><div class="label">Monto</div><div class="value">${money(total)}</div></div><div class="card kpi"><div class="label">Entregadas hoy</div><div class="value">${delivered.filter(o=>dateOnly(o.entregado_mostrador_en)===today()).length}</div></div><div class="card kpi"><div class="label">Ventas internas</div><div class="value">${pending.filter(isInternalSale).length}</div></div></div><div class="pickup-alert"><b>${esc(pickupNoticeText())}</b><span>Confirma quién retiró y quién entregó antes de cerrar la orden.</span></div><div class="searchbar"><input id="pickupSearch" value="${esc(q)}" placeholder="Buscar cliente, orden o factura..."></div><div class="section-title">Pendientes de retiro</div><div class="list">${pending.map(o=>`<div class="client-card op-card store-pickup-order" style="grid-template-columns:1fr auto"><div><div class="client-title">${esc(o.codigo||'')} · ${esc(orderClientName(o))}</div><div class="client-sub">Factura ${esc(o.factura_no||'—')} · ${money(orderAmount(o))} · ${esc(orderClientPhone(o)||'Sin teléfono')}</div><div class="order-status-line">${orderCustomerBadge(o)}${orderDeliveryModeBadge(o)}${orderStatusBadgeHtml(o)}${stageClockBadge(o,'validacion')}</div><div class="mini-items">${orderItemsText(o,7)}</div></div><div class="card-actions"><button class="btn small pickup-confirm-btn" data-confirm-pickup="${o.id}">Confirmar retiro</button><button class="btn small gray" data-print-order="${o.id}">Imprimir orden</button><button class="btn small gray" data-oper-order="${o.id}">Ver</button></div></div>`).join('')||'<div class="empty">No hay retiros pendientes.</div>'}</div><div class="section-title">Retiros entregados recientemente</div><div class="list compact-list">${delivered.map(o=>`<div class="client-card op-card done store-pickup-order" style="grid-template-columns:1fr auto"><div><div class="client-title">${esc(o.codigo||'')} · ${esc(orderClientName(o))}</div><div class="client-sub">Retirado por: ${esc(o.retirado_por||'—')} · Entregado por: ${esc(o.entregado_mostrador_por||'—')} · ${o.entregado_mostrador_en?businessDateTime(o.entregado_mostrador_en):'—'}</div><div class="badges">${orderCustomerBadge(o)}${orderDeliveryModeBadge(o)}<span class="badge ok">Entregada en negocio</span></div></div><div class="card-actions"><button class="btn small gray" data-oper-order="${o.id}">Ver</button></div></div>`).join('')||'<div class="empty">Todavía no hay retiros cerrados.</div>'}</div></div>`;
-  $('#pickupSearch',c).oninput=e=>{const pos=e.target.selectionStart||e.target.value.length;state.pickupSearch=e.target.value;renderPickupValidation(c);focusAfterRender('pickupSearch',pos);};
+  $('#pickupSearch',c).oninput=e=>{state.pickupSearch=e.target.value;scheduleSearchRenderV9456(e,()=>renderPickupValidation(c));};
   $$('[data-confirm-pickup]',c).forEach(b=>b.onclick=()=>openPickupConfirmModal(state.ordenes.find(o=>String(o.id)===String(b.dataset.confirmPickup))));
   bindDynamic();
 }
@@ -4896,7 +5062,7 @@ function bindValidationBatch(container,orders){
   if(delivery) delivery.onchange=()=>{ if(manual) manual.style.display=delivery.value==='__manual__'?'block':'none'; state.deliveryFiltro=getBatchDelivery(container)||state.deliveryFiltro; saveBatchDeliveryDraft(container); };
   if(manual) manual.oninput=()=>{ state.deliveryFiltro=getBatchDelivery(container)||state.deliveryFiltro; saveBatchDeliveryDraft(container); };
   if(operationalDate) operationalDate.onchange=()=>{ const check=validateOperationalDate(operationalDate.value); if(!check.ok){ alert(check.message); operationalDate.value=today(); } saveBatchDeliveryDraft(container); updateBatchSummary(container,orders); };
-  $('#validacionSearch',container).oninput=e=>{ const pos=e.target.selectionStart||e.target.value.length; state.validacionSearch=e.target.value; renderValidacion($('#content')); focusAfterRender('validacionSearch',pos); };
+  $('#validacionSearch',container).oninput=e=>{ state.validacionSearch=e.target.value; scheduleSearchRenderV9456(e,()=>renderValidacion($('#content'))); };
   $$('[data-batch-check]',container).forEach(ch=>{
     ch.onchange=()=>{
       const row=ch.closest('[data-batch-row]'), inp=$('[data-batch-weight]',row), amountInp=$('[data-batch-amount]',row);
@@ -5130,7 +5296,7 @@ function renderDelivery(c){
   const metrics=deliveryReadOnlyMetrics(groups,base);
   c.innerHTML=`<div class="panel"><div class="panel-head"><div><h3>Delivery consultivo · viajes asignados</h3><p>Consulta clientes, teléfonos, sectores, productos y montos. Los resultados y el dinero se registran únicamente en Liquidación / CXC.</p></div>${canSelect?`<select id="deliveryFiltro" style="max-width:280px"><option value="">Selecciona responsable</option>${names.map(n=>`<option ${n===filter?'selected':''}>${esc(n)}</option>`).join('')}</select>`:`<div class="badge info">${esc(filter||'Tu usuario')}</div>`}</div>${historyAllowed?`<div class="tabs delivery-tabs-v934"><button class="tab active" data-delivery-tab="activos">Viajes asignados</button><button class="tab" data-delivery-tab="historial">Historial</button></div>`:''}<div class="lock-alert ok"><b>Solo consulta:</b> el delivery no tiene que marcar ruta, cobros, créditos ni resultados desde el celular.</div><div class="grid4 compact-kpis"><div class="card kpi"><div class="label">Viajes abiertos</div><div class="value">${metrics.openTrips}</div></div><div class="card kpi"><div class="label">Clientes asignados</div><div class="value">${metrics.clients}</div></div><div class="card kpi"><div class="label">Total facturas</div><div class="value">${money(metrics.total)}</div></div><div class="card kpi"><div class="label">Viaje más antiguo</div><div class="value">${metrics.oldestMinutes?metrics.oldestMinutes+' min':'—'}</div></div></div><div class="searchbar"><input id="deliverySearch" value="${esc(q)}" placeholder="Buscar nombre del cliente..."></div><div class="history-list-actions"><button class="btn small gray" data-delivery-expand-all>Expandir todos</button><button class="btn small gray" data-delivery-collapse-all>Ocultar todos</button></div><div class="liq-batch-list operational-lot-list">${groups.map((g,i)=>deliveryActiveGroupCard(g,i,forceOpen)).join('')||'<div class="empty">No hay viajes abiertos asignados a este delivery con esa búsqueda.</div>'}</div></div>`;
   const sel=$('#deliveryFiltro',c); if(sel) sel.onchange=e=>{state.deliveryFiltro=e.target.value; renderDelivery($('#content'));};
-  const search=$('#deliverySearch',c); if(search) search.oninput=e=>{ const pos=e.target.selectionStart||e.target.value.length; state.deliverySearch=e.target.value; renderDelivery($('#content')); focusAfterRender('deliverySearch',pos); };
+  const search=$('#deliverySearch',c); if(search) search.oninput=e=>{ state.deliverySearch=e.target.value; scheduleSearchRenderV9456(e,()=>renderDelivery($('#content'))); };
   $$('[data-delivery-tab]',c).forEach(b=>b.onclick=()=>{state.deliveryTab=b.dataset.deliveryTab;renderDelivery($('#content'));});
   $$('[data-delivery-active-toggle]',c).forEach(b=>b.onclick=()=>{const key=b.dataset.deliveryActiveToggle;setHistoryOpen('deliveryActive',key,!historyIsOpen('deliveryActive',key));renderDelivery(c);});
   $('[data-delivery-expand-all]',c)?.addEventListener('click',()=>{setOperationalKeysOpen('deliveryActive',keys,true);renderDelivery(c);});
@@ -5336,7 +5502,7 @@ function bindHistorySection(c,scope,filter,rows,rerender){
   const from=$(`#${prefix}HistFrom`,c), to=$(`#${prefix}HistTo`,c), search=$(`#${prefix}HistorySearch`,c);
   if(from) from.onchange=e=>{state[keys.from]=e.target.value||today();state[keys.limit]=10;rerender();};
   if(to) to.onchange=e=>{state[keys.to]=e.target.value||today();state[keys.limit]=10;rerender();};
-  if(search) search.oninput=e=>{const pos=e.target.selectionStart||e.target.value.length;state[keys.search]=e.target.value;state[keys.limit]=10;rerender();focusAfterRender(`${prefix}HistorySearch`,pos);};
+  if(search) search.oninput=e=>{state[keys.search]=e.target.value;state[keys.limit]=10;scheduleSearchRenderV9456(e,rerender);};
   $$('[data-history-preset]',c).forEach(b=>b.onclick=()=>{applyHistoryPreset(scope,b.dataset.historyPreset);rerender();});
   $$('[data-history-toggle]',c).forEach(b=>b.onclick=()=>{const key=b.dataset.historyToggle;setHistoryOpen(scope,key,!historyIsOpen(scope,key));rerender();});
   const expand=$('[data-history-expand-all]',c); if(expand) expand.onclick=()=>{setHistoryRowsOpen(scope,rows,true);rerender();};
@@ -5415,7 +5581,7 @@ function renderCxcAccounts(c){
   <div class="cxc-account-list-v940">${groups.map(cxcAccountCard).join('')||'<div class="empty">No hay cuentas que coincidan con los filtros.</div>'}</div></div>`;
   bindCxcNavigation(c);
   $('#refreshCxcV940',c).onclick=async()=>{await ensureCxcDataV940(true);renderLiquidacion(c);toast('Cartera actualizada');};
-  const search=$('#cxcSearch',c); search.oninput=e=>{const pos=e.target.selectionStart||e.target.value.length;state.cxcSearch=e.target.value;renderLiquidacion(c);focusAfterRender('cxcSearch',pos);};
+  const search=$('#cxcSearch',c); search.oninput=e=>{state.cxcSearch=e.target.value;scheduleSearchRenderV9456(e,()=>renderLiquidacion(c));};
   $('#cxcStatus',c).onchange=e=>{state.cxcStatusFilter=e.target.value;renderLiquidacion(c);};
   $('#cxcAging',c).onchange=e=>{state.cxcAgingFilter=e.target.value;renderLiquidacion(c);};
   $$('[data-cxc-pay]',c).forEach(b=>b.onclick=()=>{
@@ -5460,7 +5626,7 @@ function renderCxcHistory(c){
     return `<article class="cxc-receipt-card-v940 ${r.estado==='Reversado'?'reversed':''}"><div><b>${esc(r.numero_recibo)}</b><small>${businessDateTime(r.fecha_cobro)} · ${esc(r.cliente_nombre)} · ${esc(r.metodo)}${r.referencia?' · Ref. '+esc(r.referencia):''}</small><div class="badges"><span class="badge ${r.estado==='Activo'?'ok':'bad'}">${esc(r.estado)}</span><span class="badge info">${apps.length} factura(s)</span>${r.motivo_reversion?`<span class="badge bad">${esc(r.motivo_reversion)}</span>`:''}</div></div><strong>${money(r.monto_total)}</strong><div class="card-actions"><button class="btn small gray" data-cxc-print="${r.id}">Reimprimir</button>${r.estado==='Activo'&&isAuditAdministrator(state.profile?.rol)?`<button class="btn small danger" data-cxc-reverse="${r.id}">Reversar</button>`:''}</div></article>`;
   }).join('')||'<div class="empty">No hay recibos que coincidan con la búsqueda.</div>'}</div>${rows.length>visible.length?`<div class="history-more-wrap"><button class="btn gray" id="moreCxcHistory">Mostrar 20 más</button></div>`:''}</div>`;
   bindCxcNavigation(c);
-  const search=$('#cxcHistorySearch',c);search.oninput=e=>{const pos=e.target.selectionStart||e.target.value.length;state.cxcHistorySearch=e.target.value;state.cxcHistoryLimit=20;renderLiquidacion(c);focusAfterRender('cxcHistorySearch',pos);};
+  const search=$('#cxcHistorySearch',c);search.oninput=e=>{state.cxcHistorySearch=e.target.value;state.cxcHistoryLimit=20;scheduleSearchRenderV9456(e,()=>renderLiquidacion(c));};
   $('#moreCxcHistory',c)?.addEventListener('click',()=>{state.cxcHistoryLimit=Number(state.cxcHistoryLimit||20)+20;renderLiquidacion(c);});
   $$('[data-cxc-print]',c).forEach(b=>b.onclick=()=>{
     const receipt=(state.cxcCobros||[]).find(r=>String(r.id)===String(b.dataset.cxcPrint));
@@ -5556,7 +5722,7 @@ function renderLiquidacionHistorial(c, filter){
 }
 function wireLiquidacionCommon(c, rows){
   const sel=$('#liquidDelivery',c); if(sel) sel.onchange=e=>{state.liquidacionDeliveryFilter=e.target.value; renderLiquidacion($('#content'));};
-  const search=$('#liquidacionSearch',c); if(search) search.oninput=e=>{ const pos=e.target.selectionStart||e.target.value.length; state.liquidacionSearch=e.target.value; renderLiquidacion($('#content')); focusAfterRender('liquidacionSearch',pos); };
+  const search=$('#liquidacionSearch',c); if(search) search.oninput=e=>{ state.liquidacionSearch=e.target.value; scheduleSearchRenderV9456(e,()=>renderLiquidacion($('#content'))); };
   $$('[data-liqtab]',c).forEach(b=>b.onclick=async()=>{state.liquidacionTab=b.dataset.liqtab;if(['cxc','cxc_historial'].includes(state.liquidacionTab)) await ensureCxcDataV940();setupLiveUpdates();renderLiquidacion($('#content'));});
   $$('[data-liq-delivery-panel]',c).forEach(b=>b.onclick=()=>{state.liquidacionDeliveryFilter=b.dataset.liqDeliveryPanel||'';renderLiquidacion($('#content'));});
   try{ bindDynamic(); }catch(err){ console.error('bindDynamic/liquidacion',err); }

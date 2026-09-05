@@ -1,5 +1,13 @@
 # Productos César CRM V9.4.5 PWA
 
+## V9.4.5.6 — Búsquedas estables en PC y tablet
+
+- Conserva el mismo campo y el teclado virtual mientras se actualizan los resultados.
+- Aplica una espera breve para evitar reconstrucciones innecesarias al escribir rápidamente.
+- Protege búsquedas con acentos, teclado predictivo, cursor y botón nativo para limpiar.
+- Difiere las actualizaciones en vivo mientras el usuario está escribiendo y las aplica al salir del buscador.
+- Unifica el comportamiento en Órdenes, Productos y los demás módulos e historiales del CRM.
+
 ## V9.4.5.5 — Estado unificado de impresión
 
 - Carnicería muestra un solo indicador de impresión, sin duplicar mensajes por módulo.

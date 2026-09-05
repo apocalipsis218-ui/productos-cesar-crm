@@ -53,7 +53,7 @@ const checks=[
   ['migración aditiva sin borrar datos operativos',
     !/\b(?:delete from|truncate table|drop table)\s+public\./i.test(sql)],
   ['revisión visual vigente e integrada en npm test',
-    main.includes('V9.4.5.5 PWA') && html.includes('revisión funcional V9.4.5.5') &&
+    /V9\.4\.5\.(?:[5-9]|\d{2,}) PWA/.test(main) && /revisión funcional V9\.4\.5\.(?:[5-9]|\d{2,})/.test(html) &&
     pkg.scripts.pretest.includes('auditoria_impresion_preparacion_v9454.mjs')]
 ];
 
