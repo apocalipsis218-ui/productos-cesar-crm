@@ -1,10 +1,17 @@
 # Productos César CRM V9.4.5 PWA
 
+## V9.4.5.5 — Estado unificado de impresión
+
+- Carnicería muestra un solo indicador de impresión, sin duplicar mensajes por módulo.
+- Una impresión realizada desde Órdenes o Carnicería cambia el estado visible a `Impresa`.
+- La etiqueta conserva en su detalle el usuario, la fecha y la cantidad total de impresiones.
+- Supabase continúa registrando internamente el origen para fines de auditoría, sin requerir otra migración.
+
 ## V9.4.5.4 — Impresión y trazabilidad de preparación
 
 - La confirmación posterior al guardado permite imprimir inmediatamente la orden de preparación.
-- Carnicería muestra si la impresión fue registrada, quién la solicitó, cuándo y cuántas veces.
-- Las impresiones desde la confirmación de la orden no se confunden con las realizadas en Carnicería.
+- La base conserva quién solicitó cada impresión, cuándo ocurrió y cuántas veces se imprimió.
+- El origen de la impresión permanece disponible en la auditoría interna.
 - El volante de preparación omite la palabra `Pendiente` por artículo para aprovechar mejor el papel de 80 mm.
 - La base de datos valida el origen, la identidad y el permiso antes de guardar la trazabilidad.
 

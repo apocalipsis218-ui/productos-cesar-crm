@@ -39,7 +39,7 @@ import {
 // V9.4.5.1 PWA · el desglose por lote exige cotejar y validar todos los clientes primero.
 // V9.4.5.2 PWA · sobrantes visibles, autorización restringida y diferencia individual consolidada.
 // V9.4.5.3 PWA · fecha operativa editable del lote con auditoría de registro real.
-// V9.4.5.4 PWA · impresión inmediata y trazabilidad específica de Carnicería.
+// V9.4.5.5 PWA · impresión inmediata y estado unificado de impresión.
 // Conserva factura, pesaje e historial del intento fallido.
 // Control conservado: Pulsa “Detallar artículos” para registrar producto, cantidad y peso.
 // V9.3.9.1 · Faltantes con seguimiento y liquidación segura de clientes ocasionales.
@@ -173,7 +173,7 @@ function printFooterHtml(){ const rec=normalizeSystemConfig(state.systemConfig||
 function signatureHtml(label){ return `<div class="sign">${esc(label||'Firma')}</div>`; }
 function exportBackup(){
   const cfg=normalizeSystemConfig(state.systemConfig||{});
-  const payload={fecha:new Date().toISOString(),version:'V9.4.5 PWA',revision_visual:'V9.4.5.4',empresa:cfg.empresa,configuracion:cfg,clientes:state.clientes||[],ordenes:(state.ordenes||[]).map(o=>({codigo:o.codigo,fecha:o.fecha,estado:o.estado,cliente:orderClientName(o),total:o.total_factura||o.total_estimado,delivery:o.delivery_nombre,lote:o.lote_codigo})),productos:state.productos||[],empleados:state.empleadosOperativos||[],usuarios:state.usuarios||[],liquidaciones:state.liquidacionesLotes||[],cxc:state.cxcSaldos||[],cobrosCxc:state.cxcCobros||[]};
+  const payload={fecha:new Date().toISOString(),version:'V9.4.5 PWA',revision_visual:'V9.4.5.5',empresa:cfg.empresa,configuracion:cfg,clientes:state.clientes||[],ordenes:(state.ordenes||[]).map(o=>({codigo:o.codigo,fecha:o.fecha,estado:o.estado,cliente:orderClientName(o),total:o.total_factura||o.total_estimado,delivery:o.delivery_nombre,lote:o.lote_codigo})),productos:state.productos||[],empleados:state.empleadosOperativos||[],usuarios:state.usuarios||[],liquidaciones:state.liquidacionesLotes||[],cxc:state.cxcSaldos||[],cobrosCxc:state.cxcCobros||[]};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`backup-productos-cesar-${today()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); toast('Copia de seguridad descargada');
 }
@@ -1041,7 +1041,7 @@ function render(){
   }
   if(!puede(state.page)) state.page = visibleNav[0][0];
   const sidebarCollapsed=loadSidebarCollapsed();
-  root.innerHTML = `<div class="shell${sidebarCollapsed?' sidebar-collapsed':''}"><aside id="appSidebar" class="sidebar" aria-hidden="${sidebarCollapsed?'true':'false'}"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.4.5.4 PWA · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.4.5.4 PWA</b><br>Impresión inmediata y trazabilidad específica de Carnicería.</div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" data-collapsed="${sidebarCollapsed?'1':'0'}" aria-controls="appSidebar" aria-expanded="${sidebarCollapsed?'false':'true'}" aria-label="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}" title="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}"><span aria-hidden="true">${sidebarCollapsed?'›':'‹'}</span></button><main class="main"><div class="top"><div class="mobile-brand-mini"><span>${esc(appCfg('empresa.logoTexto','PC'))}</span></div><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray" aria-label="Mi acceso">Mi acceso</button><button id="refreshBtn" aria-label="Actualizar">Actualizar</button><button id="logoutBtn" class="dark" aria-label="Salir">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
+  root.innerHTML = `<div class="shell${sidebarCollapsed?' sidebar-collapsed':''}"><aside id="appSidebar" class="sidebar" aria-hidden="${sidebarCollapsed?'true':'false'}"><div class="brand"><div class="logo">${esc(appCfg('empresa.logoTexto','PC'))}</div><div><h1>${esc(appCfg('empresa.nombre','Sistema Productos César'))}</h1><p>V9.4.5.5 PWA · ${esc(appCfg('empresa.subtitulo','CRM · Despacho · CXC'))}</p></div></div><nav class="nav">${renderSideNav(visibleNav)}</nav><div class="side-card"><b>V9.4.5.5 PWA</b><br>Impresión inmediata y estado unificado.</div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" data-collapsed="${sidebarCollapsed?'1':'0'}" aria-controls="appSidebar" aria-expanded="${sidebarCollapsed?'false':'true'}" aria-label="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}" title="${sidebarCollapsed?'Mostrar menú lateral':'Ocultar menú lateral'}"><span aria-hidden="true">${sidebarCollapsed?'›':'‹'}</span></button><main class="main"><div class="top"><div class="mobile-brand-mini"><span>${esc(appCfg('empresa.logoTexto','PC'))}</span></div><div class="title"><h2>${titleOf(state.page)}</h2><p>${subtitleOf(state.page)}</p></div><div class="user-pill"><span title="${esc(currentUserEmail())}">${esc(currentWorkerName())} · ${esc(state.profile?.rol||'')}</span><button id="myAccessBtn" class="gray" aria-label="Mi acceso">Mi acceso</button><button id="refreshBtn" aria-label="Actualizar">Actualizar</button><button id="logoutBtn" class="dark" aria-label="Salir">Salir</button></div></div>${state.errors.length?`<div class="error"><b>Avisos:</b><br>${state.errors.map(esc).join('<br>')}<br><small>Si falta una tabla o no ves clientes, ejecuta el SQL V5.5.1 de mapeo de roles.</small></div>`:''}${liveStatusHtml()}<div id="content"></div></main><nav class="bottom-nav">${renderBottomNav(visibleNav)}</nav></div>`;
   setupKeyboardShortcuts();
   bindSidebarToggle();
   $$('[data-page]').forEach(b=>b.onclick=()=>navigateToPageV942(b.dataset.page));
@@ -4298,28 +4298,28 @@ function renderCarniceria(c){
   const inp=$('#search_carniceriaSearch'); if(inp) inp.oninput=e=>{ const pos=e.target.selectionStart||e.target.value.length; state.carniceriaSearch=e.target.value; renderCarniceria($('#content')); focusAfterRender('search_carniceriaSearch',pos); };
   bindDynamic();
 }
-function carniceriaPrintAudit(o){
-  const count=Math.max(0,Number(o?.impresiones_preparacion_carniceria||0));
-  const at=o?.ultima_impresion_preparacion_carniceria||null;
-  const by=o?.impreso_preparacion_carniceria_por_nombre||(o?.impreso_preparacion_carniceria_por?usuarioNameFromId(o.impreso_preparacion_carniceria_por):'');
+function preparationPrintAudit(o){
+  const count=Math.max(0,Number(o?.impresiones_preparacion||0));
+  const at=o?.ultima_impresion_preparacion||null;
+  const by=o?.impreso_preparacion_por?usuarioNameFromId(o.impreso_preparacion_por):'';
   return {count,at,by};
 }
-function carniceriaPrintBadge(o){
-  const p=carniceriaPrintAudit(o);
-  if(!p.count) return '<span class="badge warn" title="Todavía no existe una impresión registrada desde el módulo Carnicería.">🖨 Sin imprimir en Carnicería</span>';
-  const detail=`Registro creado al abrir el diálogo de impresión · ${carniceriaPrintDetail(o)}`;
-  return `<span class="badge ok" title="${esc(detail)}">🖨 Impresión registrada · ${p.at?businessDateTime(p.at):'Carnicería'}${p.by?' · '+esc(p.by):''} · ${p.count}x</span>`;
+function preparationPrintBadge(o){
+  const p=preparationPrintAudit(o);
+  if(!p.count) return '<span class="badge warn" title="Todavía no existe una impresión registrada para esta orden.">🖨 Sin imprimir</span>';
+  const detail=`Registro creado al abrir el diálogo de impresión · ${preparationPrintDetail(o)}`;
+  return `<span class="badge ok" title="${esc(detail)}">🖨 Impresa${p.count>1?' · '+p.count+'x':''}</span>`;
 }
-function carniceriaPrintDetail(o){
-  const p=carniceriaPrintAudit(o);
-  if(!p.count) return 'Sin impresión registrada desde Carnicería';
+function preparationPrintDetail(o){
+  const p=preparationPrintAudit(o);
+  if(!p.count) return 'Sin impresión registrada';
   return `${p.at?businessDateTime(p.at):'Fecha no disponible'} · ${p.by||'Usuario no disponible'} · ${p.count} ${p.count===1?'impresión':'impresiones'}`;
 }
 function carniceriaCard(o){
   const taken=!!o.tomado_por, editable=canEditCarniceriaOrder(o), releasable=canReleaseCarnOrder(o), done=['Lista para facturar','Impresa para facturar'].includes(o.estado);
   const cls=done?'done':taken?'locked':'free';
   const lock=taken?`<span class="badge warn">${esc(lockText(o))}</span>`:'<span class="badge ok">Libre</span>';
-  const printLabel=Number(o.impresiones_preparacion_carniceria||0)>0?'Reimprimir prep.':'Imprimir prep.';
+  const printLabel=Number(o.impresiones_preparacion||0)>0?'Reimprimir prep.':'Imprimir prep.';
   let buttons='';
   if(done){
     buttons=`<button class="btn small dark" data-print-prep="${o.id}" data-print-origin="carniceria">${printLabel}</button><button class="btn small gray" data-oper-order="${o.id}">Ver</button>`;
@@ -4330,7 +4330,7 @@ function carniceriaCard(o){
   }
   const age=o.tomado_en ? Math.max(0,Math.round((Date.now()-new Date(o.tomado_en).getTime())/60000)) : null;
   const ageBadge=age!==null?`<span class="badge ${age>45?'bad':'info'}">⏱ ${age} min en cola</span>`:'';
-  return `<div class="client-card op-card ${cls} ${newOrderClass(o,'carniceria')}" style="grid-template-columns:1fr auto"><div><div class="client-title">${esc(o.codigo||('ORD-'+o.id))} · ${esc(orderClientName(o))}</div><div class="client-sub">Creada: ${shortDate(o.fecha)} · Despacho: ${shortDate(dispatchDateOf(o))} · ${esc(orderClientPhone(o))} · ${esc(orderClientSector(o))}</div><div class="order-status-line">${newOrderBadge(o,'carniceria')}${orderCustomerBadge(o)}${orderDeliveryModeBadge(o)}${orderTypeBadge(o)}<span class="badge info">${esc(o.estado||'')}</span>${scheduleBadge(o)}${createdClockBadge(o)}${stageClockBadge(o,'carniceria')}${lock}${ageBadge}${carniceriaPrintBadge(o)}<span class="badge">${money(o.total_factura||o.total_estimado)}</span>${preparedByDisplay(o)?`<span class="badge warn">Prep. ${esc(preparedByDisplay(o))}</span>`:''}</div><div class="mini-items">${orderItemsText(o,7)}</div></div><div class="card-actions">${buttons}</div></div>`;
+  return `<div class="client-card op-card ${cls} ${newOrderClass(o,'carniceria')}" style="grid-template-columns:1fr auto"><div><div class="client-title">${esc(o.codigo||('ORD-'+o.id))} · ${esc(orderClientName(o))}</div><div class="client-sub">Creada: ${shortDate(o.fecha)} · Despacho: ${shortDate(dispatchDateOf(o))} · ${esc(orderClientPhone(o))} · ${esc(orderClientSector(o))}</div><div class="order-status-line">${newOrderBadge(o,'carniceria')}${orderCustomerBadge(o)}${orderDeliveryModeBadge(o)}${orderTypeBadge(o)}<span class="badge info">${esc(o.estado||'')}</span>${scheduleBadge(o)}${createdClockBadge(o)}${stageClockBadge(o,'carniceria')}${lock}${ageBadge}${preparationPrintBadge(o)}<span class="badge">${money(o.total_factura||o.total_estimado)}</span>${preparedByDisplay(o)?`<span class="badge warn">Prep. ${esc(preparedByDisplay(o))}</span>`:''}</div><div class="mini-items">${orderItemsText(o,7)}</div></div><div class="card-actions">${buttons}</div></div>`;
 }
 function invoiceHistoryDate(o){ return dateOnly(o?.facturado_en||o?.actualizado_en||o?.fecha||''); }
 function invoiceHistoryOrders(){

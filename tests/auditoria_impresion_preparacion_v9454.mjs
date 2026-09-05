@@ -25,10 +25,9 @@ const checks=[
     promptBody.includes('printSavedOrderPrep') &&
     promptBody.includes('Imprimir preparación') &&
     promptBody.includes("printPreparationTicket(o,'orden_creada')")],
-  ['Carnicería identifica explícitamente el origen de la impresión',
+  ['Carnicería continúa enviando su origen específico a la auditoría',
     carnBody.includes('data-print-origin="carniceria"') &&
-    main.includes('Sin imprimir en Carnicería') &&
-    main.includes('🖨 Impresión registrada')],
+    main.includes("printPreparationTicket(o,'carniceria')")],
   ['impresión usa la nueva RPC con origen',
     printBody.includes("sb.rpc('registrar_impresion_preparacion_v9454'") &&
     printBody.includes('p_origen:origin')],
@@ -53,8 +52,8 @@ const checks=[
     sql.includes('Impresión de preparación 80 mm · Confirmación de orden')],
   ['migración aditiva sin borrar datos operativos',
     !/\b(?:delete from|truncate table|drop table)\s+public\./i.test(sql)],
-  ['revisión visual sincronizada e integrada en npm test',
-    main.includes('V9.4.5.4 PWA') && html.includes('revisión funcional V9.4.5.4') &&
+  ['revisión visual vigente e integrada en npm test',
+    main.includes('V9.4.5.5 PWA') && html.includes('revisión funcional V9.4.5.5') &&
     pkg.scripts.pretest.includes('auditoria_impresion_preparacion_v9454.mjs')]
 ];
 
